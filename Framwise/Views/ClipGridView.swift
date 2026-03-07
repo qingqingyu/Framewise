@@ -73,13 +73,14 @@ struct ClipGridView: View {
                 Spacer()
 
                 // Grid size picker
-                Picker("Grid Size", selection: $gridSize) {
+                Picker("", selection: $gridSize) {
                     ForEach(GridSize.allCases, id: \.self) { size in
                         Image(systemName: size.systemImage).tag(size)
                     }
                 }
                 .pickerStyle(.segmented)
-                .frame(width: 120)
+                .frame(width: 100)
+                .help("Grid Size: Small / Medium / Large")
 
                 // Selection actions
                 Menu {
