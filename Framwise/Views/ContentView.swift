@@ -16,11 +16,13 @@ struct ContentView: View {
 
     @State private var showExportSheet = false
     @State private var showImportProgress = false
+    @State private var showFileImporter = false
 
     var body: some View {
         NavigationView {
-            // Sidebar
+            // Sidebar with drop zone
             SidebarView()
+                .environmentObject(importViewModel)
                 .frame(minWidth: 200)
 
             // Main content
@@ -39,6 +41,11 @@ struct ContentView: View {
         .navigationTitle("Framwise")
         .toolbar {
             ToolbarItemGroup {
+                // Import button (always visible)
+                Button(action: { showFileImporter = true }) {
+                    Label("Import", systemImage: "plus.circle")
+                }
+
                 if appState.importSession != nil {
                     // Selection info
                     Text("\(appState.selectedClipIDs.count) selected")
@@ -59,13 +66,45 @@ struct ContentView: View {
             ExportSheetView()
                 .environmentObject(exportViewModel)
         }
+        .fileImporter(
+            isPresented: $showFileImporter,
+            allowedContentTypes: [.movie, .video, .mpeg4Movie, .quickTimeMovie],
+            allowsMultipleSelection: true
+        ) { result in
+            handleFileImport(result: result)
+        }
         .onReceive(NotificationCenter.default.publisher(for: .exportRequested)) { _ in
             if !appState.selectedClipIDs.isEmpty {
                 showExportSheet = true
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .importRequested)) { _ in
+            showFileImporter = true
+        }
         .onChange(of: importViewModel.isImporting) { _, isImporting in
             showImportProgress = isImporting
+        }
+    }
+
+    private func handleFileImport(result: Result<[URL], Error>) {
+        switch result {
+        case .success(let urls):
+            importFiles(urls: urls)
+        case .failure(let error):
+            importViewModel.error = error
+        }
+    }
+
+    private func importFiles(urls: [URL]) {
+        guard !urls.isEmpty else { return }
+
+        // 如果没有session，创建新的
+        if appState.importSession == nil {
+            appState.importSession = ImportSession()
+        }
+
+        Task {
+            await importViewModel.importVideos(from: urls, into: appState.importSession!)
         }
     }
 
@@ -80,9 +119,17 @@ struct ContentView: View {
 
 struct SidebarView: View {
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var importViewModel: VideoImportViewModel
+
+    @State private var isTargeted = false
 
     var body: some View {
         List {
+            // Drop zone at top
+            Section {
+                dropZone
+            }
+
             if let session = appState.importSession {
                 Section("Source Files") {
                     ForEach(session.sourceFiles, id: \.self) { url in
@@ -95,12 +142,70 @@ struct SidebarView: View {
                     LabeledContent("Total Duration", value: formatDuration(session.totalDuration))
                     LabeledContent("Selected", value: "\(appState.selectedClipIDs.count)")
                 }
-            } else {
-                Text("No project loaded")
-                    .foregroundColor(.secondary)
             }
         }
         .listStyle(.sidebar)
+        .onDrop(of: [.fileURL], isTargeted: $isTargeted) { providers in
+            handleDrop(providers: providers)
+            return true
+        }
+    }
+
+    private var dropZone: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "plus.circle.dashed")
+                .font(.title2)
+                .foregroundColor(isTargeted ? .accentColor : .secondary)
+
+            Text(isTargeted ? "Drop to Import" : "Drop Videos Here")
+                .font(.caption)
+                .foregroundColor(isTargeted ? .accentColor : .secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 16)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .strokeBorder(
+                    style: StrokeStyle(lineWidth: 2, dash: [6, 4])
+                )
+                .foregroundColor(isTargeted ? .accentColor : .secondary.opacity(0.5))
+        )
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(isTargeted ? Color.accentColor.opacity(0.1) : Color.clear)
+        )
+        .animation(.easeInOut(duration: 0.15), value: isTargeted)
+    }
+
+    private func handleDrop(providers: [NSItemProvider]) {
+        let group = DispatchGroup()
+        var urls: [URL] = []
+
+        for provider in providers {
+            group.enter()
+            _ = provider.loadObject(ofClass: URL.self) { url, _ in
+                if let url = url {
+                    urls.append(url)
+                }
+                group.leave()
+            }
+        }
+
+        group.notify(queue: .main) {
+            importFilesFromURLs(urls)
+        }
+    }
+
+    private func importFilesFromURLs(_ urls: [URL]) {
+        guard !urls.isEmpty else { return }
+
+        if appState.importSession == nil {
+            appState.importSession = ImportSession()
+        }
+
+        Task {
+            await importViewModel.importVideos(from: urls, into: appState.importSession!)
+        }
     }
 
     private func formatDuration(_ seconds: Double) -> String {

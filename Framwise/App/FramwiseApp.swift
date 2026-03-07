@@ -20,7 +20,12 @@ struct FramwiseApp: App {
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unified(showsTitle: true))
         .commands {
-            CommandGroup(replacing: .newItem) { }
+            CommandGroup(replacing: .newItem) {
+                Button("Import Videos...") {
+                    NotificationCenter.default.post(name: .importRequested, object: nil)
+                }
+                .keyboardShortcut("i", modifiers: .command)
+            }
             CommandGroup(after: .importExport) {
                 Button("Export Selected Clips...") {
                     NotificationCenter.default.post(name: .exportRequested, object: nil)
@@ -54,4 +59,5 @@ class AppState: ObservableObject {
 
 extension Notification.Name {
     static let exportRequested = Notification.Name("exportRequested")
+    static let importRequested = Notification.Name("importRequested")
 }
