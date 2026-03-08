@@ -127,7 +127,7 @@ struct ClipGridView: View {
 
                 // Timeline toggle
                 Button(action: { showTimeline.toggle() }) {
-                    Image(systemName: showTimeline ? "timeline.view" : "timeline.view")
+                    Image(systemName: "timeline.view")
                         .opacity(showTimeline ? 1.0 : 0.5)
                 }
                 .buttonStyle(.plain)
@@ -266,11 +266,14 @@ struct CollapsedTimelineView: View {
     }
 
     private var maxTime: Double {
-        allClips.map { CMTimeGetSeconds($0.timecodeEnd) }.max() ?? 1
+        max(allClips.map { CMTimeGetSeconds($0.timecodeEnd) }.max() ?? 1, 0.001)
     }
 
     private var fileColorMap: [URL: Color] {
-        let colors: [Color] = [.blue, .green, .orange, .purple, .pink, .cyan, .indigo, .mint]
+        let colors: [Color] = [
+            .blue, .green, .orange, .purple, .pink, .cyan, .indigo, .mint,
+            .red, .yellow, .teal, .brown
+        ]
         return Dictionary(uniqueKeysWithValues:
             groups.enumerated().map { ($0.element.sourceURL, colors[$0.offset % colors.count]) }
         )
@@ -300,6 +303,8 @@ struct CollapsedTimelineView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
         .background(Color(NSColor.controlBackgroundColor))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Timeline navigation with \(allClips.count) clips")
     }
 }
 
@@ -327,6 +332,8 @@ struct TimelineGeometryReader: View {
                 onHover: onHover
             )
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Timeline with \(allClips.count) clips")
     }
 }
 
@@ -424,6 +431,10 @@ struct ClipBlockView: View {
                 onTap()
             }
             .help("\(clip.sourceFileName): \(clip.timecodeStartString) - \(clip.timecodeEndString)")
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Clip from \(clip.sourceFileName), \(clip.timecodeStartString) to \(clip.timecodeEndString)")
+            .accessibilityHint(isSelected ? "Selected. Double-click to deselect." : "Not selected. Double-click to select.")
+            .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 
