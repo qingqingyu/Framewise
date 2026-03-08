@@ -124,14 +124,14 @@ struct ClipGridView: View {
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                                 Spacer()
-                                Button("Select All") {
-                                    for clip in group.clips {
-                                        appState.selectedClipIDs.insert(clip.id)
+                                if let firstClip = group.clips.first {
+                                    Button("Select All") {
+                                        selectAllFromSameFile(as: firstClip)
                                     }
+                                    .buttonStyle(.plain)
+                                    .foregroundColor(.accentColor)
+                                    .font(.caption)
                                 }
-                                .buttonStyle(.plain)
-                                .foregroundColor(.accentColor)
-                                .font(.caption)
                             }
                             .padding(.horizontal)
 

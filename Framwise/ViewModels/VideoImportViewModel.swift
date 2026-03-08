@@ -34,6 +34,13 @@ class VideoImportViewModel: ObservableObject {
         statusMessage = "Importing videos..."
         clipsFoundCount = 0
 
+        defer {
+            isImporting = false
+            isAnalyzing = false
+            importProgress = 1.0
+            analyzingProgress = 1.0
+        }
+
         do {
             for (index, url) in urls.enumerated() {
                 importProgress = Double(index) / Double(urls.count)
@@ -56,11 +63,6 @@ class VideoImportViewModel: ObservableObject {
             self.error = error
             statusMessage = "Error: \(error.localizedDescription)"
         }
-
-        isImporting = false
-        isAnalyzing = false
-        importProgress = 1.0
-        analyzingProgress = 1.0
     }
 
     // MARK: - Streaming Video Analysis
@@ -104,6 +106,12 @@ class VideoImportViewModel: ObservableObject {
 
             case .progress(let ratio):
                 analyzingProgress = ratio
+
+            case .frameSkipped(let time, let reason):
+                // Log skipped frames for debugging (non-blocking)
+                #if DEBUG
+                print("[VideoImport] Frame skipped at \(time)s: \(reason)")
+                #endif
 
             case .completed(let finalSceneChanges):
                 // 处理最后一段

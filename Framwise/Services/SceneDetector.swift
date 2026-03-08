@@ -12,10 +12,11 @@ import Accelerate
 
 // MARK: - Scene Event for Streaming
 
-enum SceneEvent {
+enum SceneEvent: Sendable {
     case sceneChange(CMTime)
     case progress(Double)
     case completed([CMTime])
+    case frameSkipped(time: Double, reason: String)
     case error(Error)
 }
 
@@ -79,7 +80,11 @@ actor SceneDetector {
 
                 previousHistogram = histogram
             } catch {
-                // 跳过无法获取的帧
+                // Skip frames that cannot be extracted (e.g., corrupted, codec issues)
+                // This is expected for some video formats; continue processing
+                #if DEBUG
+                print("[SceneDetector] Skipped frame at \(currentTime)s: \(error.localizedDescription)")
+                #endif
             }
 
             currentTime += sampleInterval
@@ -148,7 +153,8 @@ actor SceneDetector {
 
                             previousHistogram = histogram
                         } catch {
-                            // 跳过无法获取的帧
+                            // Log skipped frame for debugging (does not stop processing)
+                            continuation.yield(.frameSkipped(time: currentTime, reason: error.localizedDescription))
                         }
 
                         // Emit progress event

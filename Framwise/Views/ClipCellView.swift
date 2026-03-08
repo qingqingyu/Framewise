@@ -18,6 +18,7 @@ struct ClipCellView: View {
     @State private var currentThumbnailIndex = 0
     @State private var isHovering = false
     @State private var isLoading = true
+    @State private var isAnimating = false
 
     private let animationTimer = Timer.publish(every: 0.15, on: .main, in: .common).autoconnect()
 
@@ -117,15 +118,18 @@ struct ClipCellView: View {
             isHovering = hovering
         }
         .onReceive(animationTimer) { _ in
-            // Auto-animate when have multiple thumbnails
-            if thumbnails.count > 1 {
-                withAnimation(.easeInOut(duration: 0.1)) {
-                    currentThumbnailIndex = (currentThumbnailIndex + 1) % thumbnails.count
-                }
+            // Auto-animate when have multiple thumbnails and view is visible
+            guard isAnimating && thumbnails.count > 1 else { return }
+            withAnimation(.easeInOut(duration: 0.1)) {
+                currentThumbnailIndex = (currentThumbnailIndex + 1) % thumbnails.count
             }
         }
         .onAppear {
+            isAnimating = true
             loadThumbnails()
+        }
+        .onDisappear {
+            isAnimating = false
         }
         .onChange(of: clip.id) { _, _ in
             loadThumbnails()
