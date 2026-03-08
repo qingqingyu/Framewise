@@ -16,10 +16,117 @@ class VideoImportViewModel: ObservableObject {
     @Published var statusMessage = ""
     @Published var error: Error?
 
+    // Progressive import state
+    @Published var currentVideoName: String = ""
+    @Published var clipsFoundCount: Int = 0
+    @Published var analyzingProgress: Double = 0
+    @Published var isAnalyzing: Bool = false
+
     private let sceneDetector = SceneDetector()
     private let maxSegmentDuration: Double = 5.0  // 5秒切割长镜头
 
-    // MARK: - Import
+    // MARK: - Streaming Import
+
+    func importVideosStreaming(from urls: [URL], into session: ImportSession) async {
+        isImporting = true
+        isAnalyzing = true
+        error = nil
+        statusMessage = "Importing videos..."
+        clipsFoundCount = 0
+
+        do {
+            for (index, url) in urls.enumerated() {
+                importProgress = Double(index) / Double(urls.count)
+                currentVideoName = url.lastPathComponent
+                statusMessage = "Processing \(url.lastPathComponent)..."
+
+                // 验证文件
+                try validateVideoFile(url)
+
+                // 添加源文件
+                session.addSourceFile(url)
+
+                // 流式分析并逐个添加clips
+                try await analyzeVideoStreaming(url, into: session)
+            }
+
+            session.isAnalyzed = true
+            statusMessage = "Import complete: \(session.clipCount) clips"
+        } catch {
+            self.error = error
+            statusMessage = "Error: \(error.localizedDescription)"
+        }
+
+        isImporting = false
+        isAnalyzing = false
+        importProgress = 1.0
+        analyzingProgress = 1.0
+    }
+
+    // MARK: - Streaming Video Analysis
+
+    private func analyzeVideoStreaming(_ url: URL, into session: ImportSession) async throws {
+        let asset = AVAsset(url: url)
+
+        // 加载tracks
+        try await asset.loadTracks(withMediaType: .video)
+
+        statusMessage = "Analyzing \(url.lastPathComponent)..."
+
+        let duration = try await asset.load(.duration)
+        let durationSeconds = CMTimeGetSeconds(duration)
+
+        // 使用流式场景检测
+        let stream = await sceneDetector.detectScenesStream(in: asset)
+
+        var sceneChanges: [CMTime] = [CMTime.zero]
+        var lastProcessedTime: CMTime = .zero
+
+        for await event in stream {
+            switch event {
+            case .sceneChange(let time):
+                sceneChanges.append(time)
+
+                // 立即为新的场景段创建clips
+                let newSegments = createSegments(
+                    from: lastProcessedTime,
+                    to: time,
+                    sourceURL: url,
+                    maxDuration: maxSegmentDuration
+                )
+
+                for segment in newSegments {
+                    let clip = segment.toVideoClip()
+                    session.addClip(clip)
+                    clipsFoundCount += 1
+                }
+                lastProcessedTime = time
+
+            case .progress(let ratio):
+                analyzingProgress = ratio
+
+            case .completed(let finalSceneChanges):
+                // 处理最后一段
+                let finalSegments = createSegments(
+                    from: lastProcessedTime,
+                    to: duration,
+                    sourceURL: url,
+                    maxDuration: maxSegmentDuration
+                )
+
+                for segment in finalSegments {
+                    let clip = segment.toVideoClip()
+                    session.addClip(clip)
+                    clipsFoundCount += 1
+                }
+
+            case .error(let error):
+                throw error
+            }
+        }
+    }
+
+    // MARK: - Legacy Import (保留兼容)
 
     func importVideos(from urls: [URL], into session: ImportSession) async {
         isImporting = true

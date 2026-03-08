@@ -10,6 +10,15 @@ import AVFoundation
 import CoreImage
 import Accelerate
 
+// MARK: - Scene Event for Streaming
+
+enum SceneEvent {
+    case sceneChange(CMTime)
+    case progress(Double)
+    case completed([CMTime])
+    case error(Error)
+}
+
 actor SceneDetector {
     /// Sensitivity threshold for scene detection (0.0 - 1.0)
     var sensitivity: Double = 0.3
@@ -80,6 +89,87 @@ actor SceneDetector {
         sceneChanges.append(duration)
 
         return sceneChanges
+    }
+
+    /// Detect scene change points with streaming events
+    func detectScenesStream(in asset: AVAsset) -> AsyncStream<SceneEvent> {
+        AsyncStream { continuation in
+            Task {
+                do {
+                    let duration = try await asset.load(.duration)
+                    let durationSeconds = CMTimeGetSeconds(duration)
+
+                    guard durationSeconds > 0 else {
+                        continuation.yield(.completed([]))
+                        continuation.finish()
+                        return
+                    }
+
+                    // 获取视频轨道
+                    guard let videoTrack = try await asset.loadTracks(withMediaType: .video).first else {
+                        throw SceneDetectorError.noVideoTrack
+                    }
+
+                    let frameRate = try await videoTrack.load(.nominalFrameRate)
+
+                    // 使用AVAssetImageGenerator获取帧
+                    let generator = AVAssetImageGenerator(asset: asset)
+                    generator.appliesPreferredTrackTransform = true
+                    generator.requestedTimeToleranceBefore = .zero
+                    generator.requestedTimeToleranceAfter = .zero
+
+                    // 每秒采样帧数
+                    let samplesPerSecond = min(max(Double(frameRate) / 2, 5), 15)
+                    let sampleInterval = 1.0 / samplesPerSecond
+
+                    var sceneChanges: [CMTime] = [CMTime.zero]
+                    var previousHistogram: [Double]?
+
+                    var currentTime = 0.0
+                    var lastSceneTime = 0.0
+
+                    while currentTime < durationSeconds {
+                        let time = CMTime(seconds: currentTime, preferredTimescale: 600)
+
+                        do {
+                            let (image, _) = try await generator.image(at: time)
+                            let histogram = try computeHistogram(from: image)
+
+                            if let prevHist = previousHistogram {
+                                let difference = histogramDifference(histogram, prevHist)
+
+                                if difference > sensitivity && (currentTime - lastSceneTime) >= minimumSceneDuration {
+                                    sceneChanges.append(time)
+                                    lastSceneTime = currentTime
+                                    // Emit scene change event
+                                    continuation.yield(.sceneChange(time))
+                                }
+                            }
+
+                            previousHistogram = histogram
+                        } catch {
+                            // 跳过无法获取的帧
+                        }
+
+                        // Emit progress event
+                        let progress = currentTime / durationSeconds
+                        continuation.yield(.progress(progress))
+
+                        currentTime += sampleInterval
+                    }
+
+                    // 添加结束点
+                    sceneChanges.append(duration)
+
+                    // Emit completion
+                    continuation.yield(.completed(sceneChanges))
+                    continuation.finish()
+                } catch {
+                    continuation.yield(.error(error))
+                    continuation.finish()
+                }
+            }
+        }
     }
 
     // MARK: - Histogram Computation

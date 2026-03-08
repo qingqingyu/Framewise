@@ -77,16 +77,49 @@ struct DropZoneView: View {
 
             // Import progress
             if importViewModel.isImporting {
-                VStack(spacing: 8) {
-                    ProgressView(value: importViewModel.importProgress) {
-                        Text(importViewModel.statusMessage)
-                            .font(.caption)
+                VStack(spacing: 12) {
+                    // File progress
+                    VStack(spacing: 4) {
+                        HStack {
+                            Text("Files")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Spacer()
+                            Text("\(Int(importViewModel.importProgress * 100))%")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        ProgressView(value: importViewModel.importProgress)
                     }
                     .frame(width: 300)
 
-                    Text("\(Int(importViewModel.importProgress * 100))%")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    // Analysis progress (if analyzing)
+                    if importViewModel.isAnalyzing {
+                        VStack(spacing: 4) {
+                            HStack {
+                                Text("Analyzing \(importViewModel.currentVideoName)")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .lineLimit(1)
+                                Spacer()
+                                Text("\(Int(importViewModel.analyzingProgress * 100))%")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            ProgressView(value: importViewModel.analyzingProgress)
+                                .tint(.orange)
+                        }
+                        .frame(width: 300)
+
+                        // Clips found count
+                        HStack {
+                            Image(systemName: "film")
+                                .foregroundColor(.accentColor)
+                            Text("\(importViewModel.clipsFoundCount) clips found")
+                                .font(.headline)
+                        }
+                        .padding(.top, 4)
+                    }
                 }
                 .padding()
                 .background(Color.secondary.opacity(0.1))
@@ -155,7 +188,7 @@ struct DropZoneView: View {
         appState.importSession = session
 
         Task {
-            await importViewModel.importVideos(from: urls, into: session)
+            await importViewModel.importVideosStreaming(from: urls, into: session)
         }
     }
 }

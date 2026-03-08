@@ -46,6 +46,25 @@ struct ContentView: View {
                     Label("Import", systemImage: "plus.circle")
                 }
 
+                // Real-time analysis status
+                if importViewModel.isAnalyzing {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                            .scaleEffect(0.7)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Analyzing \(importViewModel.currentVideoName)...")
+                                .font(.caption)
+                            Text("\(importViewModel.clipsFoundCount) clips found")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.secondary.opacity(0.1))
+                    .cornerRadius(6)
+                }
+
                 if appState.importSession != nil {
                     // Selection info
                     Text("\(appState.selectedClipIDs.count) selected")
@@ -104,7 +123,7 @@ struct ContentView: View {
         }
 
         Task {
-            await importViewModel.importVideos(from: urls, into: appState.importSession!)
+            await importViewModel.importVideosStreaming(from: urls, into: appState.importSession!)
         }
     }
 
@@ -204,7 +223,7 @@ struct SidebarView: View {
         }
 
         Task {
-            await importViewModel.importVideos(from: urls, into: appState.importSession!)
+            await importViewModel.importVideosStreaming(from: urls, into: appState.importSession!)
         }
     }
 

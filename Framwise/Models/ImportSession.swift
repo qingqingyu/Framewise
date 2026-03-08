@@ -28,6 +28,10 @@ class ImportSession: ObservableObject {
         allClips.append(contentsOf: clips)
     }
 
+    func addClip(_ clip: VideoClip) {
+        allClips.append(clip)
+    }
+
     func addSourceFile(_ url: URL) {
         if !sourceFiles.contains(url) {
             sourceFiles.append(url)
