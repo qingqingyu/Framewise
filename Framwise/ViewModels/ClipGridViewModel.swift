@@ -12,6 +12,7 @@ import Combine
 class ClipGridViewModel: ObservableObject {
     @Published var searchText = ""
     @Published var sortOrder: SortOrder = .original
+    @Published var viewMode: ViewMode = .all
 
     enum SortOrder {
         case original
@@ -19,21 +20,38 @@ class ClipGridViewModel: ObservableObject {
         case filename
     }
 
+    enum ViewMode: String, CaseIterable {
+        case all = "All"
+        case selected = "Selected"
+
+        var systemImage: String {
+            switch self {
+            case .all: return "square.grid.2x2"
+            case .selected: return "checkmark.square"
+            }
+        }
+    }
+
     /// Filter and sort clips based on current settings
-    func filteredClips(from allClips: [VideoClip]) -> [VideoClip] {
+    func filteredClips(from allClips: [VideoClip], selectedIDs: Set<UUID> = []) -> [VideoClip] {
         var result = allClips
 
-        // 搜索过滤
+        // View mode filter
+        if viewMode == .selected {
+            result = result.filter { selectedIDs.contains($0.id) }
+        }
+
+        // Search filter
         if !searchText.isEmpty {
             result = result.filter {
                 $0.sourceFileName.localizedCaseInsensitiveContains(searchText)
             }
         }
 
-        // 排序
+        // Sort
         switch sortOrder {
         case .original:
-            break  // 保持原顺序
+            break
         case .duration:
             result.sort { $0.duration > $1.duration }
         case .filename:
@@ -44,8 +62,8 @@ class ClipGridViewModel: ObservableObject {
     }
 
     /// Group clips by source file
-    func groupedClips(from allClips: [VideoClip]) -> [(sourceURL: URL, clips: [VideoClip])] {
-        let filtered = filteredClips(from: allClips)
+    func groupedClips(from allClips: [VideoClip], selectedIDs: Set<UUID> = []) -> [(sourceURL: URL, clips: [VideoClip])] {
+        let filtered = filteredClips(from: allClips, selectedIDs: selectedIDs)
 
         // 按 sourceURL 分组
         var groups: [URL: [VideoClip]] = [:]

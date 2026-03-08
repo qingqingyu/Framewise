@@ -72,6 +72,27 @@ struct ClipGridView: View {
                 .background(Color.secondary.opacity(0.1))
                 .cornerRadius(6)
 
+                // View mode toggle
+                Picker("", selection: $gridViewModel.viewMode) {
+                    ForEach(ClipGridViewModel.ViewMode.allCases, id: \.self) { mode in
+                        Image(systemName: mode.systemImage).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 70)
+                .help("View: All / Selected clips")
+
+                // Selected count badge
+                if gridViewModel.viewMode == .selected {
+                    Text("\(groupedClips.flatMap { $0.clips }.count) selected")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(Color.accentColor.opacity(0.1))
+                        .cornerRadius(4)
+                }
+
                 Spacer()
 
                 // Grid size picker
@@ -213,12 +234,12 @@ struct ClipGridView: View {
 
     private var filteredClips: [VideoClip] {
         guard let session = appState.importSession else { return [] }
-        return gridViewModel.filteredClips(from: session.allClips)
+        return gridViewModel.filteredClips(from: session.allClips, selectedIDs: appState.selectedClipIDs)
     }
 
     private var groupedClips: [(sourceURL: URL, clips: [VideoClip])] {
         guard let session = appState.importSession else { return [] }
-        return gridViewModel.groupedClips(from: session.allClips)
+        return gridViewModel.groupedClips(from: session.allClips, selectedIDs: appState.selectedClipIDs)
     }
 
     private func selectAllFromSameFile(as referenceClip: VideoClip) {
