@@ -117,8 +117,8 @@ struct ClipCellView: View {
             isHovering = hovering
         }
         .onReceive(animationTimer) { _ in
-            // Only animate when hovering and have multiple thumbnails
-            if isHovering && thumbnails.count > 1 {
+            // Auto-animate when have multiple thumbnails
+            if thumbnails.count > 1 {
                 withAnimation(.easeInOut(duration: 0.1)) {
                     currentThumbnailIndex = (currentThumbnailIndex + 1) % thumbnails.count
                 }
