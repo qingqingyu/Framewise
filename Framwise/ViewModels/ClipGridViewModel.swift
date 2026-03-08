@@ -43,6 +43,28 @@ class ClipGridViewModel: ObservableObject {
         return result
     }
 
+    /// Group clips by source file
+    func groupedClips(from allClips: [VideoClip]) -> [(sourceURL: URL, clips: [VideoClip])] {
+        let filtered = filteredClips(from: allClips)
+
+        // 按 sourceURL 分组
+        var groups: [URL: [VideoClip]] = [:]
+        var groupOrder: [URL] = []
+
+        for clip in filtered {
+            if groups[clip.sourceFileURL] == nil {
+                groups[clip.sourceFileURL] = []
+                groupOrder.append(clip.sourceFileURL)
+            }
+            groups[clip.sourceFileURL]?.append(clip)
+        }
+
+        // 保持原始顺序
+        return groupOrder.map { url in
+            (sourceURL: url, clips: groups[url] ?? [])
+        }
+    }
+
     /// Toggle selection for a clip
     func toggleSelection(_ clipId: UUID, in appState: AppState) {
         if appState.selectedClipIDs.contains(clipId) {

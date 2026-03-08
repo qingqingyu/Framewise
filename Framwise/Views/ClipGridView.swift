@@ -111,29 +111,58 @@ struct ClipGridView: View {
             ScrollView {
                 let columns = Array(repeating: GridItem(.fixed(gridSize.cellSize.width), spacing: 12), count: gridSize.columns)
 
-                LazyVGrid(columns: columns, spacing: 12) {
-                    ForEach(filteredClips) { clip in
-                        ClipCellView(
-                            clip: clip,
-                            size: gridSize.cellSize,
-                            isSelected: appState.selectedClipIDs.contains(clip.id),
-                            thumbnailGenerator: thumbnailGenerator
-                        )
-                        .onTapGesture {
-                            gridViewModel.toggleSelection(clip.id, in: appState)
-                        }
-                        .contextMenu {
-                            Button(appState.selectedClipIDs.contains(clip.id) ? "Deselect" : "Select") {
-                                gridViewModel.toggleSelection(clip.id, in: appState)
+                LazyVStack(alignment: .leading, spacing: 24) {
+                    ForEach(groupedClips, id: \.sourceURL) { group in
+                        VStack(alignment: .leading, spacing: 8) {
+                            // Section header
+                            HStack {
+                                Image(systemName: "video.fill")
+                                    .foregroundColor(.accentColor)
+                                Text(group.sourceURL.lastPathComponent)
+                                    .font(.headline)
+                                Text("\(group.clips.count) clips")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Spacer()
+                                Button("Select All") {
+                                    for clip in group.clips {
+                                        appState.selectedClipIDs.insert(clip.id)
+                                    }
+                                }
+                                .buttonStyle(.plain)
+                                .foregroundColor(.accentColor)
+                                .font(.caption)
                             }
-                            Divider()
-                            Button("Select All from Same File") {
-                                selectAllFromSameFile(as: clip)
+                            .padding(.horizontal)
+
+                            // Clips grid
+                            LazyVGrid(columns: columns, spacing: 12) {
+                                ForEach(group.clips) { clip in
+                                    ClipCellView(
+                                        clip: clip,
+                                        size: gridSize.cellSize,
+                                        isSelected: appState.selectedClipIDs.contains(clip.id),
+                                        thumbnailGenerator: thumbnailGenerator
+                                    )
+                                    .onTapGesture {
+                                        gridViewModel.toggleSelection(clip.id, in: appState)
+                                    }
+                                    .contextMenu {
+                                        Button(appState.selectedClipIDs.contains(clip.id) ? "Deselect" : "Select") {
+                                            gridViewModel.toggleSelection(clip.id, in: appState)
+                                        }
+                                        Divider()
+                                        Button("Select All from Same File") {
+                                            selectAllFromSameFile(as: clip)
+                                        }
+                                    }
+                                }
                             }
+                            .padding(.horizontal)
                         }
                     }
                 }
-                .padding()
+                .padding(.vertical)
             }
         }
         .onAppear {
@@ -152,6 +181,11 @@ struct ClipGridView: View {
     private var filteredClips: [VideoClip] {
         guard let session = appState.importSession else { return [] }
         return gridViewModel.filteredClips(from: session.allClips)
+    }
+
+    private var groupedClips: [(sourceURL: URL, clips: [VideoClip])] {
+        guard let session = appState.importSession else { return [] }
+        return gridViewModel.groupedClips(from: session.allClips)
     }
 
     private func selectAllFromSameFile(as referenceClip: VideoClip) {
