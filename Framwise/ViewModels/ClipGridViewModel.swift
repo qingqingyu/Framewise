@@ -33,8 +33,13 @@ class ClipGridViewModel: ObservableObject {
     }
 
     /// Filter and sort clips based on current settings
-    func filteredClips(from allClips: [VideoClip], selectedIDs: Set<UUID> = []) -> [VideoClip] {
+    func filteredClips(from allClips: [VideoClip], selectedIDs: Set<UUID> = [], sourceURL: URL? = nil) -> [VideoClip] {
         var result = allClips
+
+        // Source file filter
+        if let url = sourceURL {
+            result = result.filter { $0.sourceFileURL == url }
+        }
 
         // View mode filter
         if viewMode == .selected {
@@ -62,8 +67,13 @@ class ClipGridViewModel: ObservableObject {
     }
 
     /// Group clips by source file
-    func groupedClips(from allClips: [VideoClip], selectedIDs: Set<UUID> = []) -> [(sourceURL: URL, clips: [VideoClip])] {
-        let filtered = filteredClips(from: allClips, selectedIDs: selectedIDs)
+    func groupedClips(from allClips: [VideoClip], selectedIDs: Set<UUID> = [], sourceURL: URL? = nil) -> [(sourceURL: URL, clips: [VideoClip])] {
+        let filtered = filteredClips(from: allClips, selectedIDs: selectedIDs, sourceURL: sourceURL)
+
+        // If filtering by a specific source URL, don't group (only one group)
+        if sourceURL != nil {
+            return [(sourceURL: sourceURL!, clips: filtered)]
+        }
 
         // 按 sourceURL 分组
         var groups: [URL: [VideoClip]] = [:]

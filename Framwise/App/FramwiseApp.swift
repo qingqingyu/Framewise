@@ -49,9 +49,28 @@ class AppState: ObservableObject {
     @Published var isProcessing = false
     @Published var processingProgress: Double = 0
 
+    // Source file filtering
+    @Published var selectedSourceURL: URL?  // nil = show all
+
+    // Video preview
+    @Published var previewClip: VideoClip?
+
     var selectedClips: [VideoClip] {
         guard let session = importSession else { return [] }
         return session.allClips.filter { selectedClipIDs.contains($0.id) }
+    }
+
+    /// Update preview when selection changes
+    func updatePreviewFromSelection() {
+        // Only auto-preview when exactly one clip is selected
+        if selectedClipIDs.count == 1, let session = importSession {
+            if let clipID = selectedClipIDs.first,
+               let clip = session.allClips.first(where: { $0.id == clipID }) {
+                previewClip = clip
+            }
+        } else if selectedClipIDs.isEmpty {
+            previewClip = nil
+        }
     }
 }
 

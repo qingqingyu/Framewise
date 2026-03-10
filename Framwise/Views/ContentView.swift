@@ -13,10 +13,11 @@ struct ContentView: View {
     @StateObject private var importViewModel = VideoImportViewModel()
     @StateObject private var gridViewModel = ClipGridViewModel()
     @StateObject private var exportViewModel = ExportViewModel()
+    @StateObject private var previewViewModel = PreviewViewModel()
 
     @State private var showExportSheet = false
-    @State private var showImportProgress = false
     @State private var showFileImporter = false
+    @State private var showPreviewPanel = true
 
     var body: some View {
         NavigationView {
@@ -25,16 +26,28 @@ struct ContentView: View {
                 .environmentObject(importViewModel)
                 .frame(minWidth: 200)
 
-            // Main content
-            VStack(spacing: 0) {
-                if let session = appState.importSession, !session.allClips.isEmpty {
-                    // Grid view when clips are loaded
-                    ClipGridView()
-                        .environmentObject(gridViewModel)
-                } else {
-                    // Import zone when no clips
-                    DropZoneView()
-                        .environmentObject(importViewModel)
+            // Main content with optional preview panel
+            HStack(spacing: 0) {
+                // Grid area
+                VStack(spacing: 0) {
+                    if let session = appState.importSession, !session.allClips.isEmpty {
+                        // Grid view when clips are loaded
+                        ClipGridView()
+                            .environmentObject(gridViewModel)
+                    } else {
+                        // Import zone when no clips
+                        DropZoneView()
+                            .environmentObject(importViewModel)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+
+                // Preview panel (when clip is selected and panel is visible)
+                if showPreviewPanel && appState.previewClip != nil {
+                    Divider()
+                    ClipPreviewView(viewModel: previewViewModel)
+                        .environmentObject(appState)
+                        .frame(width: 320)
                 }
             }
         }
@@ -70,6 +83,13 @@ struct ContentView: View {
                     Text("\(appState.selectedClipIDs.count) selected")
                         .foregroundColor(.secondary)
 
+                    // Preview toggle
+                    Button(action: { showPreviewPanel.toggle() }) {
+                        Image(systemName: showPreviewPanel ? "play.rectangle.fill" : "play.rectangle")
+                    }
+                    .buttonStyle(.plain)
+                    .help(showPreviewPanel ? "Hide Preview Panel" : "Show Preview Panel")
+
                     Button(action: { showExportSheet = true }) {
                         Label("Export", systemImage: "square.and.arrow.up")
                     }
@@ -100,8 +120,12 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .importRequested)) { _ in
             showFileImporter = true
         }
-        .onChange(of: importViewModel.isImporting) { _, isImporting in
-            showImportProgress = isImporting
+        .onChange(of: appState.previewClip) { _, newClip in
+            if let clip = newClip {
+                previewViewModel.loadClip(clip)
+            } else {
+                previewViewModel.cleanupPlayer()
+            }
         }
     }
 
@@ -151,8 +175,33 @@ struct SidebarView: View {
 
             if let session = appState.importSession {
                 Section("Source Files") {
+                    // All Clips option
+                    Button(action: { appState.selectedSourceURL = nil }) {
+                        HStack {
+                            Label("All Clips", systemImage: "square.grid.2x2")
+                            Spacer()
+                            if appState.selectedSourceURL == nil {
+                                Image(systemName: "checkmark")
+                                    .foregroundColor(.accentColor)
+                            }
+                        }
+                    }
+                    .buttonStyle(.plain)
+
+                    Divider()
+
                     ForEach(session.sourceFiles, id: \.self) { url in
-                        Label(url.lastPathComponent, systemImage: "video.fill")
+                        Button(action: { appState.selectedSourceURL = url }) {
+                            HStack {
+                                Label(url.lastPathComponent, systemImage: "video.fill")
+                                Spacer()
+                                if appState.selectedSourceURL == url {
+                                    Image(systemName: "checkmark")
+                                        .foregroundColor(.accentColor)
+                                }
+                            }
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
 

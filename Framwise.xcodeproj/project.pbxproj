@@ -21,6 +21,8 @@
 		A1000012 /* ThumbnailGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000012; };
 		A1000013 /* TimecodeUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000013; };
 		A1000014 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B1000014; };
+		A1000015 /* PreviewViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000016; };
+		A1000016 /* ClipPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000017; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -40,6 +42,8 @@
 		B1000013 /* TimecodeUtils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimecodeUtils.swift; sourceTree = "<group>"; };
 		B1000014 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B1000015 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B1000016 /* PreviewViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewViewModel.swift; sourceTree = "<group>"; };
+		B1000017 /* ClipPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipPreviewView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -107,6 +111,7 @@
 				B1000004 /* VideoImportViewModel.swift */,
 				B1000005 /* ClipGridViewModel.swift */,
 				B1000006 /* ExportViewModel.swift */,
+				B1000016 /* PreviewViewModel.swift */,
 			);
 			path = ViewModels;
 			sourceTree = "<group>";
@@ -118,6 +123,7 @@
 				B1000008 /* DropZoneView.swift */,
 				B1000009 /* ClipGridView.swift */,
 				B1000010 /* ClipCellView.swift */,
+				B1000017 /* ClipPreviewView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -229,6 +235,8 @@
 				A1000011 /* SceneDetector.swift in Sources */,
 				A1000012 /* ThumbnailGenerator.swift in Sources */,
 				A1000013 /* TimecodeUtils.swift in Sources */,
+				A1000015 /* PreviewViewModel.swift in Sources */,
+				A1000016 /* ClipPreviewView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -82,6 +82,25 @@ struct ClipGridView: View {
                 .frame(width: 70)
                 .help("View: All / Selected clips")
 
+                // Source filter indicator
+                if let sourceURL = appState.selectedSourceURL {
+                    HStack(spacing: 4) {
+                        Image(systemName: "line.3.horizontal.decrease.circle.fill")
+                            .foregroundColor(.accentColor)
+                        Text(sourceURL.lastPathComponent)
+                            .font(.caption)
+                        Button(action: { appState.selectedSourceURL = nil }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.accentColor.opacity(0.1))
+                    .cornerRadius(4)
+                }
+
                 // Selected count badge
                 if gridViewModel.viewMode == .selected {
                     Text("\(groupedClips.flatMap { $0.clips }.count) selected")
@@ -191,14 +210,19 @@ struct ClipGridView: View {
                                     .id(clip.id)
                                     .onTapGesture {
                                         gridViewModel.toggleSelection(clip.id, in: appState)
+                                        appState.updatePreviewFromSelection()
                                     }
                                     .contextMenu {
                                         Button(appState.selectedClipIDs.contains(clip.id) ? "Deselect" : "Select") {
                                             gridViewModel.toggleSelection(clip.id, in: appState)
+                                            appState.updatePreviewFromSelection()
                                         }
                                         Divider()
                                         Button("Select All from Same File") {
                                             selectAllFromSameFile(as: clip)
+                                        }
+                                        Button("Preview This Clip") {
+                                            appState.previewClip = clip
                                         }
                                     }
                                 }
@@ -234,12 +258,12 @@ struct ClipGridView: View {
 
     private var filteredClips: [VideoClip] {
         guard let session = appState.importSession else { return [] }
-        return gridViewModel.filteredClips(from: session.allClips, selectedIDs: appState.selectedClipIDs)
+        return gridViewModel.filteredClips(from: session.allClips, selectedIDs: appState.selectedClipIDs, sourceURL: appState.selectedSourceURL)
     }
 
     private var groupedClips: [(sourceURL: URL, clips: [VideoClip])] {
         guard let session = appState.importSession else { return [] }
-        return gridViewModel.groupedClips(from: session.allClips, selectedIDs: appState.selectedClipIDs)
+        return gridViewModel.groupedClips(from: session.allClips, selectedIDs: appState.selectedClipIDs, sourceURL: appState.selectedSourceURL)
     }
 
     private func selectAllFromSameFile(as referenceClip: VideoClip) {
