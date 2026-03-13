@@ -135,8 +135,10 @@ struct ClipGridView: View {
                         gridViewModel.deselectAll(in: appState)
                     }
                     Button("Invert Selection") {
-                        if let session = appState.importSession {
-                            gridViewModel.invertSelection(session.allClips, in: appState)
+                        // 反选基于当前显示的片段，而不是全部片段
+                        let currentClips = groupedClips.flatMap { $0.clips }
+                        if !currentClips.isEmpty {
+                            gridViewModel.invertSelection(currentClips, in: appState)
                         }
                     }
                 } label: {
@@ -209,7 +211,23 @@ struct ClipGridView: View {
                                     )
                                     .id(clip.id)
                                     .onTapGesture {
-                                        gridViewModel.toggleSelection(clip.id, in: appState)
+                                        // 检测是否按下了 Command 键（多选模式）
+                                        let isCommandPressed = NSEvent.modifierFlags.contains(.command)
+
+                                        if isCommandPressed {
+                                            // ⌘+点击：切换当前片段，保留其他选中
+                                            gridViewModel.toggleSelection(clip.id, in: appState)
+                                        } else {
+                                            // 普通点击：清除其他选中，只选中当前
+                                            if appState.selectedClipIDs.contains(clip.id) {
+                                                // 已选中，取消选择
+                                                appState.selectedClipIDs.remove(clip.id)
+                                            } else {
+                                                // 未选中，清除其他并选中当前
+                                                appState.selectedClipIDs = [clip.id]
+                                            }
+                                        }
+
                                         appState.updatePreviewFromSelection()
                                     }
                                     .contextMenu {
