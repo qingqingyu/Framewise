@@ -26,28 +26,32 @@ struct ContentView: View {
                 .environmentObject(importViewModel)
                 .frame(minWidth: 200)
 
-            // Main content with optional preview panel
-            HStack(spacing: 0) {
-                // Grid area
-                VStack(spacing: 0) {
-                    if let session = appState.importSession, !session.allClips.isEmpty {
-                        // Grid view when clips are loaded
-                        ClipGridView()
-                            .environmentObject(gridViewModel)
-                    } else {
-                        // Import zone when no clips
-                        DropZoneView()
-                            .environmentObject(importViewModel)
+            // Main content area
+            GeometryReader { geometry in
+                HStack(spacing: 0) {
+                    // Grid area
+                    ZStack {
+                        if let session = appState.importSession, !session.allClips.isEmpty {
+                            // Grid view when clips are loaded
+                            ClipGridView()
+                                .environmentObject(gridViewModel)
+                        } else {
+                            // Import zone when no clips
+                            DropZoneView()
+                                .environmentObject(importViewModel)
+                        }
                     }
-                }
-                .frame(maxWidth: .infinity)
+                    .frame(width: showPreviewPanel && appState.previewClip != nil
+                           ? geometry.size.width - 320
+                           : geometry.size.width)
 
-                // Preview panel (when clip is selected and panel is visible)
-                if showPreviewPanel && appState.previewClip != nil {
-                    Divider()
-                    ClipPreviewView(viewModel: previewViewModel)
-                        .environmentObject(appState)
-                        .frame(width: 320)
+                    // Preview panel (when clip is selected and panel is visible)
+                    if showPreviewPanel && appState.previewClip != nil {
+                        Divider()
+                        ClipPreviewView(viewModel: previewViewModel)
+                            .environmentObject(appState)
+                            .frame(width: 320)
+                    }
                 }
             }
         }

@@ -172,96 +172,102 @@ struct ClipGridView: View {
             }
 
             // Grid
-            ScrollViewReader { proxy in
-                ScrollView {
-                let columns = Array(repeating: GridItem(.fixed(gridSize.cellSize.width), spacing: 12), count: gridSize.columns)
+            GeometryReader { gridGeometry in
+                let availableWidth = gridGeometry.size.width - 24 // padding
+                let columnCount = max(1, Int(availableWidth / (gridSize.cellSize.width + 12)))
+                let columns = Array(repeating: GridItem(.fixed(gridSize.cellSize.width), spacing: 12), count: columnCount)
 
-                LazyVStack(alignment: .leading, spacing: 24) {
-                    ForEach(groupedClips, id: \.sourceURL) { group in
-                        VStack(alignment: .leading, spacing: 8) {
-                            // Section header
-                            HStack {
-                                Image(systemName: "video.fill")
-                                    .foregroundColor(.accentColor)
-                                Text(group.sourceURL.lastPathComponent)
-                                    .font(.headline)
-                                Text("\(group.clips.count) clips")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                Spacer()
-                                if let firstClip = group.clips.first {
-                                    Button("Select All") {
-                                        selectAllFromSameFile(as: firstClip)
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 24) {
+                            ForEach(groupedClips, id: \.sourceURL) { group in
+                                VStack(alignment: .leading, spacing: 8) {
+                                    // Section header
+                                    HStack {
+                                        Image(systemName: "video.fill")
+                                            .foregroundColor(.accentColor)
+                                        Text(group.sourceURL.lastPathComponent)
+                                            .font(.headline)
+                                        Text("\(group.clips.count) clips")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                        Spacer()
+                                        if let firstClip = group.clips.first {
+                                            Button("Select All") {
+                                                selectAllFromSameFile(as: firstClip)
+                                            }
+                                            .buttonStyle(.plain)
+                                            .foregroundColor(.accentColor)
+                                            .font(.caption)
+                                        }
                                     }
-                                    .buttonStyle(.plain)
-                                    .foregroundColor(.accentColor)
-                                    .font(.caption)
-                                }
-                            }
-                            .padding(.horizontal)
+                                    .padding(.horizontal)
 
-                            // Clips grid
-                            LazyVGrid(columns: columns, spacing: 12) {
-                                ForEach(group.clips) { clip in
-                                    ClipCellView(
-                                        clip: clip,
-                                        size: gridSize.cellSize,
-                                        isSelected: appState.selectedClipIDs.contains(clip.id),
-                                        thumbnailGenerator: thumbnailGenerator
-                                    )
-                                    .id(clip.id)
-                                    .onTapGesture {
-                                        // 检测是否按下了 Command 键（多选模式）
-                                        let isCommandPressed = NSEvent.modifierFlags.contains(.command)
+                                    // Clips grid
+                                    LazyVGrid(columns: columns, spacing: 12) {
+                                        ForEach(group.clips) { clip in
+                                            ClipCellView(
+                                                clip: clip,
+                                                size: gridSize.cellSize,
+                                                isSelected: appState.selectedClipIDs.contains(clip.id),
+                                                thumbnailGenerator: thumbnailGenerator
+                                            )
+                                            .id(clip.id)
+                                            .onTapGesture {
+                                                // 检测是否按下了 Command 或 Shift 键（多选模式）
+                                                let modifiers = NSEvent.modifierFlags
+                                                let isCommandPressed = modifiers.contains(.command)
+                                                let isShiftPressed = modifiers.contains(.shift)
 
-                                        if isCommandPressed {
-                                            // ⌘+点击：切换当前片段，保留其他选中
-                                            gridViewModel.toggleSelection(clip.id, in: appState)
-                                        } else {
-                                            // 普通点击：清除其他选中，只选中当前
-                                            if appState.selectedClipIDs.contains(clip.id) {
-                                                // 已选中，取消选择
-                                                appState.selectedClipIDs.remove(clip.id)
-                                            } else {
-                                                // 未选中，清除其他并选中当前
-                                                appState.selectedClipIDs = [clip.id]
+                                                if isCommandPressed || isShiftPressed {
+                                                    // ⌘+点击 或 Shift+点击：切换当前片段，保留其他选中
+                                                    gridViewModel.toggleSelection(clip.id, in: appState)
+                                                } else {
+                                                    // 普通点击：清除其他选中，只选中当前
+                                                    if appState.selectedClipIDs.contains(clip.id) {
+                                                        // 已选中，取消选择
+                                                        appState.selectedClipIDs.remove(clip.id)
+                                                    } else {
+                                                        // 未选中，清除其他并选中当前
+                                                        appState.selectedClipIDs = [clip.id]
+                                                    }
+                                                }
+
+                                                appState.updatePreviewFromSelection()
+                                            }
+                                            .contextMenu {
+                                                Button(appState.selectedClipIDs.contains(clip.id) ? "Deselect" : "Select") {
+                                                    gridViewModel.toggleSelection(clip.id, in: appState)
+                                                    appState.updatePreviewFromSelection()
+                                                }
+                                                Divider()
+                                                Button("Select All from Same File") {
+                                                    selectAllFromSameFile(as: clip)
+                                                }
+                                                Button("Preview This Clip") {
+                                                    appState.previewClip = clip
+                                                }
                                             }
                                         }
-
-                                        appState.updatePreviewFromSelection()
                                     }
-                                    .contextMenu {
-                                        Button(appState.selectedClipIDs.contains(clip.id) ? "Deselect" : "Select") {
-                                            gridViewModel.toggleSelection(clip.id, in: appState)
-                                            appState.updatePreviewFromSelection()
-                                        }
-                                        Divider()
-                                        Button("Select All from Same File") {
-                                            selectAllFromSameFile(as: clip)
-                                        }
-                                        Button("Preview This Clip") {
-                                            appState.previewClip = clip
-                                        }
-                                    }
+                                    .padding(.horizontal)
                                 }
                             }
-                            .padding(.horizontal)
+                        }
+                        .padding(.vertical)
+                    }
+                    .onChange(of: scrollToClipID) { _, newID in
+                        if let clipID = newID {
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                proxy.scrollTo(clipID, anchor: .center)
+                            }
+                            scrollToClipID = nil
                         }
                     }
                 }
-                .padding(.vertical)
-            }
-            .onChange(of: scrollToClipID) { _, newID in
-                if let clipID = newID {
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        proxy.scrollTo(clipID, anchor: .center)
-                    }
-                    scrollToClipID = nil
-                }
             }
         }
-    }
-    .onAppear {
+        .onAppear {
             // 预加载缩略图
             Task {
                 if let session = appState.importSession {
