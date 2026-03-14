@@ -13,11 +13,9 @@ struct ContentView: View {
     @StateObject private var importViewModel = VideoImportViewModel()
     @StateObject private var gridViewModel = ClipGridViewModel()
     @StateObject private var exportViewModel = ExportViewModel()
-    @StateObject private var previewViewModel = PreviewViewModel()
 
     @State private var showExportSheet = false
     @State private var showFileImporter = false
-    @State private var showPreviewPanel = true
 
     var body: some View {
         NavigationView {
@@ -26,32 +24,16 @@ struct ContentView: View {
                 .environmentObject(importViewModel)
                 .frame(minWidth: 200)
 
-            // Main content area
-            GeometryReader { geometry in
-                HStack(spacing: 0) {
-                    // Grid area
-                    ZStack {
-                        if let session = appState.importSession, !session.allClips.isEmpty {
-                            // Grid view when clips are loaded
-                            ClipGridView()
-                                .environmentObject(gridViewModel)
-                        } else {
-                            // Import zone when no clips
-                            DropZoneView()
-                                .environmentObject(importViewModel)
-                        }
-                    }
-                    .frame(width: showPreviewPanel && appState.previewClip != nil
-                           ? geometry.size.width - 320
-                           : geometry.size.width)
-
-                    // Preview panel (when clip is selected and panel is visible)
-                    if showPreviewPanel && appState.previewClip != nil {
-                        Divider()
-                        ClipPreviewView(viewModel: previewViewModel)
-                            .environmentObject(appState)
-                            .frame(width: 320)
-                    }
+            // Main content area - Grid only
+            ZStack {
+                if let session = appState.importSession, !session.allClips.isEmpty {
+                    // Grid view when clips are loaded
+                    ClipGridView()
+                        .environmentObject(gridViewModel)
+                } else {
+                    // Import zone when no clips
+                    DropZoneView()
+                        .environmentObject(importViewModel)
                 }
             }
         }
@@ -86,13 +68,6 @@ struct ContentView: View {
                     // Selection info
                     Text("\(appState.selectedClipIDs.count) selected")
                         .foregroundColor(.secondary)
-
-                    // Preview toggle
-                    Button(action: { showPreviewPanel.toggle() }) {
-                        Image(systemName: showPreviewPanel ? "play.rectangle.fill" : "play.rectangle")
-                    }
-                    .buttonStyle(.plain)
-                    .help(showPreviewPanel ? "Hide Preview Panel" : "Show Preview Panel")
 
                     Button(action: { showExportSheet = true }) {
                         Label("Export", systemImage: "square.and.arrow.up")

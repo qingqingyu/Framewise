@@ -19,6 +19,10 @@ struct ClipGridView: View {
     @State private var showFilterOptions = false
     @State private var scrollToClipID: UUID?
     @State private var showTimeline = true
+    @State private var hoveredClip: VideoClip?
+    @State private var showPreviewModal = false
+    @State private var previewingClip: VideoClip?
+    @FocusState private var isGridFocused: Bool
 
     enum GridSize: String, CaseIterable {
         case small = "Small"
@@ -213,6 +217,13 @@ struct ClipGridView: View {
                                                 thumbnailGenerator: thumbnailGenerator
                                             )
                                             .id(clip.id)
+                                            .onHover { isHovering in
+                                                if isHovering {
+                                                    hoveredClip = clip
+                                                } else if hoveredClip?.id == clip.id {
+                                                    hoveredClip = nil
+                                                }
+                                            }
                                             .onTapGesture {
                                                 // 检测是否按下了 Command 或 Shift 键（多选模式）
                                                 let modifiers = NSEvent.modifierFlags
@@ -223,29 +234,21 @@ struct ClipGridView: View {
                                                     // ⌘+点击 或 Shift+点击：切换当前片段，保留其他选中
                                                     gridViewModel.toggleSelection(clip.id, in: appState)
                                                 } else {
-                                                    // 普通点击：清除其他选中，只选中当前
-                                                    if appState.selectedClipIDs.contains(clip.id) {
-                                                        // 已选中，取消选择
-                                                        appState.selectedClipIDs.remove(clip.id)
-                                                    } else {
-                                                        // 未选中，清除其他并选中当前
-                                                        appState.selectedClipIDs = [clip.id]
-                                                    }
+                                                    // 普通点击：切换选中状态
+                                                    gridViewModel.toggleSelection(clip.id, in: appState)
                                                 }
-
-                                                appState.updatePreviewFromSelection()
                                             }
                                             .contextMenu {
                                                 Button(appState.selectedClipIDs.contains(clip.id) ? "Deselect" : "Select") {
                                                     gridViewModel.toggleSelection(clip.id, in: appState)
-                                                    appState.updatePreviewFromSelection()
                                                 }
                                                 Divider()
                                                 Button("Select All from Same File") {
                                                     selectAllFromSameFile(as: clip)
                                                 }
-                                                Button("Preview This Clip") {
-                                                    appState.previewClip = clip
+                                                Button("Preview") {
+                                                    previewingClip = clip
+                                                    showPreviewModal = true
                                                 }
                                             }
                                         }
@@ -267,6 +270,15 @@ struct ClipGridView: View {
                 }
             }
         }
+        .focusable()
+        .onKeyPress(.space) {
+            if let clip = hoveredClip {
+                previewingClip = clip
+                showPreviewModal = true
+                return .handled
+            }
+            return .ignored
+        }
         .onAppear {
             // 预加载缩略图
             Task {
@@ -276,6 +288,11 @@ struct ClipGridView: View {
                         targetSize: gridSize.cellSize
                     )
                 }
+            }
+        }
+        .sheet(isPresented: $showPreviewModal) {
+            if let clip = previewingClip {
+                ClipPreviewModal(clip: clip, isPresented: $showPreviewModal)
             }
         }
     }
@@ -538,6 +555,127 @@ struct TimeMarkerView: View {
                 .frame(width: 1, height: 4)
         }
         .offset(x: xPos)
+    }
+}
+
+// MARK: - Clip Preview Modal
+
+struct ClipPreviewModal: View {
+    let clip: VideoClip
+    @Binding var isPresented: Bool
+
+    @StateObject private var viewModel = PreviewViewModel()
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(clip.sourceFileName)
+                        .font(.headline)
+                        .lineLimit(1)
+                    Text("\(clip.timecodeStartString) - \(clip.timecodeEndString)")
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+                Button(action: { isPresented = false }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title2)
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+                .keyboardShortcut(.escape, modifiers: [])
+            }
+            .padding()
+            .background(Color(NSColor.windowBackgroundColor))
+
+            Divider()
+
+            // Video player
+            ZStack {
+                if let player = viewModel.player {
+                    VideoPlayerView(player: player)
+                        .aspectRatio(16/9, contentMode: .fit)
+                        .background(Color.black)
+                } else {
+                    Rectangle()
+                        .fill(Color.black)
+                        .aspectRatio(16/9, contentMode: .fit)
+                        .overlay(
+                            ProgressView()
+                                .progressViewStyle(.circular)
+                                .tint(.white)
+                        )
+                }
+            }
+            .frame(maxWidth: .infinity)
+
+            Divider()
+
+            // Controls
+            HStack(spacing: 16) {
+                Button(action: { viewModel.togglePlayPause() }) {
+                    Image(systemName: viewModel.isPlaying ? "pause.fill" : "play.fill")
+                        .font(.title2)
+                        .frame(width: 32, height: 32)
+                }
+                .buttonStyle(.plain)
+
+                // Progress bar
+                GeometryReader { geometry in
+                    ZStack(alignment: .leading) {
+                        Rectangle()
+                            .fill(Color.secondary.opacity(0.3))
+                            .frame(height: 4)
+                            .cornerRadius(2)
+
+                        Rectangle()
+                            .fill(Color.accentColor)
+                            .frame(width: max(0, min(geometry.size.width * (viewModel.currentTime / max(viewModel.duration, 1)), geometry.size.width)), height: 4)
+                            .cornerRadius(2)
+                    }
+                    .gesture(
+                        DragGesture(minimumDistance: 0)
+                            .onChanged { value in
+                                let progress = max(0, min(1, value.location.x / geometry.size.width))
+                                viewModel.currentTime = progress * viewModel.duration
+                            }
+                            .onEnded { value in
+                                let progress = max(0, min(1, value.location.x / geometry.size.width))
+                                viewModel.seek(to: progress * viewModel.duration)
+                            }
+                    )
+                }
+                .frame(height: 20)
+
+                Text("\(formatTime(viewModel.currentTime)) / \(formatTime(viewModel.duration))")
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundColor(.secondary)
+                    .frame(width: 100)
+
+                Button(action: { viewModel.seek(to: 0) }) {
+                    Image(systemName: "backward.end.fill")
+                }
+                .buttonStyle(.plain)
+            }
+            .padding()
+            .background(Color(NSColor.windowBackgroundColor))
+        }
+        .frame(width: 640, height: 480)
+        .onAppear {
+            viewModel.loadClip(clip)
+        }
+        .onDisappear {
+            viewModel.cleanupPlayer()
+        }
+    }
+
+    private func formatTime(_ seconds: Double) -> String {
+        let totalSeconds = Int(seconds)
+        let minutes = totalSeconds / 60
+        let secs = totalSeconds % 60
+        return String(format: "%02d:%02d", minutes, secs)
     }
 }
 
