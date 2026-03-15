@@ -156,11 +156,16 @@ struct DropZoneView: View {
         let group = DispatchGroup()
         var urls: [URL] = []
 
+        let supportedExtensions = ["mp4", "mov", "mxf", "avi", "mkv", "m4v"]
+
         for provider in providers {
             group.enter()
             _ = provider.loadObject(ofClass: URL.self) { url, _ in
                 if let url = url {
-                    urls.append(url)
+                    let ext = url.pathExtension.lowercased()
+                    if supportedExtensions.contains(ext) {
+                        urls.append(url)
+                    }
                 }
                 group.leave()
             }

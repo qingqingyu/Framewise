@@ -99,13 +99,6 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .importRequested)) { _ in
             showFileImporter = true
         }
-        .onChange(of: appState.previewClip) { _, newClip in
-            if let clip = newClip {
-                previewViewModel.loadClip(clip)
-            } else {
-                previewViewModel.cleanupPlayer()
-            }
-        }
     }
 
     private func handleFileImport(result: Result<[URL], Error>) {
@@ -228,11 +221,16 @@ struct SidebarView: View {
         let group = DispatchGroup()
         var urls: [URL] = []
 
+        let supportedExtensions = ["mp4", "mov", "mxf", "avi", "mkv", "m4v"]
+
         for provider in providers {
             group.enter()
             _ = provider.loadObject(ofClass: URL.self) { url, _ in
                 if let url = url {
-                    urls.append(url)
+                    let ext = url.pathExtension.lowercased()
+                    if supportedExtensions.contains(ext) {
+                        urls.append(url)
+                    }
                 }
                 group.leave()
             }
