@@ -78,7 +78,6 @@ class VideoImportViewModel: ObservableObject {
         statusMessage = "Analyzing \(url.lastPathComponent)..."
 
         let duration = try await asset.load(.duration)
-        let durationSeconds = CMTimeGetSeconds(duration)
 
         // 使用流式场景检测
         let stream = await sceneDetector.detectScenesStream(in: asset)
@@ -115,7 +114,7 @@ class VideoImportViewModel: ObservableObject {
                 print("[VideoImport] Frame skipped at \(time)s: \(reason)")
                 #endif
 
-            case .completed(let finalSceneChanges):
+            case .completed:
                 // 处理最后一段
                 let finalSegments = createSegments(
                     from: lastProcessedTime,
