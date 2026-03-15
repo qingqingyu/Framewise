@@ -663,6 +663,11 @@ struct ClipPreviewModal: View {
             .background(Color(NSColor.windowBackgroundColor))
         }
         .frame(width: 640, height: 480)
+        .focusable()
+        .onKeyPress(.space) {
+            isPresented = false
+            return .handled
+        }
         .onAppear {
             viewModel.loadClip(clip)
             viewModel.play()  // Auto-play when modal opens
