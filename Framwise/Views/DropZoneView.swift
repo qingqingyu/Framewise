@@ -78,20 +78,22 @@ struct DropZoneView: View {
             // Import progress
             if importViewModel.isImporting {
                 VStack(spacing: 12) {
-                    // File progress
-                    VStack(spacing: 4) {
-                        HStack {
-                            Text("Files")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            Spacer()
-                            Text("\(Int(importViewModel.importProgress * 100))%")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                    // File progress (only show when multiple files)
+                    if importViewModel.totalFilesCount > 1 {
+                        VStack(spacing: 4) {
+                            HStack {
+                                Text("Files")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Spacer()
+                                Text("\(Int(importViewModel.importProgress * 100))%")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            ProgressView(value: importViewModel.importProgress)
                         }
-                        ProgressView(value: importViewModel.importProgress)
+                        .frame(width: 300)
                     }
-                    .frame(width: 300)
 
                     // Analysis progress (if analyzing)
                     if importViewModel.isAnalyzing {

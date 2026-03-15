@@ -21,6 +21,7 @@ class VideoImportViewModel: ObservableObject {
     @Published var clipsFoundCount: Int = 0
     @Published var analyzingProgress: Double = 0
     @Published var isAnalyzing: Bool = false
+    @Published var totalFilesCount: Int = 0
 
     private let sceneDetector = SceneDetector()
     private let maxSegmentDuration: Double = 5.0  // 5秒切割长镜头
@@ -33,6 +34,7 @@ class VideoImportViewModel: ObservableObject {
         error = nil
         statusMessage = "Importing videos..."
         clipsFoundCount = 0
+        totalFilesCount = urls.count
 
         defer {
             isImporting = false
