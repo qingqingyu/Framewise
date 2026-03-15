@@ -665,6 +665,7 @@ struct ClipPreviewModal: View {
         .frame(width: 640, height: 480)
         .onAppear {
             viewModel.loadClip(clip)
+            viewModel.play()  // Auto-play when modal opens
         }
         .onDisappear {
             viewModel.cleanupPlayer()
