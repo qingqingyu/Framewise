@@ -225,18 +225,7 @@ struct ClipGridView: View {
                                                 }
                                             }
                                             .onTapGesture {
-                                                // 检测是否按下了 Command 或 Shift 键（多选模式）
-                                                let modifiers = NSEvent.modifierFlags
-                                                let isCommandPressed = modifiers.contains(.command)
-                                                let isShiftPressed = modifiers.contains(.shift)
-
-                                                if isCommandPressed || isShiftPressed {
-                                                    // ⌘+点击 或 Shift+点击：切换当前片段，保留其他选中
-                                                    gridViewModel.toggleSelection(clip.id, in: appState)
-                                                } else {
-                                                    // 普通点击：切换选中状态
-                                                    gridViewModel.toggleSelection(clip.id, in: appState)
-                                                }
+                                                gridViewModel.toggleSelection(clip.id, in: appState)
                                             }
                                             .contextMenu {
                                                 Button(appState.selectedClipIDs.contains(clip.id) ? "Deselect" : "Select") {
