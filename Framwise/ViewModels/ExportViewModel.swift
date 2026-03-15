@@ -52,7 +52,7 @@ class ExportViewModel: ObservableObject {
 
             // 保存到临时文件
             let tempDir = FileManager.default.temporaryDirectory
-            let fileName = "Framwise_Export_\(Date().formatted(.iso8601.dateSeparator(.dash).timeSeparator(.colon))).\(fileExtension)"
+            let fileName = generateExportFileName(from: clips, fileExtension: fileExtension)
             let fileURL = tempDir.appendingPathComponent(fileName)
 
             try content.write(to: fileURL, atomically: true, encoding: .utf8)
@@ -64,6 +64,23 @@ class ExportViewModel: ObservableObject {
             isExporting = false
             return nil
         }
+    }
+
+    // MARK: - File Name Generation
+
+    private func generateExportFileName(from clips: [VideoClip], fileExtension: String) -> String {
+        // 获取所有唯一的源文件
+        let sourceFiles = Set(clips.map { $0.sourceFileURL })
+
+        // 如果所有切片来自同一个源文件，使用源文件名作为前缀
+        if sourceFiles.count == 1, let sourceURL = sourceFiles.first {
+            let sourceName = sourceURL.deletingPathExtension().lastPathComponent
+            return "\(sourceName)_export.\(fileExtension)"
+        }
+
+        // 多个源文件时，使用默认文件名
+        let timestamp = Date().formatted(.iso8601.dateSeparator(.dash).timeSeparator(.colon))
+        return "Framwise_Export_\(timestamp).\(fileExtension)"
     }
 
     // MARK: - EDL Generation (CMX 3600)
