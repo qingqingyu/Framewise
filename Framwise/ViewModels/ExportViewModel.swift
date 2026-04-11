@@ -92,6 +92,8 @@ class ExportViewModel: ObservableObject {
 
         """
 
+        var recTime: CMTime = .zero
+
         for (index, clip) in clips.enumerated() {
             let eventNumber = String(format: "%03d", index + 1)
 
@@ -102,13 +104,10 @@ class ExportViewModel: ObservableObject {
             let tcIn = TimecodeUtils.formatTimecodeEDL(clip.timecodeStart)
             let tcOut = TimecodeUtils.formatTimecodeEDL(clip.timecodeEnd)
 
-            // 时间轴时间码（累积）
-            let recIn = TimecodeUtils.formatTimecodeEDL(
-                clips[0..<index].reduce(CMTime.zero) { CMTimeAdd($0, $1.timecodeEnd) - CMTimeAdd($0, $1.timecodeStart) }
-            )
-            let recOut = TimecodeUtils.formatTimecodeEDL(
-                clips[0...index].reduce(CMTime.zero) { CMTimeAdd($0, $1.timecodeEnd) - CMTimeAdd($0, $1.timecodeStart) }
-            )
+            // 时间轴时间码（累积，O(1)）
+            let recIn = TimecodeUtils.formatTimecodeEDL(recTime)
+            recTime = CMTimeAdd(recTime, CMTimeSubtract(clip.timecodeEnd, clip.timecodeStart))
+            let recOut = TimecodeUtils.formatTimecodeEDL(recTime)
 
             edl += """
             \(eventNumber)  \(reelName)   V     C        \(tcIn) \(tcOut) \(recIn) \(recOut)
@@ -127,11 +126,16 @@ class ExportViewModel: ObservableObject {
         // 获取所有唯一的源文件
         let sourceFiles = Dictionary(grouping: clips) { $0.sourceFileURL }
 
+        // 计算总时长
+        let totalDuration = clips.reduce(0.0) { $0 + $1.duration }
+
         var xml = """
         <?xml version="1.0" encoding="UTF-8"?>
         <!DOCTYPE fcpxml>
         <fcpxml version="1.9">
             <resources>
+                <format id="r1001" name="FFVideoFormat1080p24" frameDuration="100/2400s" width="1920" height="1080"/>
+
         """
 
         // 添加资源
@@ -146,9 +150,9 @@ class ExportViewModel: ObservableObject {
             let assetId = "r\(index + 1)"
 
             xml += """
-                    <asset id="\(assetId)" name="\(url.lastPathComponent)" src="file://\(url.path)" duration="\(duration)s">
+                    <asset id="\(xmlEscaped(assetId))" name="\(xmlEscaped(url.lastPathComponent))" src="file://\(xmlEscaped(url.path))" duration="\(duration)s">
                         <metadata>
-                            <md key="com.apple.proapps.studio.clip.name" value="\(url.lastPathComponent)"/>
+                            <md key="com.apple.proapps.studio.clip.name" value="\(xmlEscaped(url.lastPathComponent))"/>
                         </metadata>
                     </asset>
 
@@ -160,7 +164,7 @@ class ExportViewModel: ObservableObject {
             <library>
                 <event name="Framwise Export">
                     <project name="Selected Clips">
-                        <sequence format="r1001" duration="0s">
+                        <sequence format="r1001" duration="\(totalDuration)s" tcStart="0s">
                             <spine>
         """
 
@@ -178,7 +182,7 @@ class ExportViewModel: ObservableObject {
             let offset = currentOffset
 
             xml += """
-                                <asset-clip name="\(clip.sourceFileName)" offset="\((offset / 1.0))s" ref="\(assetId)" duration="\((duration / 1.0))s" start="\((startTime / 1.0))s"/>
+                                <asset-clip name="\(xmlEscaped(clip.sourceFileName))" offset="\(offset)s" ref="\(xmlEscaped(assetId))" duration="\(duration)s" start="\(startTime)s"/>
 
             """
 
@@ -196,13 +200,15 @@ class ExportViewModel: ObservableObject {
 
         return xml
     }
-}
 
-// MARK: - Helper for CMTime accumulation
-private extension ArraySlice where Element == VideoClip {
-    func reduce(_ initial: CMTime) -> CMTime {
-        reduce(initial) { result, clip in
-            CMTimeAdd(result, CMTimeSubtract(clip.timecodeEnd, clip.timecodeStart))
-        }
+    // MARK: - XML Escaping
+
+    private func xmlEscaped(_ string: String) -> String {
+        string
+            .replacingOccurrences(of: "&", with: "&amp;")
+            .replacingOccurrences(of: "<", with: "&lt;")
+            .replacingOccurrences(of: ">", with: "&gt;")
+            .replacingOccurrences(of: "\"", with: "&quot;")
+            .replacingOccurrences(of: "'", with: "&apos;")
     }
 }
