@@ -2,26 +2,57 @@
 //  ThumbnailGenerator.swift
 //  Framwise
 //
-//  Generates and caches video thumbnails
+//  Generates and caches video thumbnails (memory + disk)
 //
 
 import Foundation
 import AVFoundation
 import CoreImage
 import SwiftUI
+import CryptoKit
 
 actor ThumbnailGenerator {
     // Shared instance for app-wide use
     static let shared = ThumbnailGenerator()
 
+    // MARK: - Cache Layers
+
     private var cache: NSCache<NSString, CGImage> = {
         let cache = NSCache<NSString, CGImage>()
-        cache.countLimit = 500  // 最多缓存500张缩略图
+        cache.countLimit = 500
         return cache
     }()
 
     private var generators: [URL: AVAssetImageGenerator] = [:]
     private let ciContext = CIContext(options: [.useSoftwareRenderer: false])
+
+    // Disk cache config
+    private let maxDiskCacheSize: Int64 = 2 * 1024 * 1024 * 1024  // 2GB
+
+    // MARK: - Disk Cache Paths
+
+    private var diskCacheRoot: URL {
+        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        let cacheDir = appSupport.appendingPathComponent("Framwise/thumbnails", isDirectory: true)
+        return cacheDir
+    }
+
+    /// Hash a file path to a short directory name
+    private func diskCacheFolder(for url: URL) -> String {
+        let inputData = Data(url.path.utf8)
+        let hash = SHA256.hash(data: inputData)
+        return hash.compactMap { String(format: "%02x", $0) }.prefix(16).joined()
+    }
+
+    /// Disk cache folder URL for a source video
+    private func diskCacheDirectory(for url: URL) -> URL {
+        diskCacheRoot.appendingPathComponent(diskCacheFolder(for: url), isDirectory: true)
+    }
+
+    /// PNG filename for a specific thumbnail frame
+    private func diskCacheFileName(start: Double, end: Double, frameIndex: Int) -> String {
+        String(format: "clip_%.2f_%.2f_%d.png", start, end, frameIndex)
+    }
 
     // MARK: - Thumbnail Generation
 
@@ -33,12 +64,18 @@ actor ThumbnailGenerator {
     ) async throws -> CGImage {
         let cacheKey = "\(url.path)_\(CMTimeGetSeconds(time))" as NSString
 
-        // 检查缓存
+        // Layer 1: Memory cache
         if let cached = cache.object(forKey: cacheKey) {
             return cached
         }
 
-        // 获取或创建generator
+        // Layer 2: Disk cache
+        if let diskImage = readFromDisk(url: url, time: time) {
+            cache.setObject(diskImage, forKey: cacheKey)
+            return diskImage
+        }
+
+        // Layer 3: Generate from video
         let generator: AVAssetImageGenerator
         if let existing = generators[url] {
             generator = existing
@@ -51,14 +88,12 @@ actor ThumbnailGenerator {
             generators[url] = generator
         }
 
-        // 生成图像
         let (image, _) = try await generator.image(at: time)
-
-        // 缩放到目标尺寸
         let scaledImage = try scaleImage(image, to: targetSize)
 
-        // 缓存
+        // Save to both caches
         cache.setObject(scaledImage, forKey: cacheKey)
+        saveToDisk(scaledImage, url: url, time: time)
 
         return scaledImage
     }
@@ -81,12 +116,10 @@ actor ThumbnailGenerator {
                 let image = try await generateThumbnail(for: clip.sourceFileURL, at: time, targetSize: targetSize)
                 images.append(image)
             } catch {
-                // 跳过失败的帧
                 continue
             }
         }
 
-        // 如果没有生成任何图像，尝试获取第一帧
         if images.isEmpty {
             let firstFrame = try await generateThumbnail(for: clip.sourceFileURL, at: clip.timecodeStart, targetSize: targetSize)
             images.append(firstFrame)
@@ -100,7 +133,6 @@ actor ThumbnailGenerator {
     private func scaleImage(_ image: CGImage, to targetSize: CGSize) throws -> CGImage {
         let ciImage = CIImage(cgImage: image)
 
-        // 计算缩放比例（保持宽高比）
         let scaleX = targetSize.width / CGFloat(image.width)
         let scaleY = targetSize.height / CGFloat(image.height)
         let scale = min(scaleX, scaleY)
@@ -108,11 +140,9 @@ actor ThumbnailGenerator {
         let scaledWidth = CGFloat(image.width) * scale
         let scaledHeight = CGFloat(image.height) * scale
 
-        // 缩放
         let transform = CGAffineTransform(scaleX: scale, y: scale)
         let scaledCI = ciImage.transformed(by: transform)
 
-        // 裁剪到目标尺寸（居中）
         let cropRect = CGRect(
             x: (scaledWidth - targetSize.width) / 2,
             y: (scaledHeight - targetSize.height) / 2,
@@ -128,13 +158,177 @@ actor ThumbnailGenerator {
         return outputImage
     }
 
+    // MARK: - Disk Cache: Write
+
+    private func saveToDisk(_ image: CGImage, url: URL, time: CMTime) {
+        let dir = diskCacheDirectory(for: url)
+        let fm = FileManager.default
+
+        // Create directory if needed
+        if !fm.fileExists(atPath: dir.path) {
+            try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
+            // Write source file metadata for validity check
+            writeMetadata(for: url, to: dir)
+        }
+
+        let timeSeconds = CMTimeGetSeconds(time)
+        let fileName = "frame_\(String(format: "%.3f", timeSeconds)).png"
+        let fileURL = dir.appendingPathComponent(fileName)
+
+        // Skip if already on disk
+        if fm.fileExists(atPath: fileURL.path) { return }
+
+        let nsImage = NSImage(cgImage: image, size: NSSize(width: image.width, height: image.height))
+        guard let tiffData = nsImage.tiffRepresentation,
+              let bitmap = NSBitmapImageRep(data: tiffData),
+              let pngData = bitmap.representation(using: .png, properties: [:]) else {
+            return
+        }
+
+        try? pngData.write(to: fileURL, options: .atomic)
+
+        // Touch directory mtime for LRU
+        try? fm.setAttributes([.modificationDate: Date()], ofItemAtPath: dir.path)
+
+        // Check cache size cap after writing
+        enforceCacheSizeLimit()
+    }
+
+    // MARK: - Disk Cache: Read
+
+    private func readFromDisk(url: URL, time: CMTime) -> CGImage? {
+        let dir = diskCacheDirectory(for: url)
+        let fm = FileManager.default
+
+        guard fm.fileExists(atPath: dir.path) else { return nil }
+
+        // Validate source file hasn't changed
+        guard isCacheValid(for: url, in: dir) else {
+            // Source file changed, evict stale cache
+            try? fm.removeItem(at: dir)
+            return nil
+        }
+
+        let timeSeconds = CMTimeGetSeconds(time)
+        let fileName = "frame_\(String(format: "%.3f", timeSeconds)).png"
+        let fileURL = dir.appendingPathComponent(fileName)
+
+        guard fm.fileExists(atPath: fileURL.path),
+              let data = try? Data(contentsOf: fileURL),
+              let nsImage = NSImage(data: data),
+              let cgImage = nsImage.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+            return nil
+        }
+
+        // Touch directory mtime for LRU
+        try? fm.setAttributes([.modificationDate: Date()], ofItemAtPath: dir.path)
+
+        return cgImage
+    }
+
+    // MARK: - Disk Cache: Validity
+
+    /// Source file metadata for cache invalidation
+    private struct SourceMetadata: Codable {
+        let modificationDate: Double  // time interval since 1970
+        let fileSize: Int64
+    }
+
+    private func writeMetadata(for url: URL, to dir: URL) {
+        let fm = FileManager.default
+        guard let attrs = try? fm.attributesOfItem(atPath: url.path),
+              let mtime = attrs[.modificationDate] as? Date,
+              let size = attrs[.size] as? Int64 else { return }
+
+        let meta = SourceMetadata(
+            modificationDate: mtime.timeIntervalSince1970,
+            fileSize: size
+        )
+        guard let data = try? JSONEncoder().encode(meta) else { return }
+        try? data.write(to: dir.appendingPathComponent("metadata.json"), options: .atomic)
+    }
+
+    private func isCacheValid(for url: URL, in dir: URL) -> Bool {
+        let fm = FileManager.default
+        let metaURL = dir.appendingPathComponent("metadata.json")
+
+        guard let metaJSON = try? Data(contentsOf: metaURL),
+              let meta = try? JSONDecoder().decode(SourceMetadata.self, from: metaJSON),
+              let attrs = try? fm.attributesOfItem(atPath: url.path),
+              let mtime = attrs[.modificationDate] as? Date,
+              let size = attrs[.size] as? Int64 else {
+            return false
+        }
+
+        return abs(mtime.timeIntervalSince1970 - meta.modificationDate) < 1.0 && size == meta.fileSize
+    }
+
+    // MARK: - Disk Cache: Eviction
+
+    private func enforceCacheSizeLimit() {
+        let fm = FileManager.default
+        let root = diskCacheRoot
+
+        guard let contents = try? fm.contentsOfDirectory(
+            at: root,
+            includingPropertiesForKeys: [.fileSizeKey, .creationDateKey, .contentModificationDateKey],
+            options: .skipsHiddenFiles
+        ) else { return }
+
+        // Calculate total size
+        var totalSize: Int64 = 0
+        var dirs: [(url: URL, size: Int64, mtime: Date)] = []
+
+        for dirURL in contents {
+            var isDir: ObjCBool = false
+            guard fm.fileExists(atPath: dirURL.path, isDirectory: &isDir), isDir.boolValue else { continue }
+
+            let dirSize = directorySize(at: dirURL)
+            totalSize += dirSize
+
+            let mtime = (try? fm.attributesOfItem(atPath: dirURL.path)[.modificationDate] as? Date) ?? Date.distantPast
+            dirs.append((url: dirURL, size: dirSize, mtime: mtime))
+        }
+
+        // If under cap, done
+        guard totalSize > maxDiskCacheSize else { return }
+
+        // Sort by mtime ascending (oldest first) and evict until under cap
+        dirs.sort { $0.mtime < $1.mtime }
+
+        for dir in dirs {
+            try? fm.removeItem(at: dir.url)
+            totalSize -= dir.size
+            if totalSize <= maxDiskCacheSize { break }
+        }
+    }
+
+    private func directorySize(at url: URL) -> Int64 {
+        let fm = FileManager.default
+        var total: Int64 = 0
+
+        guard let enumerator = fm.enumerator(at: url, includingPropertiesForKeys: [.fileSizeKey]) else { return 0 }
+        for case let fileURL as URL in enumerator {
+            guard let size = try? fileURL.resourceValues(forKeys: [.fileSizeKey]).fileSize else { continue }
+            total += Int64(size)
+        }
+        return total
+    }
+
     // MARK: - Cache Management
 
     func clearCache() {
         cache.removeAllObjects()
         generators.removeAll()
+
+        // Also clear disk cache
+        let fm = FileManager.default
+        if fm.fileExists(atPath: diskCacheRoot.path) {
+            try? fm.removeItem(at: diskCacheRoot)
+        }
     }
 
+    /// Preload thumbnails for a batch of clips (uses all cache layers)
     func preloadThumbnails(for clips: [VideoClip], targetSize: CGSize) async {
         await withTaskGroup(of: Void.self) { group in
             for clip in clips {
@@ -147,7 +341,7 @@ actor ThumbnailGenerator {
                                 targetSize: targetSize
                             )
                         } catch {
-                            // 忽略预加载错误
+                            // Ignore preload errors
                         }
                     }
                 }
