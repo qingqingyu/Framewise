@@ -23,7 +23,18 @@
 		A1000014 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B1000014; };
 		A1000015 /* PreviewViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000016; };
 		A1000016 /* ClipPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000017; };
+		A2000001 /* ExportViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000001; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		I2000000 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = G1000000 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E1000000;
+			remoteInfo = Framwise;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		B1000000 /* Framwise.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Framwise.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -44,10 +55,19 @@
 		B1000015 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B1000016 /* PreviewViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewViewModel.swift; sourceTree = "<group>"; };
 		B1000017 /* ClipPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipPreviewView.swift; sourceTree = "<group>"; };
+		B2000000 /* FramwiseTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FramwiseTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		B2000001 /* ExportViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportViewModelTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		C1000000 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C2000000 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -61,6 +81,7 @@
 			isa = PBXGroup;
 			children = (
 				D1000001 /* Framwise */,
+				D2000000 /* FramwiseTests */,
 				D1000002 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -84,6 +105,7 @@
 			isa = PBXGroup;
 			children = (
 				B1000000 /* Framwise.app */,
+				B2000000 /* FramwiseTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -153,6 +175,14 @@
 			path = Resources;
 			sourceTree = "<group>";
 		};
+		D2000000 /* FramwiseTests */ = {
+			isa = PBXGroup;
+			children = (
+				B2000001 /* ExportViewModelTests.swift */,
+			);
+			path = FramwiseTests;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -173,6 +203,24 @@
 			productReference = B1000000 /* Framwise.app */;
 			productType = "com.apple.product-type.application";
 		};
+		E2000000 /* FramwiseTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F2000000 /* Build configuration list for PBXNativeTarget "FramwiseTests" */;
+			buildPhases = (
+				E2000001 /* Sources */,
+				C2000000 /* Frameworks */,
+				E2000002 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				J2000000 /* PBXTargetDependency */,
+			);
+			name = FramwiseTests;
+			productName = FramwiseTests;
+			productReference = B2000000 /* FramwiseTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -185,6 +233,10 @@
 				TargetAttributes = {
 					E1000000 = {
 						CreatedOnToolsVersion = 15.0;
+					};
+					E2000000 = {
+						CreatedOnToolsVersion = 15.0;
+						TestTargetID = E1000000;
 					};
 				};
 			};
@@ -202,6 +254,7 @@
 			projectRoot = "";
 			targets = (
 				E1000000 /* Framwise */,
+				E2000000 /* FramwiseTests */,
 			);
 		};
 /* End PBXProject section */
@@ -212,6 +265,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				A1000014 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E2000002 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -240,7 +300,23 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		E2000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A2000001 /* ExportViewModelTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		J2000000 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E1000000 /* Framwise */;
+			targetProxy = I2000000 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		H1000000 /* Debug */ = {
@@ -374,7 +450,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Framwise/Info.plist;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSHUMANReadableCopyright = "";
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -401,7 +477,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Framwise/Info.plist;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSHUMANReadableCopyright = "";
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -412,6 +488,38 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		H2000002 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.framwise.FramwiseTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Framwise.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Framwise";
+			};
+			name = Debug;
+		};
+		H2000003 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.framwise.FramwiseTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Framwise.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Framwise";
 			};
 			name = Release;
 		};
@@ -432,6 +540,15 @@
 			buildConfigurations = (
 				H1000000 /* Debug */,
 				H1000001 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		F2000000 /* Build configuration list for PBXNativeTarget "FramwiseTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				H2000002 /* Debug */,
+				H2000003 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

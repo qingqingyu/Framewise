@@ -68,7 +68,7 @@ class ExportViewModel: ObservableObject {
 
     // MARK: - File Name Generation
 
-    private func generateExportFileName(from clips: [VideoClip], fileExtension: String) -> String {
+    func generateExportFileName(from clips: [VideoClip], fileExtension: String) -> String {
         // 获取所有唯一的源文件
         let sourceFiles = Set(clips.map { $0.sourceFileURL })
 
@@ -85,7 +85,7 @@ class ExportViewModel: ObservableObject {
 
     // MARK: - EDL Generation (CMX 3600)
 
-    private func generateEDL(from clips: [VideoClip]) throws -> String {
+    func generateEDL(from clips: [VideoClip]) throws -> String {
         var edl = """
         TITLE: Framwise Export
         FCM: NON-DROP FRAME
@@ -122,8 +122,25 @@ class ExportViewModel: ObservableObject {
 
     // MARK: - FCPXML Generation
 
-    private func generateFCPXML(from clips: [VideoClip]) async throws -> String {
+    func generateFCPXML(from clips: [VideoClip]) async throws -> String {
         // 获取所有唯一的源文件
+        let sourceFiles = Dictionary(grouping: clips) { $0.sourceFileURL }
+
+        // 加载每个源文件的时长
+        var assetDurations: [URL: Double] = [:]
+        for url in sourceFiles.keys {
+            let asset = AVAsset(url: url)
+            if #available(macOS 13.0, *) {
+                assetDurations[url] = CMTimeGetSeconds(try await asset.load(.duration))
+            } else {
+                assetDurations[url] = CMTimeGetSeconds(asset.duration)
+            }
+        }
+
+        return buildFCPXMLString(clips: clips, assetDurations: assetDurations)
+    }
+
+    func buildFCPXMLString(clips: [VideoClip], assetDurations: [URL: Double]) -> String {
         let sourceFiles = Dictionary(grouping: clips) { $0.sourceFileURL }
 
         // 计算总时长
@@ -140,13 +157,7 @@ class ExportViewModel: ObservableObject {
 
         // 添加资源
         for (index, (url, _)) in sourceFiles.enumerated() {
-            let asset = AVAsset(url: url)
-            let duration: Double
-            if #available(macOS 13.0, *) {
-                duration = CMTimeGetSeconds(try await asset.load(.duration))
-            } else {
-                duration = CMTimeGetSeconds(asset.duration)
-            }
+            let duration = assetDurations[url] ?? 0
             let assetId = "r\(index + 1)"
 
             xml += """
@@ -203,7 +214,7 @@ class ExportViewModel: ObservableObject {
 
     // MARK: - XML Escaping
 
-    private func xmlEscaped(_ string: String) -> String {
+    func xmlEscaped(_ string: String) -> String {
         string
             .replacingOccurrences(of: "&", with: "&amp;")
             .replacingOccurrences(of: "<", with: "&lt;")
