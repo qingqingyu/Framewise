@@ -9,6 +9,15 @@ import Foundation
 import AVFoundation
 import Combine
 
+// MARK: - Parallel Import Types
+
+/// Result of analyzing a single video (used for parallel processing)
+private struct VideoImportResult {
+    let sourceURL: URL
+    let clips: [VideoClip]
+    let wasteTypes: [UUID: WasteType]  // clipID → wasteType
+}
+
 @MainActor
 class VideoImportViewModel: ObservableObject {
     @Published var isImporting = false
@@ -30,7 +39,7 @@ class VideoImportViewModel: ObservableObject {
         return count > 0 ? count : 36
     }
 
-    // MARK: - Streaming Import
+    // MARK: - Streaming Import (Parallel)
 
     func importVideosStreaming(from urls: [URL], into session: ImportSession) async {
         isImporting = true
@@ -47,95 +56,237 @@ class VideoImportViewModel: ObservableObject {
             analyzingProgress = 1.0
         }
 
-        do {
-            for (index, url) in urls.enumerated() {
-                importProgress = Double(index) / Double(urls.count)
-                currentVideoName = url.lastPathComponent
-                statusMessage = "Processing \(url.lastPathComponent)..."
-
-                // 验证文件
+        // Pre-validate all files (fail fast)
+        for url in urls {
+            do {
                 try validateVideoFile(url)
+            } catch {
+                self.error = error
+                statusMessage = "Error: \(error.localizedDescription)"
+                return
+            }
+            session.addSourceFile(url)
+        }
 
-                // 添加源文件
-                session.addSourceFile(url)
+        // Capture values for use in non-isolated tasks
+        let sceneDetector = self.sceneDetector
+        let wasteDetector = self.wasteDetector
+        let targetCount = self.targetSegmentCount
 
-                // 流式分析并逐个添加clips
-                try await analyzeVideoStreaming(url, into: session)
+        var completedCount = 0
+        var firstError: Error?
+
+        await withTaskGroup(of: Result<VideoImportResult, Error>.self) { group in
+            for url in urls {
+                group.addTask {
+                    do {
+                        let result = try await Self.analyzeSingleVideo(
+                            url: url,
+                            sceneDetector: sceneDetector,
+                            wasteDetector: wasteDetector,
+                            targetSegmentCount: targetCount
+                        )
+                        return .success(result)
+                    } catch {
+                        return .failure(error)
+                    }
+                }
             }
 
-            session.isAnalyzed = true
-            statusMessage = "Import complete: \(session.clipCount) clips"
-        } catch {
+            // Merge results as each video completes (serial writes to session)
+            for await groupResult in group {
+                completedCount += 1
+                importProgress = Double(completedCount) / Double(urls.count)
+                currentVideoName = "Processing \(completedCount)/\(urls.count) videos..."
+
+                switch groupResult {
+                case .success(let result):
+                    mergeResult(result, into: session)
+                case .failure(let error):
+                    #if DEBUG
+                    print("[VideoImport] Failed to analyze video: \(error.localizedDescription)")
+                    #endif
+                    if firstError == nil {
+                        firstError = error
+                    }
+                }
+            }
+        }
+
+        if let error = firstError, completedCount == 0 {
             self.error = error
             statusMessage = "Error: \(error.localizedDescription)"
+        } else {
+            session.isAnalyzed = true
+            statusMessage = "Import complete: \(session.clipCount) clips"
         }
     }
 
-    // MARK: - Streaming Video Analysis
+    /// Merge a single video's analysis result into the session (called on @MainActor)
+    private func mergeResult(_ result: VideoImportResult, into session: ImportSession) {
+        session.addClips(result.clips)
+        clipsFoundCount += result.clips.count
 
-    private func analyzeVideoStreaming(_ url: URL, into session: ImportSession) async throws {
+        // Apply waste markings
+        for i in session.allClips.indices {
+            if let wasteType = result.wasteTypes[session.allClips[i].id] {
+                session.allClips[i].wasteType = wasteType
+            }
+        }
+    }
+
+    // MARK: - Single Video Analysis (Non-isolated, for parallel execution)
+
+    /// Analyze a single video independently — no session interaction
+    nonisolated private static func analyzeSingleVideo(
+        url: URL,
+        sceneDetector: SceneDetector,
+        wasteDetector: WasteDetector,
+        targetSegmentCount: Int
+    ) async throws -> VideoImportResult {
         let asset = AVAsset(url: url)
 
-        // 加载tracks
+        // Load tracks
         try await asset.loadTracks(withMediaType: .video)
-
-        statusMessage = "Analyzing \(url.lastPathComponent)..."
 
         let duration = try await asset.load(.duration)
         let totalDuration = CMTimeGetSeconds(duration)
 
-        // 使用流式场景检测
+        // Stream scene detection
         let stream = await sceneDetector.detectScenesStream(in: asset)
 
+        var clips: [VideoClip] = []
         var lastProcessedTime: CMTime = .zero
 
         for await event in stream {
             switch event {
             case .sceneChange(let time):
-                // 阶段一：按场景边界直接创建单个片段（不细分）
                 let segDuration = CMTimeGetSeconds(time) - CMTimeGetSeconds(lastProcessedTime)
                 if segDuration > 0.1 {
                     let segment = ClipSegment(sourceURL: url, startTime: lastProcessedTime, endTime: time)
-                    let clip = segment.toVideoClip()
-                    session.addClip(clip)
-                    clipsFoundCount += 1
+                    clips.append(segment.toVideoClip())
                 }
                 lastProcessedTime = time
 
-            case .progress(let ratio):
-                analyzingProgress = ratio
+            case .progress:
+                break
 
             case .frameSkipped(let time, let reason):
-                // Log skipped frames for debugging (non-blocking)
                 #if DEBUG
                 print("[VideoImport] Frame skipped at \(time)s: \(reason)")
                 #endif
 
             case .completed:
-                // 处理最后一段
+                // Process final segment
                 let finalDuration = CMTimeGetSeconds(duration) - CMTimeGetSeconds(lastProcessedTime)
                 if finalDuration > 0.1 {
                     let segment = ClipSegment(sourceURL: url, startTime: lastProcessedTime, endTime: duration)
-                    let clip = segment.toVideoClip()
-                    session.addClip(clip)
-                    clipsFoundCount += 1
+                    clips.append(segment.toVideoClip())
                 }
 
-                // 阶段二：补切长场景
-                refineLongSegments(
-                    session: session,
-                    targetCount: targetSegmentCount,
-                    sourceURL: url,
-                    totalDuration: totalDuration
-                )
-
-                // 阶段三：废料检测
-                await detectWasteForClips(session: session, sourceURL: url, filename: url.lastPathComponent)
+                // Refine long clips (pure function)
+                clips = refineLongClips(clips, targetCount: targetSegmentCount, totalDuration: totalDuration)
 
             case .error(let error):
                 throw error
             }
         }
+
+        // Waste detection
+        let wasteTypes = await detectWasteInClips(clips: clips, sourceURL: url, wasteDetector: wasteDetector)
+
+        return VideoImportResult(sourceURL: url, clips: clips, wasteTypes: wasteTypes)
+    }
+
+    // MARK: - Waste Detection (Non-isolated)
+
+    /// Detect waste for a set of clips from a single video
+    nonisolated private static func detectWasteInClips(
+        clips: [VideoClip],
+        sourceURL: URL,
+        wasteDetector: WasteDetector
+    ) async -> [UUID: WasteType] {
+        guard !clips.isEmpty else { return [:] }
+        let asset = AVAsset(url: sourceURL)
+        return await wasteDetector.detectWaste(in: clips, asset: asset)
+    }
+
+    // MARK: - Clip Refinement (Pure)
+
+    /// Refine long clips by splitting them — pure input/output, no session interaction
+    nonisolated private static func refineLongClips(
+        _ clips: [VideoClip],
+        targetCount: Int,
+        totalDuration: Double
+    ) -> [VideoClip] {
+        guard clips.count < targetCount else { return clips }
+
+        let budget = targetCount - clips.count
+        let idealDuration = totalDuration / Double(targetCount)
+
+        let longClips = clips
+            .filter { $0.duration > idealDuration }
+            .sorted { $0.duration > $1.duration }
+
+        guard !longClips.isEmpty else { return clips }
+
+        let totalLongDuration = longClips.reduce(0.0) { $0 + $1.duration }
+
+        var replacements: [UUID: [VideoClip]] = [:]
+        var remainingBudget = budget
+
+        for longClip in longClips {
+            guard remainingBudget > 0 else { break }
+
+            var allocatedSplit: Int
+            if longClips.count == 1 {
+                allocatedSplit = remainingBudget
+            } else {
+                allocatedSplit = max(1, Int(round(Double(remainingBudget) * (longClip.duration / totalLongDuration))))
+                allocatedSplit = min(allocatedSplit, remainingBudget)
+            }
+
+            let partCount = allocatedSplit + 1
+            let newClips = splitClipIntoParts(clip: longClip, partCount: partCount)
+            replacements[longClip.id] = newClips
+            remainingBudget -= allocatedSplit
+        }
+
+        return clips.flatMap { clip -> [VideoClip] in
+            if let replacement = replacements[clip.id] {
+                return replacement
+            }
+            return [clip]
+        }
+    }
+
+    /// Split a VideoClip into equal-duration parts
+    nonisolated private static func splitClipIntoParts(clip: VideoClip, partCount: Int) -> [VideoClip] {
+        guard partCount > 1 else { return [clip] }
+
+        let partDuration = clip.duration / Double(partCount)
+        var clips: [VideoClip] = []
+
+        for i in 0..<partCount {
+            let startTime = CMTimeAdd(
+                clip.timecodeStart,
+                CMTime(seconds: Double(i) * partDuration, preferredTimescale: 600)
+            )
+            let endTime: CMTime
+            if i == partCount - 1 {
+                endTime = clip.timecodeEnd
+            } else {
+                endTime = CMTimeAdd(
+                    clip.timecodeStart,
+                    CMTime(seconds: Double(i + 1) * partDuration, preferredTimescale: 600)
+                )
+            }
+
+            let segment = ClipSegment(sourceURL: clip.sourceFileURL, startTime: startTime, endTime: endTime)
+            clips.append(segment.toVideoClip())
+        }
+
+        return clips
     }
 
     // MARK: - Legacy Import (保留兼容)
@@ -172,7 +323,7 @@ class VideoImportViewModel: ObservableObject {
         importProgress = 1.0
     }
 
-    // MARK: - Video Analysis
+    // MARK: - Video Analysis (Legacy)
 
     private func analyzeVideo(_ url: URL) async throws -> [VideoClip] {
         let asset = AVAsset(url: url)
@@ -228,116 +379,6 @@ class VideoImportViewModel: ObservableObject {
 
         // 补切长场景
         return refineSegments(segments, targetCount: targetSegmentCount)
-    }
-
-    // MARK: - Waste Detection
-
-    /// Detect waste clips (blackout, dark, solid) for a single source file
-    private func detectWasteForClips(session: ImportSession, sourceURL: URL, filename: String) async {
-        let clipsForSource = session.allClips.filter { $0.sourceFileURL == sourceURL }
-        guard !clipsForSource.isEmpty else { return }
-
-        statusMessage = "Detecting waste in \(filename)..."
-
-        let asset = AVAsset(url: sourceURL)
-        let wasteResults = await wasteDetector.detectWaste(in: clipsForSource, asset: asset)
-
-        guard !wasteResults.isEmpty else { return }
-
-        // Update wasteType on matching clips
-        for i in session.allClips.indices {
-            if let wasteType = wasteResults[session.allClips[i].id] {
-                session.allClips[i].wasteType = wasteType
-            }
-        }
-    }
-
-    // MARK: - Refinement
-
-    /// 补切长场景片段（流式路径，直接操作 session 中的 VideoClip）
-    private func refineLongSegments(
-        session: ImportSession,
-        targetCount: Int,
-        sourceURL: URL,
-        totalDuration: Double
-    ) {
-        let currentClips = session.allClips.filter { $0.sourceFileURL == sourceURL }
-        let currentCount = currentClips.count
-
-        guard currentCount < targetCount else { return }
-
-        let budget = targetCount - currentCount
-        let idealDuration = totalDuration / Double(targetCount)
-
-        // 找出长片段，按时长降序
-        let longClips = currentClips
-            .filter { $0.duration > idealDuration }
-            .sorted { $0.duration > $1.duration }
-
-        guard !longClips.isEmpty else { return }
-
-        let totalLongDuration = longClips.reduce(0.0) { $0 + $1.duration }
-
-        var replacements: [UUID: [VideoClip]] = [:]
-        var remainingBudget = budget
-
-        for longClip in longClips {
-            guard remainingBudget > 0 else { break }
-
-            var allocatedSplit: Int
-            if longClips.count == 1 {
-                allocatedSplit = remainingBudget
-            } else {
-                allocatedSplit = max(1, Int(round(Double(remainingBudget) * (longClip.duration / totalLongDuration))))
-                allocatedSplit = min(allocatedSplit, remainingBudget)
-            }
-
-            let partCount = allocatedSplit + 1
-            let newClips = splitClipIntoParts(clip: longClip, partCount: partCount)
-            replacements[longClip.id] = newClips
-            remainingBudget -= allocatedSplit
-        }
-
-        // 重建 session clips：保留其他视频的 clips，替换当前视频的长片段
-        let otherClips = session.allClips.filter { $0.sourceFileURL != sourceURL }
-        let updatedClips = currentClips.flatMap { clip -> [VideoClip] in
-            if let replacement = replacements[clip.id] {
-                return replacement
-            }
-            return [clip]
-        }
-
-        clipsFoundCount += (updatedClips.count - currentCount)
-        session.allClips = otherClips + updatedClips
-    }
-
-    /// 将一个 VideoClip 等分为 partCount 段
-    private func splitClipIntoParts(clip: VideoClip, partCount: Int) -> [VideoClip] {
-        guard partCount > 1 else { return [clip] }
-
-        let partDuration = clip.duration / Double(partCount)
-        var clips: [VideoClip] = []
-
-        for i in 0..<partCount {
-            let startTime = CMTimeAdd(
-                clip.timecodeStart,
-                CMTime(seconds: Double(i) * partDuration, preferredTimescale: 600)
-            )
-            let endTime: CMTime
-            if i == partCount - 1 {
-                endTime = clip.timecodeEnd
-            } else {
-                endTime = CMTimeAdd(
-                    clip.timecodeStart,
-                    CMTime(seconds: Double(i + 1) * partDuration, preferredTimescale: 600)
-                )
-            }
-
-            let segment = ClipSegment(sourceURL: clip.sourceFileURL, startTime: startTime, endTime: endTime)
-            clips.append(segment.toVideoClip())
-        }
-
-        return clips
     }
 
     /// 补切长场景片段（legacy 路径，操作 ClipSegment 数组）
