@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Combine
 
 @main
 struct FramwiseApp: App {
@@ -44,7 +45,9 @@ struct FramwiseApp: App {
 // MARK: - App State
 
 class AppState: ObservableObject {
-    @Published var importSession: ImportSession?
+    @Published var importSession: ImportSession? {
+        didSet { subscribeToSessionChanges() }
+    }
     @Published var selectedClipIDs: Set<UUID> = []
     @Published var isProcessing = false
     @Published var processingProgress: Double = 0
@@ -55,9 +58,22 @@ class AppState: ObservableObject {
     // Video preview
     @Published var previewClip: VideoClip?
 
+    private let store = SessionStore()
+    private var cancellables = Set<AnyCancellable>()
+
     var selectedClips: [VideoClip] {
         guard let session = importSession else { return [] }
         return session.allClips.filter { selectedClipIDs.contains($0.id) }
+    }
+
+    init() {
+        // Restore persisted session on startup
+        if let data = try? store.load() {
+            let session = ImportSession()
+            session.restore(from: data)
+            self.importSession = session
+            self.selectedClipIDs = data.selectedClipIDs
+        }
     }
 
     /// Update preview when selection changes
@@ -71,6 +87,42 @@ class AppState: ObservableObject {
         } else if selectedClipIDs.isEmpty {
             previewClip = nil
         }
+    }
+
+    func clearSession() {
+        importSession = nil
+        selectedClipIDs = []
+        store.delete()
+    }
+
+    // MARK: - Auto-save
+
+    private func subscribeToSessionChanges() {
+        cancellables.removeAll()
+
+        // Save when session object changes (debounced)
+        if let session = importSession {
+            session.objectWillChange
+                .debounce(for: .milliseconds(500), scheduler: RunLoop.main)
+                .sink { [weak self] in
+                    self?.saveToDisk()
+                }
+                .store(in: &cancellables)
+        }
+
+        // Save when selection changes (debounced)
+        $selectedClipIDs
+            .dropFirst()
+            .debounce(for: .milliseconds(500), scheduler: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.saveToDisk()
+            }
+            .store(in: &cancellables)
+    }
+
+    private func saveToDisk() {
+        guard let session = importSession else { return }
+        try? store.save(session: session, selectedClipIDs: selectedClipIDs)
     }
 }
 

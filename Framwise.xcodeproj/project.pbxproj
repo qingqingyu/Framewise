@@ -28,6 +28,7 @@
 		'A1000015' = {isa = PBXBuildFile; fileRef = B1000016; };
 		'A1000016' = {isa = PBXBuildFile; fileRef = B1000017; };
 		'A1000017' = {isa = PBXBuildFile; fileRef = B1000018; };
+		'A1000018' = {isa = PBXBuildFile; fileRef = B1000019; };
 		'A2000001' = {isa = PBXBuildFile; fileRef = B2000001; };
 		AFC046459BDAB56479818668 /* ClipTag.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE0A4EDE9A1EA5BB62085D5B /* ClipTag.swift */; };
 		E6BF493CAE38242E3396B0CE /* TagCreateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 506A4184A4530FAFF2D72E23 /* TagCreateView.swift */; };
@@ -64,6 +65,7 @@
 		'B1000016' = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewViewModel.swift; sourceTree = "<group>"; };
 		'B1000017' = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipPreviewView.swift; sourceTree = "<group>"; };
 		'B1000018' = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WasteDetector.swift; sourceTree = "<group>"; };
+		'B1000019' = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStore.swift; sourceTree = "<group>"; };
 		'B2000000' = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FramwiseTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		'B2000001' = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportViewModelTests.swift; sourceTree = "<group>"; };
 		555E5510F850440AB11DC2AE /* ImportSessionTagTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportSessionTagTests.swift; sourceTree = "<group>"; };
@@ -170,6 +172,7 @@
 				B1000011,
 				B1000018,
 				B1000012,
+				B1000019,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -315,6 +318,7 @@
 				A1000015,
 				A1000016,
 				A1000017,
+				A1000018,
 				AFC046459BDAB56479818668 /* ClipTag.swift in Sources */,
 				E6BF493CAE38242E3396B0CE /* TagCreateView.swift in Sources */,
 			);

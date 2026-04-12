@@ -131,4 +131,15 @@ class ImportSession: ObservableObject {
             tags.append(tag)
         }
     }
+
+    // MARK: - Restore from persisted data
+
+    func restore(from data: SessionStore.SessionData) {
+        sourceFiles = data.sourceFiles
+        allClips = data.allClips
+        isAnalyzed = data.isAnalyzed
+        userClipOrder = data.userClipOrder
+        tags = data.tags
+        activeTagFilter = data.activeTagFilter
+    }
 }

@@ -9,7 +9,24 @@ import Foundation
 import AVFoundation
 import CoreImage
 
-enum WasteType: String, CaseIterable {
+// MARK: - CMTime Codable
+
+extension CMTime: Codable {
+    public init(from decoder: Decoder) throws {
+        var container = try decoder.unkeyedContainer()
+        let value = try container.decode(Int64.self)
+        let timescale = try container.decode(Int32.self)
+        self = CMTime(value: value, timescale: timescale)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.unkeyedContainer()
+        try container.encode(value)
+        try container.encode(timescale)
+    }
+}
+
+enum WasteType: String, CaseIterable, Codable {
     case none = "None"
     case blackout = "Blackout"     // 黑屏
     case dark = "Dark"             // 极暗
@@ -102,6 +119,47 @@ struct VideoClip: Identifiable, Hashable {
 
     static func == (lhs: VideoClip, rhs: VideoClip) -> Bool {
         lhs.id == rhs.id
+    }
+}
+
+// MARK: - VideoClip Codable
+
+extension VideoClip: Codable {
+    enum CodingKeys: String, CodingKey {
+        case id, sourceFileURL, timecodeStart, timecodeEnd
+        case wasteType, tagIDs
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        sourceFileURL = try c.decode(URL.self, forKey: .sourceFileURL)
+        timecodeStart = try c.decode(CMTime.self, forKey: .timecodeStart)
+        timecodeEnd = try c.decode(CMTime.self, forKey: .timecodeEnd)
+        wasteType = try c.decodeIfPresent(WasteType.self, forKey: .wasteType) ?? .none
+        tagIDs = try c.decodeIfPresent(Set<UUID>.self, forKey: .tagIDs) ?? []
+
+        sourceFileName = sourceFileURL.lastPathComponent
+        isSelected = false
+        let dur = CMTimeGetSeconds(timecodeEnd) - CMTimeGetSeconds(timecodeStart)
+        let count = Self.thumbnailCount(forDuration: dur)
+        thumbnailTimes = Self.generateThumbnailTimes(
+            start: timecodeStart, end: timecodeEnd, count: count
+        )
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encode(sourceFileURL, forKey: .sourceFileURL)
+        try c.encode(timecodeStart, forKey: .timecodeStart)
+        try c.encode(timecodeEnd, forKey: .timecodeEnd)
+        if wasteType != .none {
+            try c.encode(wasteType, forKey: .wasteType)
+        }
+        if !tagIDs.isEmpty {
+            try c.encode(tagIDs, forKey: .tagIDs)
+        }
     }
 }
 

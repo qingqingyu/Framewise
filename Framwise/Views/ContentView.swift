@@ -124,9 +124,7 @@ struct ContentView: View {
     }
 
     private func clearSession() {
-        appState.importSession?.clear()
-        appState.importSession = nil
-        appState.selectedClipIDs.removeAll()
+        appState.clearSession()
     }
 }
 

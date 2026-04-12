@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct ClipTag: Identifiable, Hashable {
+struct ClipTag: Identifiable, Hashable, Codable {
     let id: UUID
     var name: String
     var color: TagColor
@@ -18,7 +18,7 @@ struct ClipTag: Identifiable, Hashable {
         self.color = color
     }
 
-    enum TagColor: String, CaseIterable {
+    enum TagColor: String, CaseIterable, Codable {
         case red, orange, yellow, green, blue, purple, pink, gray
 
         var systemColor: Color {
