@@ -22,6 +22,8 @@ struct ClipGridView: View {
     @State private var hoveredClip: VideoClip?
     @State private var showPreviewModal = false
     @State private var previewingClip: VideoClip?
+    @State private var draggedClipID: UUID?
+    @State private var dropTargetID: UUID?
     @FocusState private var isGridFocused: Bool
 
     enum GridSize: String, CaseIterable {
@@ -116,6 +118,24 @@ struct ClipGridView: View {
                         .cornerRadius(4)
                 }
 
+                // Reset order button (only when custom order is active)
+                if appState.importSession?.userClipOrder != nil {
+                    Button(action: {
+                        appState.importSession?.resetClipOrder()
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.counterclockwise")
+                            Text("Reset Order")
+                        }
+                        .font(.caption)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.accentColor.opacity(0.1))
+                    .cornerRadius(4)
+                }
+
                 Spacer()
 
                 // Grid size picker
@@ -183,70 +203,52 @@ struct ClipGridView: View {
 
                 ScrollViewReader { proxy in
                     ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 24) {
-                            ForEach(groupedClips, id: \.sourceURL) { group in
-                                VStack(alignment: .leading, spacing: 8) {
-                                    // Section header
-                                    HStack {
-                                        Image(systemName: "video.fill")
-                                            .foregroundColor(.accentColor)
-                                        Text(group.sourceURL.lastPathComponent)
-                                            .font(.headline)
-                                        Text("\(group.clips.count) clips")
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                        Spacer()
-                                        if let firstClip = group.clips.first {
-                                            Button("Select All") {
-                                                selectAllFromSameFile(as: firstClip)
-                                            }
-                                            .buttonStyle(.plain)
-                                            .foregroundColor(.accentColor)
-                                            .font(.caption)
-                                        }
-                                    }
-                                    .padding(.horizontal)
-
-                                    // Clips grid
-                                    LazyVGrid(columns: columns, spacing: 12) {
-                                        ForEach(group.clips) { clip in
-                                            ClipCellView(
-                                                clip: clip,
-                                                size: gridSize.cellSize,
-                                                isSelected: appState.selectedClipIDs.contains(clip.id),
-                                                thumbnailGenerator: thumbnailGenerator
-                                            )
-                                            .id(clip.id)
-                                            .onHover { isHovering in
-                                                if isHovering {
-                                                    hoveredClip = clip
-                                                } else if hoveredClip?.id == clip.id {
-                                                    hoveredClip = nil
-                                                }
-                                            }
-                                            .onTapGesture {
-                                                gridViewModel.toggleSelection(clip.id, in: appState)
-                                            }
-                                            .contextMenu {
-                                                Button(appState.selectedClipIDs.contains(clip.id) ? "Deselect" : "Select") {
-                                                    gridViewModel.toggleSelection(clip.id, in: appState)
-                                                }
-                                                Divider()
-                                                Button("Select All from Same File") {
-                                                    selectAllFromSameFile(as: clip)
-                                                }
-                                                Button("Preview") {
-                                                    previewingClip = clip
-                                                    showPreviewModal = true
-                                                }
-                                            }
-                                        }
-                                    }
-                                    .padding(.horizontal)
+                        if appState.importSession?.userClipOrder != nil {
+                            // Flat grid (custom order)
+                            LazyVGrid(columns: columns, spacing: 12) {
+                                ForEach(orderedFlatClips) { clip in
+                                    clipCell(clip)
                                 }
                             }
+                            .padding()
+                        } else {
+                            // Grouped grid (default)
+                            LazyVStack(alignment: .leading, spacing: 24) {
+                                ForEach(groupedClips, id: \.sourceURL) { group in
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        // Section header
+                                        HStack {
+                                            Image(systemName: "video.fill")
+                                                .foregroundColor(.accentColor)
+                                            Text(group.sourceURL.lastPathComponent)
+                                                .font(.headline)
+                                            Text("\(group.clips.count) clips")
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                            Spacer()
+                                            if let firstClip = group.clips.first {
+                                                Button("Select All") {
+                                                    selectAllFromSameFile(as: firstClip)
+                                                }
+                                                .buttonStyle(.plain)
+                                                .foregroundColor(.accentColor)
+                                                .font(.caption)
+                                            }
+                                        }
+                                        .padding(.horizontal)
+
+                                        // Clips grid
+                                        LazyVGrid(columns: columns, spacing: 12) {
+                                            ForEach(group.clips) { clip in
+                                                clipCell(clip)
+                                            }
+                                        }
+                                        .padding(.horizontal)
+                                    }
+                                }
+                            }
+                            .padding(.vertical)
                         }
-                        .padding(.vertical)
                     }
                     .onChange(of: scrollToClipID) { _, newID in
                         if let clipID = newID {
@@ -294,6 +296,64 @@ struct ClipGridView: View {
     private var groupedClips: [(sourceURL: URL, clips: [VideoClip])] {
         guard let session = appState.importSession else { return [] }
         return gridViewModel.groupedClips(from: session.allClips, selectedIDs: appState.selectedClipIDs, sourceURL: appState.selectedSourceURL)
+    }
+
+    private var orderedFlatClips: [VideoClip] {
+        guard let session = appState.importSession,
+              let order = session.userClipOrder else { return [] }
+        let clipMap = Dictionary(uniqueKeysWithValues: session.allClips.map { ($0.id, $0) })
+        return order.compactMap { clipMap[$0] }
+    }
+
+    @ViewBuilder
+    private func clipCell(_ clip: VideoClip) -> some View {
+        ClipCellView(
+            clip: clip,
+            size: gridSize.cellSize,
+            isSelected: appState.selectedClipIDs.contains(clip.id),
+            thumbnailGenerator: thumbnailGenerator
+        )
+        .id(clip.id)
+        .onDrag {
+            self.draggedClipID = clip.id
+            return NSItemProvider(object: clip.id.uuidString as NSString)
+        }
+        .onDrop(of: [.text], delegate: ClipDropDelegate(
+            targetClipID: clip.id,
+            draggedClipID: $draggedClipID,
+            dropTargetID: $dropTargetID,
+            onMove: { draggedID, targetID in
+                appState.importSession?.moveClip(draggedID, toTarget: targetID)
+            }
+        ))
+        .overlay(
+            dropTargetID == clip.id ?
+            RoundedRectangle(cornerRadius: 8).stroke(Color.accentColor, lineWidth: 3) : nil
+        )
+        .opacity(draggedClipID == clip.id ? 0.3 : 1.0)
+        .onHover { isHovering in
+            if isHovering {
+                hoveredClip = clip
+            } else if hoveredClip?.id == clip.id {
+                hoveredClip = nil
+            }
+        }
+        .onTapGesture {
+            gridViewModel.toggleSelection(clip.id, in: appState)
+        }
+        .contextMenu {
+            Button(appState.selectedClipIDs.contains(clip.id) ? "Deselect" : "Select") {
+                gridViewModel.toggleSelection(clip.id, in: appState)
+            }
+            Divider()
+            Button("Select All from Same File") {
+                selectAllFromSameFile(as: clip)
+            }
+            Button("Preview") {
+                previewingClip = clip
+                showPreviewModal = true
+            }
+        }
     }
 
     private func selectAllFromSameFile(as referenceClip: VideoClip) {
@@ -671,6 +731,37 @@ struct ClipPreviewModal: View {
         let minutes = totalSeconds / 60
         let secs = totalSeconds % 60
         return String(format: "%02d:%02d", minutes, secs)
+    }
+}
+
+// MARK: - Clip Drop Delegate
+
+struct ClipDropDelegate: DropDelegate {
+    let targetClipID: UUID
+    @Binding var draggedClipID: UUID?
+    @Binding var dropTargetID: UUID?
+    let onMove: (UUID, UUID) -> Void
+
+    func validateDrop(info: DropInfo) -> Bool {
+        draggedClipID != nil && draggedClipID != targetClipID
+    }
+
+    func dropEntered(info: DropInfo) {
+        dropTargetID = targetClipID
+    }
+
+    func dropExited(info: DropInfo) {
+        if dropTargetID == targetClipID {
+            dropTargetID = nil
+        }
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        guard let draggedID = draggedClipID else { return false }
+        onMove(draggedID, targetClipID)
+        draggedClipID = nil
+        dropTargetID = nil
+        return true
     }
 }
 

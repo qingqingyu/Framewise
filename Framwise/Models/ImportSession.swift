@@ -15,6 +15,7 @@ class ImportSession: ObservableObject {
     @Published var sourceFiles: [URL] = []
     @Published var allClips: [VideoClip] = []
     @Published var isAnalyzed = false
+    @Published var userClipOrder: [UUID]? = nil
 
     var totalDuration: Double {
         allClips.reduce(0) { $0 + $1.duration }
@@ -42,5 +43,22 @@ class ImportSession: ObservableObject {
         sourceFiles.removeAll()
         allClips.removeAll()
         isAnalyzed = false
+        userClipOrder = nil
+    }
+
+    func moveClip(_ draggedID: UUID, toTarget targetID: UUID) {
+        var order = userClipOrder ?? allClips.map { $0.id }
+        guard let sourceIndex = order.firstIndex(of: draggedID),
+              let targetIndex = order.firstIndex(of: targetID),
+              sourceIndex != targetIndex else { return }
+
+        order.remove(at: sourceIndex)
+        let insertIndex = sourceIndex < targetIndex ? targetIndex - 1 : targetIndex
+        order.insert(draggedID, at: insertIndex)
+        userClipOrder = order
+    }
+
+    func resetClipOrder() {
+        userClipOrder = nil
     }
 }
