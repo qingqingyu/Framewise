@@ -263,7 +263,10 @@ struct SidebarView: View {
             }
             Button("Rename") {
                 if let tagID = renamingTagID {
-                    appState.importSession?.renameTag(tagID, to: renamingTagName)
+                    let trimmed = renamingTagName.trimmingCharacters(in: .whitespaces)
+                    if !trimmed.isEmpty {
+                        appState.importSession?.renameTag(tagID, to: trimmed)
+                    }
                 }
                 renamingTagID = nil
             }

@@ -120,7 +120,7 @@ struct ClipCellView: View {
                         // Tag dots
                         if !clip.tagIDs.isEmpty {
                             HStack(spacing: 3) {
-                                ForEach(Array(clip.tagIDs.prefix(4)), id: \.self) { tagID in
+                                ForEach(Array(clip.tagIDs.sorted().prefix(4)), id: \.self) { tagID in
                                     if let tag = tags.first(where: { $0.id == tagID }) {
                                         Circle()
                                             .fill(tag.color.systemColor)

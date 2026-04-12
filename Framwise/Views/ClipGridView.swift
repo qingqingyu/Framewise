@@ -456,9 +456,9 @@ struct ClipGridView: View {
                 }
 
                 // Select All with Tag
-                if !clip.tagIDs.isEmpty {
+                if !clipTags.isEmpty {
                     Menu("Select All with Tag") {
-                        ForEach(session.tags.filter { clip.tagIDs.contains($0.id) }) { tag in
+                        ForEach(clipTags) { tag in
                             Button(action: {
                                 selectAllWithTag(tag.id)
                             }) {
@@ -486,8 +486,9 @@ struct ClipGridView: View {
 
     private func assignTagToTarget(_ tagID: UUID, clipID: UUID) {
         guard let session = appState.importSession else { return }
-        // If multiple clips are selected, assign to all selected
-        if appState.selectedClipIDs.count > 1 {
+        // If multiple clips are selected AND the right-clicked clip is among them,
+        // assign to all selected. Otherwise assign only to the right-clicked clip.
+        if appState.selectedClipIDs.count > 1 && appState.selectedClipIDs.contains(clipID) {
             for id in appState.selectedClipIDs {
                 session.assignTag(tagID, to: id)
             }

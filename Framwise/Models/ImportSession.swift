@@ -108,7 +108,7 @@ class ImportSession: ObservableObject {
     }
 
     func clipCount(for tagID: UUID) -> Int {
-        allClips.filter { $0.tagIDs.contains(tagID) }.count
+        clipsWithTag(tagID).count
     }
 
     // MARK: - Wedding Preset

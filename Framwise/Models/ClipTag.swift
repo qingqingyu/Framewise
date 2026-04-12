@@ -34,17 +34,6 @@ struct ClipTag: Identifiable, Hashable {
             }
         }
 
-        var localizedName: String {
-            switch self {
-            case .red: return "Red"
-            case .orange: return "Orange"
-            case .yellow: return "Yellow"
-            case .green: return "Green"
-            case .blue: return "Blue"
-            case .purple: return "Purple"
-            case .pink: return "Pink"
-            case .gray: return "Gray"
-            }
-        }
+        var localizedName: String { rawValue }
     }
 }

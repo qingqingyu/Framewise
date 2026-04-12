@@ -8,6 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		7A3E4FB2A94DFF260C70E35F /* TagCreateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 506A4184A4530FAFF2D72E23 /* TagCreateView.swift */; };
+		8C7BDDA138C34E868581F634 /* ImportSessionTagTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 555E5510F850440AB11DC2AE /* ImportSessionTagTests.swift */; };
+		8A14F8429EE940E7AA252BA5 /* ClipGridViewModelTagTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A595C1BF4904D87A1866767 /* ClipGridViewModelTagTests.swift */; };
 		81C647F4A4E6BF2BF271D99B /* ClipTag.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE0A4EDE9A1EA5BB62085D5B /* ClipTag.swift */; };
 		'A1000001' = {isa = PBXBuildFile; fileRef = B1000001; };
 		'A1000002' = {isa = PBXBuildFile; fileRef = B1000002; };
@@ -64,6 +66,8 @@
 		'B1000018' = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WasteDetector.swift; sourceTree = "<group>"; };
 		'B2000000' = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FramwiseTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		'B2000001' = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportViewModelTests.swift; sourceTree = "<group>"; };
+		555E5510F850440AB11DC2AE /* ImportSessionTagTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportSessionTagTests.swift; sourceTree = "<group>"; };
+		4A595C1BF4904D87A1866767 /* ClipGridViewModelTagTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipGridViewModelTagTests.swift; sourceTree = "<group>"; };
 		CE0A4EDE9A1EA5BB62085D5B /* ClipTag.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ClipTag.swift; path = Framwise/Models/ClipTag.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
@@ -190,6 +194,8 @@
 			isa = PBXGroup;
 			children = (
 				B2000001,
+				555E5510F850440AB11DC2AE /* ImportSessionTagTests.swift */,
+				4A595C1BF4904D87A1866767 /* ClipGridViewModelTagTests.swift */,
 			);
 			path = FramwiseTests;
 			sourceTree = "<group>";
@@ -319,8 +325,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				A2000001,
-				81C647F4A4E6BF2BF271D99B /* ClipTag.swift in Sources */,
-				7A3E4FB2A94DFF260C70E35F /* TagCreateView.swift in Sources */,
+				8C7BDDA138C34E868581F634 /* ImportSessionTagTests.swift in Sources */,
+				8A14F8429EE940E7AA252BA5 /* ClipGridViewModelTagTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
