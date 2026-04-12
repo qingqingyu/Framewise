@@ -24,10 +24,12 @@ actor ThumbnailGenerator {
     }()
 
     private var generators: [URL: AVAssetImageGenerator] = [:]
+    private let maxGenerators = 20
     private let ciContext = CIContext(options: [.useSoftwareRenderer: false])
 
     // Disk cache config
     private let maxDiskCacheSize: Int64 = 2 * 1024 * 1024 * 1024  // 2GB
+    private var lastEvictionCheck: Date = .distantPast
 
     // MARK: - Disk Cache Paths
 
@@ -103,8 +105,11 @@ actor ThumbnailGenerator {
         do {
             return try await generateImagesBatch(for: clip.sourceFileURL, times: times, targetSize: targetSize)
         } catch {
-            // Fallback: try first frame only
-            return [try await generateThumbnail(for: clip.sourceFileURL, at: clip.timecodeStart, targetSize: targetSize)]
+            // Fallback: try first frame only, return empty if that also fails
+            if let fallback = try? await generateThumbnail(for: clip.sourceFileURL, at: clip.timecodeStart, targetSize: targetSize) {
+                return [fallback]
+            }
+            return []
         }
     }
 
@@ -114,6 +119,12 @@ actor ThumbnailGenerator {
     private func getOrCreateGenerator(for url: URL) -> AVAssetImageGenerator {
         if let existing = generators[url] {
             return existing
+        }
+        // Evict oldest generators if at capacity
+        if generators.count >= maxGenerators {
+            if let oldestKey = generators.keys.first {
+                generators.removeValue(forKey: oldestKey)
+            }
         }
         let asset = AVAsset(url: url)
         let gen = AVAssetImageGenerator(asset: asset)
@@ -157,19 +168,24 @@ actor ThumbnailGenerator {
         let batchImages: [Int: CGImage] = try await withCheckedThrowingContinuation {
             (continuation: CheckedContinuation<[Int: CGImage], Error>) in
             var collected: [Int: CGImage] = [:]
-            var remaining = uncachedIndices.count
+            let totalCount = uncachedIndices.count
+            var remaining = totalCount
             var firstError: Error?
+            var resumed = false
+            // Pre-build ordered index list for deterministic callback matching
+            let orderedIndices = uncachedIndices.map { $0.index }
+            var callbackIndex = 0
 
             generator.generateCGImagesAsynchronously(
                 forTimes: uncachedIndices.map { $0.time }
             ) { requestedTime, image, _, resultInfo, error in
-                // per-frame callback — find matching index
+                // Guard against double-resume (corrupt files can produce duplicate callbacks)
+                guard !resumed else { return }
+
                 if let image = image {
-                    let seconds = CMTimeGetSeconds(requestedTime)
-                    if let idx = uncachedIndices.first(where: {
-                        abs(CMTimeGetSeconds($0.time.timeValue) - seconds) < 0.01
-                    })?.index {
-                        collected[idx] = image
+                    // Use ordered counter instead of float comparison
+                    if callbackIndex < orderedIndices.count {
+                        collected[orderedIndices[callbackIndex]] = image
                     }
                 } else if firstError == nil, let error = error {
                     firstError = error
@@ -181,8 +197,10 @@ actor ThumbnailGenerator {
                     )
                 }
 
+                callbackIndex += 1
                 remaining -= 1
                 if remaining == 0 {
+                    resumed = true
                     if collected.isEmpty, let error = firstError {
                         continuation.resume(throwing: error)
                     } else {
@@ -273,8 +291,12 @@ actor ThumbnailGenerator {
         // Touch directory mtime for LRU
         try? fm.setAttributes([.modificationDate: Date()], ofItemAtPath: dir.path)
 
-        // Check cache size cap after writing
-        enforceCacheSizeLimit()
+        // Check cache size cap (rate-limited to once per 60s)
+        let now = Date()
+        if now.timeIntervalSince(lastEvictionCheck) > 60 {
+            lastEvictionCheck = now
+            enforceCacheSizeLimit()
+        }
     }
 
     // MARK: - Disk Cache: Read

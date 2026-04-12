@@ -16,13 +16,17 @@ extension CMTime: Codable {
         var container = try decoder.unkeyedContainer()
         let value = try container.decode(Int64.self)
         let timescale = try container.decode(Int32.self)
-        self = CMTime(value: value, timescale: timescale)
+        let flags = try container.decode(UInt32.self)
+        let epoch = try container.decode(Int64.self)
+        self = CMTime(value: value, timescale: timescale, flags: CMTimeFlags(rawValue: flags), epoch: epoch)
     }
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.unkeyedContainer()
         try container.encode(value)
         try container.encode(timescale)
+        try container.encode(flags.rawValue)
+        try container.encode(epoch)
     }
 }
 

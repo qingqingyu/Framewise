@@ -36,11 +36,21 @@ class VideoImportViewModel: ObservableObject {
     private let wasteDetector = WasteDetector()
     private var targetSegmentCount: Int {
         let count = UserDefaults.standard.integer(forKey: "segmentCount")
-        return count > 0 ? count : 36
+        return clamped(count, in: 12...120, default: 36)
     }
     private var sceneDetectionSensitivity: Double {
         let value = UserDefaults.standard.double(forKey: "sceneDetectionSensitivity")
-        return value > 0 ? value : 0.3
+        return clamped(value, in: 0.1...0.9, default: 0.3)
+    }
+
+    private func clamped(_ value: Int, in range: ClosedRange<Int>, default defaultValue: Int) -> Int {
+        guard value >= range.lowerBound else { return defaultValue }
+        return min(value, range.upperBound)
+    }
+
+    private func clamped(_ value: Double, in range: ClosedRange<Double>, default defaultValue: Double) -> Double {
+        guard value >= range.lowerBound else { return defaultValue }
+        return min(value, range.upperBound)
     }
 
     // MARK: - Streaming Import (Parallel)
@@ -131,12 +141,15 @@ class VideoImportViewModel: ObservableObject {
 
     /// Merge a single video's analysis result into the session (called on @MainActor)
     private func mergeResult(_ result: VideoImportResult, into session: ImportSession) {
+        let startIndex = session.allClips.count
         session.addClips(result.clips)
         clipsFoundCount += result.clips.count
 
-        // Apply waste markings
-        for i in session.allClips.indices {
-            if let wasteType = result.wasteTypes[session.allClips[i].id] {
+        // Apply waste markings only to newly added clips
+        let wasteKeys = Set(result.wasteTypes.keys)
+        for i in startIndex..<session.allClips.count {
+            if wasteKeys.contains(session.allClips[i].id),
+               let wasteType = result.wasteTypes[session.allClips[i].id] {
                 session.allClips[i].wasteType = wasteType
             }
         }
