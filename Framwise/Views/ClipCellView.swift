@@ -13,6 +13,7 @@ struct ClipCellView: View {
     let size: CGSize
     let isSelected: Bool
     let thumbnailGenerator: ThumbnailGenerator
+    var tags: [ClipTag] = []
 
     @State private var thumbnails: [CGImage] = []
     @State private var currentThumbnailIndex = 0
@@ -116,6 +117,24 @@ struct ClipCellView: View {
                 Spacer()
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
+                        // Tag dots
+                        if !clip.tagIDs.isEmpty {
+                            HStack(spacing: 3) {
+                                ForEach(Array(clip.tagIDs.prefix(4)), id: \.self) { tagID in
+                                    if let tag = tags.first(where: { $0.id == tagID }) {
+                                        Circle()
+                                            .fill(tag.color.systemColor)
+                                            .frame(width: 6, height: 6)
+                                    }
+                                }
+                                if clip.tagIDs.count > 4 {
+                                    Text("+\(clip.tagIDs.count - 4)")
+                                        .font(.system(size: 8))
+                                        .foregroundColor(.white)
+                                }
+                            }
+                        }
+
                         Text(clip.durationString)
                             .font(.caption)
                             .fontWeight(.semibold)

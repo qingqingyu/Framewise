@@ -7,30 +7,34 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		A1000001 /* FramwiseApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000001; };
-		A1000002 /* VideoClip.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000002; };
-		A1000003 /* ImportSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000003; };
-		A1000004 /* VideoImportViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000004; };
-		A1000005 /* ClipGridViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000005; };
-		A1000006 /* ExportViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000006; };
-		A1000007 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000007; };
-		A1000008 /* DropZoneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000008; };
-		A1000009 /* ClipGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000009; };
-		A1000010 /* ClipCellView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000010; };
-		A1000011 /* SceneDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000011; };
-		A1000012 /* ThumbnailGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000012; };
-		A1000013 /* TimecodeUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000013; };
-		A1000014 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B1000014; };
-		A1000015 /* PreviewViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000016; };
-		A1000016 /* ClipPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000017; };
-		A1000017 /* WasteDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000018; };
-		A2000001 /* ExportViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000001; };
+		7A3E4FB2A94DFF260C70E35F /* TagCreateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 506A4184A4530FAFF2D72E23 /* TagCreateView.swift */; };
+		81C647F4A4E6BF2BF271D99B /* ClipTag.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE0A4EDE9A1EA5BB62085D5B /* ClipTag.swift */; };
+		'A1000001' = {isa = PBXBuildFile; fileRef = B1000001; };
+		'A1000002' = {isa = PBXBuildFile; fileRef = B1000002; };
+		'A1000003' = {isa = PBXBuildFile; fileRef = B1000003; };
+		'A1000004' = {isa = PBXBuildFile; fileRef = B1000004; };
+		'A1000005' = {isa = PBXBuildFile; fileRef = B1000005; };
+		'A1000006' = {isa = PBXBuildFile; fileRef = B1000006; };
+		'A1000007' = {isa = PBXBuildFile; fileRef = B1000007; };
+		'A1000008' = {isa = PBXBuildFile; fileRef = B1000008; };
+		'A1000009' = {isa = PBXBuildFile; fileRef = B1000009; };
+		'A1000010' = {isa = PBXBuildFile; fileRef = B1000010; };
+		'A1000011' = {isa = PBXBuildFile; fileRef = B1000011; };
+		'A1000012' = {isa = PBXBuildFile; fileRef = B1000012; };
+		'A1000013' = {isa = PBXBuildFile; fileRef = B1000013; };
+		'A1000014' = {isa = PBXBuildFile; fileRef = B1000014; };
+		'A1000015' = {isa = PBXBuildFile; fileRef = B1000016; };
+		'A1000016' = {isa = PBXBuildFile; fileRef = B1000017; };
+		'A1000017' = {isa = PBXBuildFile; fileRef = B1000018; };
+		'A2000001' = {isa = PBXBuildFile; fileRef = B2000001; };
+		AFC046459BDAB56479818668 /* ClipTag.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE0A4EDE9A1EA5BB62085D5B /* ClipTag.swift */; };
+		E6BF493CAE38242E3396B0CE /* TagCreateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 506A4184A4530FAFF2D72E23 /* TagCreateView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		I2000000 /* PBXContainerItemProxy */ = {
+		'I2000000' = {
 			isa = PBXContainerItemProxy;
-			containerPortal = G1000000 /* Project object */;
+			containerPortal = G1000000;
 			proxyType = 1;
 			remoteGlobalIDString = E1000000;
 			remoteInfo = Framwise;
@@ -38,38 +42,40 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		B1000000 /* Framwise.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Framwise.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		B1000001 /* FramwiseApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FramwiseApp.swift; sourceTree = "<group>"; };
-		B1000002 /* VideoClip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoClip.swift; sourceTree = "<group>"; };
-		B1000003 /* ImportSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportSession.swift; sourceTree = "<group>"; };
-		B1000004 /* VideoImportViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoImportViewModel.swift; sourceTree = "<group>"; };
-		B1000005 /* ClipGridViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipGridViewModel.swift; sourceTree = "<group>"; };
-		B1000006 /* ExportViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportViewModel.swift; sourceTree = "<group>"; };
-		B1000007 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		B1000008 /* DropZoneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DropZoneView.swift; sourceTree = "<group>"; };
-		B1000009 /* ClipGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipGridView.swift; sourceTree = "<group>"; };
-		B1000010 /* ClipCellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipCellView.swift; sourceTree = "<group>"; };
-		B1000011 /* SceneDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDetector.swift; sourceTree = "<group>"; };
-		B1000012 /* ThumbnailGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThumbnailGenerator.swift; sourceTree = "<group>"; };
-		B1000013 /* TimecodeUtils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimecodeUtils.swift; sourceTree = "<group>"; };
-		B1000014 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		B1000015 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		B1000016 /* PreviewViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewViewModel.swift; sourceTree = "<group>"; };
-		B1000017 /* ClipPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipPreviewView.swift; sourceTree = "<group>"; };
-		B1000018 /* WasteDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WasteDetector.swift; sourceTree = "<group>"; };
-		B2000000 /* FramwiseTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FramwiseTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		B2000001 /* ExportViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportViewModelTests.swift; sourceTree = "<group>"; };
+		506A4184A4530FAFF2D72E23 /* TagCreateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TagCreateView.swift; path = Framwise/Views/TagCreateView.swift; sourceTree = SOURCE_ROOT; };
+		'B1000000' = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Framwise.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		'B1000001' = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FramwiseApp.swift; sourceTree = "<group>"; };
+		'B1000002' = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoClip.swift; sourceTree = "<group>"; };
+		'B1000003' = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportSession.swift; sourceTree = "<group>"; };
+		'B1000004' = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoImportViewModel.swift; sourceTree = "<group>"; };
+		'B1000005' = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipGridViewModel.swift; sourceTree = "<group>"; };
+		'B1000006' = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportViewModel.swift; sourceTree = "<group>"; };
+		'B1000007' = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		'B1000008' = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DropZoneView.swift; sourceTree = "<group>"; };
+		'B1000009' = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipGridView.swift; sourceTree = "<group>"; };
+		'B1000010' = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipCellView.swift; sourceTree = "<group>"; };
+		'B1000011' = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDetector.swift; sourceTree = "<group>"; };
+		'B1000012' = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThumbnailGenerator.swift; sourceTree = "<group>"; };
+		'B1000013' = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimecodeUtils.swift; sourceTree = "<group>"; };
+		'B1000014' = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		'B1000015' = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		'B1000016' = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewViewModel.swift; sourceTree = "<group>"; };
+		'B1000017' = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipPreviewView.swift; sourceTree = "<group>"; };
+		'B1000018' = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WasteDetector.swift; sourceTree = "<group>"; };
+		'B2000000' = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FramwiseTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		'B2000001' = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportViewModelTests.swift; sourceTree = "<group>"; };
+		CE0A4EDE9A1EA5BB62085D5B /* ClipTag.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ClipTag.swift; path = Framwise/Models/ClipTag.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		C1000000 /* Frameworks */ = {
+		'C1000000' = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		C2000000 /* Frameworks */ = {
+		'C2000000' = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -79,109 +85,111 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		D1000000 = {
+		'D1000000' = {
 			isa = PBXGroup;
 			children = (
-				D1000001 /* Framwise */,
-				D2000000 /* FramwiseTests */,
-				D1000002 /* Products */,
+				D1000001,
+				D2000000,
+				D1000002,
 			);
 			sourceTree = "<group>";
 		};
-		D1000001 /* Framwise */ = {
+		'D1000001' = {
 			isa = PBXGroup;
 			children = (
-				D1000003 /* App */,
-				D1000004 /* Models */,
-				D1000005 /* ViewModels */,
-				D1000006 /* Views */,
-				D1000007 /* Services */,
-				D1000008 /* Utils */,
-				D1000009 /* Resources */,
-				B1000015 /* Info.plist */,
+				D1000003,
+				D1000004,
+				D1000005,
+				D1000006,
+				D1000007,
+				D1000008,
+				D1000009,
+				B1000015,
 			);
 			path = Framwise;
 			sourceTree = "<group>";
 		};
-		D1000002 /* Products */ = {
+		'D1000002' = {
 			isa = PBXGroup;
 			children = (
-				B1000000 /* Framwise.app */,
-				B2000000 /* FramwiseTests.xctest */,
+				B1000000,
+				B2000000,
 			);
 			name = Products;
 			sourceTree = "<group>";
 		};
-		D1000003 /* App */ = {
+		'D1000003' = {
 			isa = PBXGroup;
 			children = (
-				B1000001 /* FramwiseApp.swift */,
+				B1000001,
 			);
 			path = App;
 			sourceTree = "<group>";
 		};
-		D1000004 /* Models */ = {
+		'D1000004' = {
 			isa = PBXGroup;
 			children = (
-				B1000002 /* VideoClip.swift */,
-				B1000003 /* ImportSession.swift */,
+				B1000002,
+				B1000003,
+				CE0A4EDE9A1EA5BB62085D5B /* ClipTag.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
 		};
-		D1000005 /* ViewModels */ = {
+		'D1000005' = {
 			isa = PBXGroup;
 			children = (
-				B1000004 /* VideoImportViewModel.swift */,
-				B1000005 /* ClipGridViewModel.swift */,
-				B1000006 /* ExportViewModel.swift */,
-				B1000016 /* PreviewViewModel.swift */,
+				B1000004,
+				B1000005,
+				B1000006,
+				B1000016,
 			);
 			path = ViewModels;
 			sourceTree = "<group>";
 		};
-		D1000006 /* Views */ = {
+		'D1000006' = {
 			isa = PBXGroup;
 			children = (
-				B1000007 /* ContentView.swift */,
-				B1000008 /* DropZoneView.swift */,
-				B1000009 /* ClipGridView.swift */,
-				B1000010 /* ClipCellView.swift */,
-				B1000017 /* ClipPreviewView.swift */,
+				B1000007,
+				B1000008,
+				B1000009,
+				B1000010,
+				B1000017,
+				506A4184A4530FAFF2D72E23 /* TagCreateView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
 		};
-		D1000007 /* Services */ = {
+		'D1000007' = {
 			isa = PBXGroup;
 			children = (
-				B1000011 /* SceneDetector.swift */,
-				B1000018 /* WasteDetector.swift */,
-				B1000012 /* ThumbnailGenerator.swift */,
+				B1000011,
+				B1000018,
+				B1000012,
 			);
 			path = Services;
 			sourceTree = "<group>";
 		};
-		D1000008 /* Utils */ = {
+		'D1000008' = {
 			isa = PBXGroup;
 			children = (
-				B1000013 /* TimecodeUtils.swift */,
+				B1000013,
 			);
 			path = Utils;
 			sourceTree = "<group>";
 		};
-		D1000009 /* Resources */ = {
+		'D1000009' = {
 			isa = PBXGroup;
 			children = (
-				B1000014 /* Assets.xcassets */,
+				B1000014,
 			);
 			path = Resources;
 			sourceTree = "<group>";
 		};
-		D2000000 /* FramwiseTests */ = {
+		'D2000000' = {
 			isa = PBXGroup;
 			children = (
-				B2000001 /* ExportViewModelTests.swift */,
+				B2000001,
 			);
 			path = FramwiseTests;
 			sourceTree = "<group>";
@@ -189,13 +197,13 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		E1000000 /* Framwise */ = {
+		'E1000000' = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = F1000000 /* Build configuration list for PBXNativeTarget "Framwise" */;
+			buildConfigurationList = F1000000;
 			buildPhases = (
-				E1000001 /* Sources */,
-				C1000000 /* Frameworks */,
-				E1000002 /* Resources */,
+				E1000001,
+				C1000000,
+				E1000002,
 			);
 			buildRules = (
 			);
@@ -203,31 +211,31 @@
 			);
 			name = Framwise;
 			productName = Framwise;
-			productReference = B1000000 /* Framwise.app */;
+			productReference = B1000000;
 			productType = "com.apple.product-type.application";
 		};
-		E2000000 /* FramwiseTests */ = {
+		'E2000000' = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = F2000000 /* Build configuration list for PBXNativeTarget "FramwiseTests" */;
+			buildConfigurationList = F2000000;
 			buildPhases = (
-				E2000001 /* Sources */,
-				C2000000 /* Frameworks */,
-				E2000002 /* Resources */,
+				E2000001,
+				C2000000,
+				E2000002,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				J2000000 /* PBXTargetDependency */,
+				J2000000,
 			);
 			name = FramwiseTests;
 			productName = FramwiseTests;
-			productReference = B2000000 /* FramwiseTests.xctest */;
+			productReference = B2000000;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
-		G1000000 /* Project object */ = {
+		'G1000000' = {
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
@@ -243,7 +251,7 @@
 					};
 				};
 			};
-			buildConfigurationList = F1000001 /* Build configuration list for PBXProject "Framwise" */;
+			buildConfigurationList = F1000001;
 			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -252,26 +260,26 @@
 				Base,
 			);
 			mainGroup = D1000000;
-			productRefGroup = D1000002 /* Products */;
+			productRefGroup = D1000002;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				E1000000 /* Framwise */,
-				E2000000 /* FramwiseTests */,
+				E1000000,
+				E2000000,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		E1000002 /* Resources */ = {
+		'E1000002' = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A1000014 /* Assets.xcassets in Resources */,
+				A1000014,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		E2000002 /* Resources */ = {
+		'E2000002' = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -281,49 +289,53 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		E1000001 /* Sources */ = {
+		'E1000001' = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A1000001 /* FramwiseApp.swift in Sources */,
-				A1000002 /* VideoClip.swift in Sources */,
-				A1000003 /* ImportSession.swift in Sources */,
-				A1000004 /* VideoImportViewModel.swift in Sources */,
-				A1000005 /* ClipGridViewModel.swift in Sources */,
-				A1000006 /* ExportViewModel.swift in Sources */,
-				A1000007 /* ContentView.swift in Sources */,
-				A1000008 /* DropZoneView.swift in Sources */,
-				A1000009 /* ClipGridView.swift in Sources */,
-				A1000010 /* ClipCellView.swift in Sources */,
-				A1000011 /* SceneDetector.swift in Sources */,
-				A1000012 /* ThumbnailGenerator.swift in Sources */,
-				A1000013 /* TimecodeUtils.swift in Sources */,
-				A1000015 /* PreviewViewModel.swift in Sources */,
-				A1000016 /* ClipPreviewView.swift in Sources */,
-				A1000017 /* WasteDetector.swift in Sources */,
+				A1000001,
+				A1000002,
+				A1000003,
+				A1000004,
+				A1000005,
+				A1000006,
+				A1000007,
+				A1000008,
+				A1000009,
+				A1000010,
+				A1000011,
+				A1000012,
+				A1000013,
+				A1000015,
+				A1000016,
+				A1000017,
+				AFC046459BDAB56479818668 /* ClipTag.swift in Sources */,
+				E6BF493CAE38242E3396B0CE /* TagCreateView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		E2000001 /* Sources */ = {
+		'E2000001' = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A2000001 /* ExportViewModelTests.swift in Sources */,
+				A2000001,
+				81C647F4A4E6BF2BF271D99B /* ClipTag.swift in Sources */,
+				7A3E4FB2A94DFF260C70E35F /* TagCreateView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		J2000000 /* PBXTargetDependency */ = {
+		'J2000000' = {
 			isa = PBXTargetDependency;
-			target = E1000000 /* Framwise */;
-			targetProxy = I2000000 /* PBXContainerItemProxy */;
+			target = E1000000;
+			targetProxy = I2000000;
 		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
-		H1000000 /* Debug */ = {
+		'H1000000' = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -386,7 +398,7 @@
 			};
 			name = Debug;
 		};
-		H1000001 /* Release */ = {
+		'H1000001' = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -441,7 +453,7 @@
 			};
 			name = Release;
 		};
-		H1000002 /* Debug */ = {
+		'H1000002' = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -468,7 +480,7 @@
 			};
 			name = Debug;
 		};
-		H1000003 /* Release */ = {
+		'H1000003' = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -495,7 +507,7 @@
 			};
 			name = Release;
 		};
-		H2000002 /* Debug */ = {
+		'H2000002' = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
@@ -511,7 +523,7 @@
 			};
 			name = Debug;
 		};
-		H2000003 /* Release */ = {
+		'H2000003' = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
@@ -530,34 +542,34 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		F1000000 /* Build configuration list for PBXNativeTarget "Framwise" */ = {
+		'F1000000' = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				H1000002 /* Debug */,
-				H1000003 /* Release */,
+				H1000002,
+				H1000003,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		F1000001 /* Build configuration list for PBXProject "Framwise" */ = {
+		'F1000001' = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				H1000000 /* Debug */,
-				H1000001 /* Release */,
+				H1000000,
+				H1000001,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		F2000000 /* Build configuration list for PBXNativeTarget "FramwiseTests" */ = {
+		'F2000000' = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				H2000002 /* Debug */,
-				H2000003 /* Release */,
+				H2000002,
+				H2000003,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
-	rootObject = G1000000 /* Project object */;
+	rootObject = G1000000;
 }

@@ -26,6 +26,7 @@ struct VideoClip: Identifiable, Hashable {
 
     var isSelected: Bool = false
     var wasteType: WasteType = .none
+    var tagIDs: Set<UUID> = []
 
     init(
         id: UUID = UUID(),

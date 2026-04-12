@@ -33,7 +33,7 @@ class ClipGridViewModel: ObservableObject {
     }
 
     /// Filter and sort clips based on current settings
-    func filteredClips(from allClips: [VideoClip], selectedIDs: Set<UUID> = [], sourceURL: URL? = nil, hideWaste: Bool = false) -> [VideoClip] {
+    func filteredClips(from allClips: [VideoClip], selectedIDs: Set<UUID> = [], sourceURL: URL? = nil, tagFilter: UUID? = nil, hideWaste: Bool = false) -> [VideoClip] {
         var result = allClips
 
         // Waste filter
@@ -44,6 +44,11 @@ class ClipGridViewModel: ObservableObject {
         // Source file filter
         if let url = sourceURL {
             result = result.filter { $0.sourceFileURL == url }
+        }
+
+        // Tag filter
+        if let tagFilter = tagFilter {
+            result = result.filter { $0.tagIDs.contains(tagFilter) }
         }
 
         // View mode filter
@@ -72,8 +77,8 @@ class ClipGridViewModel: ObservableObject {
     }
 
     /// Group clips by source file
-    func groupedClips(from allClips: [VideoClip], selectedIDs: Set<UUID> = [], sourceURL: URL? = nil, hideWaste: Bool = false) -> [(sourceURL: URL, clips: [VideoClip])] {
-        let filtered = filteredClips(from: allClips, selectedIDs: selectedIDs, sourceURL: sourceURL, hideWaste: hideWaste)
+    func groupedClips(from allClips: [VideoClip], selectedIDs: Set<UUID> = [], sourceURL: URL? = nil, tagFilter: UUID? = nil, hideWaste: Bool = false) -> [(sourceURL: URL, clips: [VideoClip])] {
+        let filtered = filteredClips(from: allClips, selectedIDs: selectedIDs, sourceURL: sourceURL, tagFilter: tagFilter, hideWaste: hideWaste)
 
         // If filtering by a specific source URL, don't group (only one group)
         if sourceURL != nil {

@@ -25,6 +25,7 @@ struct ClipGridView: View {
     @State private var draggedClipID: UUID?
     @State private var dropTargetID: UUID?
     @State private var hideWasteClips = false
+    @State private var showCreateTag = false
     @FocusState private var isGridFocused: Bool
 
     enum GridSize: String, CaseIterable {
@@ -105,6 +106,27 @@ struct ClipGridView: View {
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
                     .background(Color.accentColor.opacity(0.1))
+                    .cornerRadius(4)
+                }
+
+                // Tag filter indicator
+                if let tagFilterID = appState.importSession?.activeTagFilter,
+                   let tag = appState.importSession?.tags.first(where: { $0.id == tagFilterID }) {
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(tag.color.systemColor)
+                            .frame(width: 8, height: 8)
+                        Text(tag.name)
+                            .font(.caption)
+                        Button(action: { appState.importSession?.activeTagFilter = nil }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(tag.color.systemColor.opacity(0.15))
                     .cornerRadius(4)
                 }
 
@@ -307,16 +329,21 @@ struct ClipGridView: View {
                 ClipPreviewModal(clip: clip, isPresented: $showPreviewModal)
             }
         }
+        .sheet(isPresented: $showCreateTag) {
+            TagCreateView { tag in
+                appState.importSession?.addTag(tag)
+            }
+        }
     }
 
     private var filteredClips: [VideoClip] {
         guard let session = appState.importSession else { return [] }
-        return gridViewModel.filteredClips(from: session.allClips, selectedIDs: appState.selectedClipIDs, sourceURL: appState.selectedSourceURL, hideWaste: hideWasteClips)
+        return gridViewModel.filteredClips(from: session.allClips, selectedIDs: appState.selectedClipIDs, sourceURL: appState.selectedSourceURL, tagFilter: session.activeTagFilter, hideWaste: hideWasteClips)
     }
 
     private var groupedClips: [(sourceURL: URL, clips: [VideoClip])] {
         guard let session = appState.importSession else { return [] }
-        return gridViewModel.groupedClips(from: session.allClips, selectedIDs: appState.selectedClipIDs, sourceURL: appState.selectedSourceURL, hideWaste: hideWasteClips)
+        return gridViewModel.groupedClips(from: session.allClips, selectedIDs: appState.selectedClipIDs, sourceURL: appState.selectedSourceURL, tagFilter: session.activeTagFilter, hideWaste: hideWasteClips)
     }
 
     private var wasteClipCount: Int {
@@ -337,7 +364,8 @@ struct ClipGridView: View {
             clip: clip,
             size: gridSize.cellSize,
             isSelected: appState.selectedClipIDs.contains(clip.id),
-            thumbnailGenerator: thumbnailGenerator
+            thumbnailGenerator: thumbnailGenerator,
+            tags: appState.importSession?.tags ?? []
         )
         .id(clip.id)
         .onDrag {
@@ -379,6 +407,72 @@ struct ClipGridView: View {
                 previewingClip = clip
                 showPreviewModal = true
             }
+            Divider()
+
+            // Assign Tag submenu
+            if let session = appState.importSession {
+                Menu("Assign Tag") {
+                    ForEach(session.tags) { tag in
+                        Button(action: {
+                            assignTagToTarget(tag.id, clipID: clip.id)
+                        }) {
+                            HStack {
+                                Circle()
+                                    .fill(tag.color.systemColor)
+                                    .frame(width: 8, height: 8)
+                                Text(tag.name)
+                                if clip.tagIDs.contains(tag.id) {
+                                    Spacer()
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    }
+                    if !session.tags.isEmpty {
+                        Divider()
+                    }
+                    Button("New Tag...") {
+                        showCreateTag = true
+                    }
+                }
+
+                // Remove Tag submenu (only show tags assigned to this clip)
+                let clipTags = session.tags.filter { clip.tagIDs.contains($0.id) }
+                if !clipTags.isEmpty {
+                    Menu("Remove Tag") {
+                        ForEach(clipTags) { tag in
+                            Button(action: {
+                                session.removeTag(tag.id, from: clip.id)
+                            }) {
+                                HStack {
+                                    Circle()
+                                        .fill(tag.color.systemColor)
+                                        .frame(width: 8, height: 8)
+                                    Text(tag.name)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Select All with Tag
+                if !clip.tagIDs.isEmpty {
+                    Menu("Select All with Tag") {
+                        ForEach(session.tags.filter { clip.tagIDs.contains($0.id) }) { tag in
+                            Button(action: {
+                                selectAllWithTag(tag.id)
+                            }) {
+                                HStack {
+                                    Circle()
+                                        .fill(tag.color.systemColor)
+                                        .frame(width: 8, height: 8)
+                                    Text(tag.name)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -386,6 +480,26 @@ struct ClipGridView: View {
         guard let session = appState.importSession else { return }
         let sameFileClips = session.allClips.filter { $0.sourceFileURL == referenceClip.sourceFileURL }
         for clip in sameFileClips {
+            appState.selectedClipIDs.insert(clip.id)
+        }
+    }
+
+    private func assignTagToTarget(_ tagID: UUID, clipID: UUID) {
+        guard let session = appState.importSession else { return }
+        // If multiple clips are selected, assign to all selected
+        if appState.selectedClipIDs.count > 1 {
+            for id in appState.selectedClipIDs {
+                session.assignTag(tagID, to: id)
+            }
+        } else {
+            session.assignTag(tagID, to: clipID)
+        }
+    }
+
+    private func selectAllWithTag(_ tagID: UUID) {
+        guard let session = appState.importSession else { return }
+        let clipsWithTag = session.clipsWithTag(tagID)
+        for clip in clipsWithTag {
             appState.selectedClipIDs.insert(clip.id)
         }
     }

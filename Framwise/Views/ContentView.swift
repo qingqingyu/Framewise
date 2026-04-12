@@ -137,6 +137,9 @@ struct SidebarView: View {
     @EnvironmentObject var importViewModel: VideoImportViewModel
 
     @State private var isTargeted = false
+    @State private var showCreateTag = false
+    @State private var renamingTagID: UUID? = nil
+    @State private var renamingTagName = ""
 
     var body: some View {
         List {
@@ -182,12 +185,90 @@ struct SidebarView: View {
                     LabeledContent("Total Duration", value: formatDuration(session.totalDuration))
                     LabeledContent("Selected", value: "\(appState.selectedClipIDs.count)")
                 }
+
+                Section("Tags") {
+                    ForEach(session.tags) { tag in
+                        Button(action: {
+                            if session.activeTagFilter == tag.id {
+                                session.activeTagFilter = nil
+                            } else {
+                                session.activeTagFilter = tag.id
+                            }
+                        }) {
+                            HStack {
+                                Circle()
+                                    .fill(tag.color.systemColor)
+                                    .frame(width: 10, height: 10)
+                                Text(tag.name)
+                                Spacer()
+                                Text("\(session.clipCount(for: tag.id))")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                if session.activeTagFilter == tag.id {
+                                    Image(systemName: "checkmark")
+                                        .foregroundColor(.accentColor)
+                                        .font(.caption)
+                                }
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .contextMenu {
+                            Button("Rename") {
+                                renamingTagID = tag.id
+                                renamingTagName = tag.name
+                            }
+                            Button("Delete", role: .destructive) {
+                                session.removeTag(tag.id)
+                            }
+                        }
+                    }
+
+                    Button(action: { showCreateTag = true }) {
+                        HStack {
+                            Image(systemName: "plus.circle")
+                            Text("New Tag...")
+                        }
+                    }
+                    .buttonStyle(.plain)
+
+                    Button(action: {
+                        session.loadWeddingPreset()
+                    }) {
+                        HStack {
+                            Image(systemName: "bolt.circle")
+                            Text("Load Wedding Preset")
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
             }
         }
         .listStyle(.sidebar)
         .onDrop(of: [.fileURL], isTargeted: $isTargeted) { providers in
             handleDrop(providers: providers)
             return true
+        }
+        .sheet(isPresented: $showCreateTag) {
+            TagCreateView { tag in
+                appState.importSession?.addTag(tag)
+            }
+        }
+        .alert("Rename Tag", isPresented: Binding(
+            get: { renamingTagID != nil },
+            set: { if !$0 { renamingTagID = nil } }
+        ), actions: {
+            TextField("Name", text: $renamingTagName)
+            Button("Cancel") {
+                renamingTagID = nil
+            }
+            Button("Rename") {
+                if let tagID = renamingTagID {
+                    appState.importSession?.renameTag(tagID, to: renamingTagName)
+                }
+                renamingTagID = nil
+            }
+        }) {
+            EmptyView()
         }
     }
 
