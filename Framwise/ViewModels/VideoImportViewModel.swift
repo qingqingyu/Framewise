@@ -38,6 +38,10 @@ class VideoImportViewModel: ObservableObject {
         let count = UserDefaults.standard.integer(forKey: "segmentCount")
         return count > 0 ? count : 36
     }
+    private var sceneDetectionSensitivity: Double {
+        let value = UserDefaults.standard.double(forKey: "sceneDetectionSensitivity")
+        return value > 0 ? value : 0.3
+    }
 
     // MARK: - Streaming Import (Parallel)
 
@@ -67,6 +71,9 @@ class VideoImportViewModel: ObservableObject {
             }
             session.addSourceFile(url)
         }
+
+        // Apply settings from UserDefaults
+        await sceneDetector.setSensitivity(sceneDetectionSensitivity)
 
         // Capture values for use in non-isolated tasks
         let sceneDetector = self.sceneDetector
@@ -295,6 +302,8 @@ class VideoImportViewModel: ObservableObject {
         isImporting = true
         error = nil
         statusMessage = "Importing videos..."
+
+        await sceneDetector.setSensitivity(sceneDetectionSensitivity)
 
         do {
             for (index, url) in urls.enumerated() {

@@ -27,6 +27,11 @@ actor SceneDetector {
     /// Minimum duration between detected cuts (in seconds)
     var minimumSceneDuration: Double = 0.5
 
+    /// Update sensitivity from user settings
+    func setSensitivity(_ value: Double) {
+        sensitivity = value
+    }
+
     // MARK: - Scene Detection
 
     /// Detect scene change points in a video asset
