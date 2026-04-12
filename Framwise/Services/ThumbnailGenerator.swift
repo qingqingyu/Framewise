@@ -76,17 +76,7 @@ actor ThumbnailGenerator {
         }
 
         // Layer 3: Generate from video
-        let generator: AVAssetImageGenerator
-        if let existing = generators[url] {
-            generator = existing
-        } else {
-            let asset = AVAsset(url: url)
-            generator = AVAssetImageGenerator(asset: asset)
-            generator.appliesPreferredTrackTransform = true
-            generator.requestedTimeToleranceBefore = CMTime(seconds: 0.1, preferredTimescale: 600)
-            generator.requestedTimeToleranceAfter = CMTime(seconds: 0.1, preferredTimescale: 600)
-            generators[url] = generator
-        }
+        let generator = getOrCreateGenerator(for: url)
 
         let (image, _) = try await generator.image(at: time)
         let scaledImage = try scaleImage(image, to: targetSize)
@@ -104,28 +94,121 @@ actor ThumbnailGenerator {
         count: Int = 5,
         targetSize: CGSize = CGSize(width: 200, height: 150)
     ) async throws -> [CGImage] {
-        var images: [CGImage] = []
         let duration = clip.duration
         let interval = duration / Double(count + 1)
+        let times = (1...count).map { i in
+            CMTimeAdd(clip.timecodeStart, CMTime(seconds: Double(i) * interval, preferredTimescale: 600))
+        }
 
-        for i in 1...count {
-            let offset = Double(i) * interval
-            let time = CMTimeAdd(clip.timecodeStart, CMTime(seconds: offset, preferredTimescale: 600))
+        do {
+            return try await generateImagesBatch(for: clip.sourceFileURL, times: times, targetSize: targetSize)
+        } catch {
+            // Fallback: try first frame only
+            return [try await generateThumbnail(for: clip.sourceFileURL, at: clip.timecodeStart, targetSize: targetSize)]
+        }
+    }
 
-            do {
-                let image = try await generateThumbnail(for: clip.sourceFileURL, at: time, targetSize: targetSize)
-                images.append(image)
-            } catch {
-                continue
+    // MARK: - Batch Extraction
+
+    /// Get or create an AVAssetImageGenerator for a source URL
+    private func getOrCreateGenerator(for url: URL) -> AVAssetImageGenerator {
+        if let existing = generators[url] {
+            return existing
+        }
+        let asset = AVAsset(url: url)
+        let gen = AVAssetImageGenerator(asset: asset)
+        gen.appliesPreferredTrackTransform = true
+        gen.requestedTimeToleranceBefore = CMTime(seconds: 0.1, preferredTimescale: 600)
+        gen.requestedTimeToleranceAfter = CMTime(seconds: 0.1, preferredTimescale: 600)
+        generators[url] = gen
+        return gen
+    }
+
+    /// Batch-extract images at multiple times using AVAssetImageGenerator's native batch API.
+    /// Let AVFoundation optimize I/O scheduling across all requested times.
+    private func generateImagesBatch(
+        for url: URL,
+        times: [CMTime],
+        targetSize: CGSize
+    ) async throws -> [CGImage] {
+        let generator = getOrCreateGenerator(for: url)
+
+        // Check which frames are already cached (memory + disk)
+        var results: [Int: CGImage] = [:]
+        var uncachedIndices: [(index: Int, time: NSValue)] = []
+
+        for (i, time) in times.enumerated() {
+            let cacheKey = "\(url.path)_\(CMTimeGetSeconds(time))" as NSString
+            if let cached = cache.object(forKey: cacheKey) {
+                results[i] = cached
+            } else if let diskImage = readFromDisk(url: url, time: time) {
+                cache.setObject(diskImage, forKey: cacheKey)
+                results[i] = diskImage
+            } else {
+                uncachedIndices.append((index: i, time: NSValue(time: time)))
             }
         }
 
-        if images.isEmpty {
-            let firstFrame = try await generateThumbnail(for: clip.sourceFileURL, at: clip.timecodeStart, targetSize: targetSize)
-            images.append(firstFrame)
+        guard !uncachedIndices.isEmpty else {
+            return times.indices.map { results[$0]! }
         }
 
-        return images
+        // Batch extract uncached frames via AVFoundation's native batch API
+        let batchImages: [Int: CGImage] = try await withCheckedThrowingContinuation {
+            (continuation: CheckedContinuation<[Int: CGImage], Error>) in
+            var collected: [Int: CGImage] = [:]
+            var remaining = uncachedIndices.count
+            var firstError: Error?
+
+            generator.generateCGImagesAsynchronously(
+                forTimes: uncachedIndices.map { $0.time }
+            ) { requestedTime, image, _, resultInfo, error in
+                // per-frame callback — find matching index
+                if let image = image {
+                    let seconds = CMTimeGetSeconds(requestedTime)
+                    if let idx = uncachedIndices.first(where: {
+                        abs(CMTimeGetSeconds($0.time.timeValue) - seconds) < 0.01
+                    })?.index {
+                        collected[idx] = image
+                    }
+                } else if firstError == nil, let error = error {
+                    firstError = error
+                } else if firstError == nil {
+                    firstError = NSError(
+                        domain: AVFoundationErrorDomain,
+                        code: -1,
+                        userInfo: [NSLocalizedDescriptionKey: "Failed to extract frame at \(CMTimeGetSeconds(requestedTime))s"]
+                    )
+                }
+
+                remaining -= 1
+                if remaining == 0 {
+                    if collected.isEmpty, let error = firstError {
+                        continuation.resume(throwing: error)
+                    } else {
+                        continuation.resume(returning: collected)
+                    }
+                }
+            }
+        }
+
+        // Scale, cache, and merge results
+        for (index, rawImage) in batchImages {
+            do {
+                let scaled = try scaleImage(rawImage, to: targetSize)
+                let time = times[index]
+                let cacheKey = "\(url.path)_\(CMTimeGetSeconds(time))" as NSString
+                cache.setObject(scaled, forKey: cacheKey)
+                saveToDisk(scaled, url: url, time: time)
+                results[index] = scaled
+            } catch {
+                // Skip frames that fail to scale
+            }
+        }
+
+        // Return images in original time order, filling gaps with available images
+        let ordered = times.indices.compactMap { results[$0] }
+        return ordered
     }
 
     // MARK: - Image Processing
@@ -329,20 +412,21 @@ actor ThumbnailGenerator {
     }
 
     /// Preload thumbnails for a batch of clips (uses all cache layers)
+    /// Groups clips by source video and uses batch API per video for I/O efficiency
     func preloadThumbnails(for clips: [VideoClip], targetSize: CGSize) async {
+        let grouped = Dictionary(grouping: clips, by: { $0.sourceFileURL })
         await withTaskGroup(of: Void.self) { group in
-            for clip in clips {
-                for time in clip.thumbnailTimes.prefix(3) {
-                    group.addTask {
-                        do {
-                            _ = try await self.generateThumbnail(
-                                for: clip.sourceFileURL,
-                                at: time,
-                                targetSize: targetSize
-                            )
-                        } catch {
-                            // Ignore preload errors
-                        }
+            for (_, clipsForVideo) in grouped {
+                group.addTask {
+                    let allTimes = clipsForVideo.flatMap { $0.thumbnailTimes.prefix(3) }
+                    do {
+                        _ = try await self.generateImagesBatch(
+                            for: clipsForVideo[0].sourceFileURL,
+                            times: allTimes,
+                            targetSize: targetSize
+                        )
+                    } catch {
+                        // Ignore preload errors
                     }
                 }
             }
