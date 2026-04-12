@@ -28,7 +28,7 @@ class ExportViewModel: ObservableObject {
         var displayName: String {
             switch self {
             case .edl: return "EDL (CMX 3600)"
-            case .fcpxml: return "FCPXML (DaVinci/PR)"
+            case .fcpxml: return "FCPXML (DaVinci/FCP)"
             }
         }
     }
