@@ -9,6 +9,13 @@ import Foundation
 import AVFoundation
 import CoreImage
 
+enum WasteType: String, CaseIterable {
+    case none = "None"
+    case blackout = "Blackout"     // 黑屏
+    case dark = "Dark"             // 极暗
+    case solid = "Solid"           // 纯色/地面
+}
+
 struct VideoClip: Identifiable, Hashable {
     let id: UUID
     let sourceFileURL: URL
@@ -18,21 +25,26 @@ struct VideoClip: Identifiable, Hashable {
     let thumbnailTimes: [CMTime]       // 缩略图时间点
 
     var isSelected: Bool = false
+    var wasteType: WasteType = .none
 
     init(
         id: UUID = UUID(),
         sourceFileURL: URL,
         timecodeStart: CMTime,
         timecodeEnd: CMTime,
-        thumbnailTimes: [CMTime] = []
+        thumbnailTimes: [CMTime] = [],
+        wasteType: WasteType = .none
     ) {
         self.id = id
         self.sourceFileURL = sourceFileURL
         self.sourceFileName = sourceFileURL.lastPathComponent
         self.timecodeStart = timecodeStart
         self.timecodeEnd = timecodeEnd
+        self.wasteType = wasteType
+        let dur = CMTimeGetSeconds(timecodeEnd) - CMTimeGetSeconds(timecodeStart)
+        let count = Self.thumbnailCount(forDuration: dur)
         self.thumbnailTimes = thumbnailTimes.isEmpty
-            ? Self.generateThumbnailTimes(start: timecodeStart, end: timecodeEnd)
+            ? Self.generateThumbnailTimes(start: timecodeStart, end: timecodeEnd, count: count)
             : thumbnailTimes
     }
 
@@ -56,6 +68,17 @@ struct VideoClip: Identifiable, Hashable {
 
     var timecodeEndString: String {
         TimecodeUtils.formatTimecode(timecodeEnd)
+    }
+
+    /// Determine thumbnail count based on clip duration
+    static func thumbnailCount(forDuration duration: Double) -> Int {
+        switch duration {
+        case ..<3: return 1
+        case 3..<10: return 2
+        case 10..<30: return 3
+        case 30..<60: return 4
+        default: return 5
+        }
     }
 
     /// Generate evenly spaced thumbnail times for this clip

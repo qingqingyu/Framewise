@@ -24,7 +24,11 @@ class VideoImportViewModel: ObservableObject {
     @Published var totalFilesCount: Int = 0
 
     private let sceneDetector = SceneDetector()
-    private let maxSegmentDuration: Double = 5.0  // 5秒切割长镜头
+    private let wasteDetector = WasteDetector()
+    private var targetSegmentCount: Int {
+        let count = UserDefaults.standard.integer(forKey: "segmentCount")
+        return count > 0 ? count : 36
+    }
 
     // MARK: - Streaming Import
 
@@ -78,27 +82,20 @@ class VideoImportViewModel: ObservableObject {
         statusMessage = "Analyzing \(url.lastPathComponent)..."
 
         let duration = try await asset.load(.duration)
+        let totalDuration = CMTimeGetSeconds(duration)
 
         // 使用流式场景检测
         let stream = await sceneDetector.detectScenesStream(in: asset)
 
-        var sceneChanges: [CMTime] = [CMTime.zero]
         var lastProcessedTime: CMTime = .zero
 
         for await event in stream {
             switch event {
             case .sceneChange(let time):
-                sceneChanges.append(time)
-
-                // 立即为新的场景段创建clips
-                let newSegments = createSegments(
-                    from: lastProcessedTime,
-                    to: time,
-                    sourceURL: url,
-                    maxDuration: maxSegmentDuration
-                )
-
-                for segment in newSegments {
+                // 阶段一：按场景边界直接创建单个片段（不细分）
+                let segDuration = CMTimeGetSeconds(time) - CMTimeGetSeconds(lastProcessedTime)
+                if segDuration > 0.1 {
+                    let segment = ClipSegment(sourceURL: url, startTime: lastProcessedTime, endTime: time)
                     let clip = segment.toVideoClip()
                     session.addClip(clip)
                     clipsFoundCount += 1
@@ -116,18 +113,24 @@ class VideoImportViewModel: ObservableObject {
 
             case .completed:
                 // 处理最后一段
-                let finalSegments = createSegments(
-                    from: lastProcessedTime,
-                    to: duration,
-                    sourceURL: url,
-                    maxDuration: maxSegmentDuration
-                )
-
-                for segment in finalSegments {
+                let finalDuration = CMTimeGetSeconds(duration) - CMTimeGetSeconds(lastProcessedTime)
+                if finalDuration > 0.1 {
+                    let segment = ClipSegment(sourceURL: url, startTime: lastProcessedTime, endTime: duration)
                     let clip = segment.toVideoClip()
                     session.addClip(clip)
                     clipsFoundCount += 1
                 }
+
+                // 阶段二：补切长场景
+                refineLongSegments(
+                    session: session,
+                    targetCount: targetSegmentCount,
+                    sourceURL: url,
+                    totalDuration: totalDuration
+                )
+
+                // 阶段三：废料检测
+                await detectWasteForClips(session: session, sourceURL: url, filename: url.lastPathComponent)
 
             case .error(let error):
                 throw error
@@ -191,89 +194,218 @@ class VideoImportViewModel: ObservableObject {
         return segments.map { $0.toVideoClip() }
     }
 
-    /// 根据场景变化和时间切割生成片段
+    /// 根据场景变化生成片段（legacy 路径，使用新逻辑）
     private func generateClipSegments(
         from asset: AVAsset,
         sceneChanges: [CMTime],
         sourceURL: URL
     ) async throws -> [ClipSegment] {
-        var segments: [ClipSegment] = []
-
         let duration: CMTime
         if #available(macOS 13.0, *) {
             duration = try await asset.load(.duration)
         } else {
             duration = asset.duration
         }
+
+        // 按场景边界创建片段（不细分）
+        var segments: [ClipSegment] = []
+        let cutPoints = sceneChanges.sorted { CMTimeCompare($0, $1) < 0 }
         var currentTime = CMTime.zero
 
-        // 获取场景变化点（已有时间点）
-        let cutPoints = sceneChanges.sorted { CMTimeCompare($0, $1) < 0 }
-
         for cutPoint in cutPoints {
-            // 如果当前到cut点之间超过5秒，需要再切割
-            let segmentSegments = createSegments(
-                from: currentTime,
-                to: cutPoint,
-                sourceURL: sourceURL,
-                maxDuration: maxSegmentDuration
-            )
-            segments.append(contentsOf: segmentSegments)
+            let segDuration = CMTimeGetSeconds(cutPoint) - CMTimeGetSeconds(currentTime)
+            if segDuration > 0.1 {
+                segments.append(ClipSegment(sourceURL: sourceURL, startTime: currentTime, endTime: cutPoint))
+            }
             currentTime = cutPoint
         }
 
-        // 处理最后一段
-        let finalSegments = createSegments(
-            from: currentTime,
-            to: duration,
-            sourceURL: sourceURL,
-            maxDuration: maxSegmentDuration
-        )
-        segments.append(contentsOf: finalSegments)
-
-        return segments
-    }
-
-    /// 创建片段，如果超过maxDuration则切割
-    private func createSegments(
-        from start: CMTime,
-        to end: CMTime,
-        sourceURL: URL,
-        maxDuration: Double
-    ) -> [ClipSegment] {
-        var segments: [ClipSegment] = []
-        let totalDuration = CMTimeGetSeconds(end) - CMTimeGetSeconds(start)
-
-        guard totalDuration > 0.1 else { return segments }
-
-        // 如果时长超过maxDuration，切割成多段
-        if totalDuration > maxDuration {
-            var currentStart = start
-            let segmentDuration = CMTime(seconds: maxDuration, preferredTimescale: 600)
-
-            while CMTimeCompare(currentStart, end) < 0 {
-                let segmentEnd = CMTimeCompare(
-                    CMTimeAdd(currentStart, segmentDuration),
-                    end
-                ) < 0 ? CMTimeAdd(currentStart, segmentDuration) : end
-
-                segments.append(ClipSegment(
-                    sourceURL: sourceURL,
-                    startTime: currentStart,
-                    endTime: segmentEnd
-                ))
-
-                currentStart = segmentEnd
-            }
-        } else {
-            segments.append(ClipSegment(
-                sourceURL: sourceURL,
-                startTime: start,
-                endTime: end
-            ))
+        // 最后一段
+        let finalDuration = CMTimeGetSeconds(duration) - CMTimeGetSeconds(currentTime)
+        if finalDuration > 0.1 {
+            segments.append(ClipSegment(sourceURL: sourceURL, startTime: currentTime, endTime: duration))
         }
 
-        return segments
+        // 补切长场景
+        return refineSegments(segments, targetCount: targetSegmentCount)
+    }
+
+    // MARK: - Waste Detection
+
+    /// Detect waste clips (blackout, dark, solid) for a single source file
+    private func detectWasteForClips(session: ImportSession, sourceURL: URL, filename: String) async {
+        let clipsForSource = session.allClips.filter { $0.sourceFileURL == sourceURL }
+        guard !clipsForSource.isEmpty else { return }
+
+        statusMessage = "Detecting waste in \(filename)..."
+
+        let asset = AVAsset(url: sourceURL)
+        let wasteResults = await wasteDetector.detectWaste(in: clipsForSource, asset: asset)
+
+        guard !wasteResults.isEmpty else { return }
+
+        // Update wasteType on matching clips
+        for i in session.allClips.indices {
+            if let wasteType = wasteResults[session.allClips[i].id] {
+                session.allClips[i].wasteType = wasteType
+            }
+        }
+    }
+
+    // MARK: - Refinement
+
+    /// 补切长场景片段（流式路径，直接操作 session 中的 VideoClip）
+    private func refineLongSegments(
+        session: ImportSession,
+        targetCount: Int,
+        sourceURL: URL,
+        totalDuration: Double
+    ) {
+        let currentClips = session.allClips.filter { $0.sourceFileURL == sourceURL }
+        let currentCount = currentClips.count
+
+        guard currentCount < targetCount else { return }
+
+        let budget = targetCount - currentCount
+        let idealDuration = totalDuration / Double(targetCount)
+
+        // 找出长片段，按时长降序
+        let longClips = currentClips
+            .filter { $0.duration > idealDuration }
+            .sorted { $0.duration > $1.duration }
+
+        guard !longClips.isEmpty else { return }
+
+        let totalLongDuration = longClips.reduce(0.0) { $0 + $1.duration }
+
+        var replacements: [UUID: [VideoClip]] = [:]
+        var remainingBudget = budget
+
+        for longClip in longClips {
+            guard remainingBudget > 0 else { break }
+
+            var allocatedSplit: Int
+            if longClips.count == 1 {
+                allocatedSplit = remainingBudget
+            } else {
+                allocatedSplit = max(1, Int(round(Double(remainingBudget) * (longClip.duration / totalLongDuration))))
+                allocatedSplit = min(allocatedSplit, remainingBudget)
+            }
+
+            let partCount = allocatedSplit + 1
+            let newClips = splitClipIntoParts(clip: longClip, partCount: partCount)
+            replacements[longClip.id] = newClips
+            remainingBudget -= allocatedSplit
+        }
+
+        // 重建 session clips：保留其他视频的 clips，替换当前视频的长片段
+        let otherClips = session.allClips.filter { $0.sourceFileURL != sourceURL }
+        let updatedClips = currentClips.flatMap { clip -> [VideoClip] in
+            if let replacement = replacements[clip.id] {
+                return replacement
+            }
+            return [clip]
+        }
+
+        clipsFoundCount += (updatedClips.count - currentCount)
+        session.allClips = otherClips + updatedClips
+    }
+
+    /// 将一个 VideoClip 等分为 partCount 段
+    private func splitClipIntoParts(clip: VideoClip, partCount: Int) -> [VideoClip] {
+        guard partCount > 1 else { return [clip] }
+
+        let partDuration = clip.duration / Double(partCount)
+        var clips: [VideoClip] = []
+
+        for i in 0..<partCount {
+            let startTime = CMTimeAdd(
+                clip.timecodeStart,
+                CMTime(seconds: Double(i) * partDuration, preferredTimescale: 600)
+            )
+            let endTime: CMTime
+            if i == partCount - 1 {
+                endTime = clip.timecodeEnd
+            } else {
+                endTime = CMTimeAdd(
+                    clip.timecodeStart,
+                    CMTime(seconds: Double(i + 1) * partDuration, preferredTimescale: 600)
+                )
+            }
+
+            let segment = ClipSegment(sourceURL: clip.sourceFileURL, startTime: startTime, endTime: endTime)
+            clips.append(segment.toVideoClip())
+        }
+
+        return clips
+    }
+
+    /// 补切长场景片段（legacy 路径，操作 ClipSegment 数组）
+    private func refineSegments(_ segments: [ClipSegment], targetCount: Int) -> [ClipSegment] {
+        guard segments.count < targetCount else { return segments }
+
+        let totalDuration = segments.reduce(0.0) {
+            $0 + (CMTimeGetSeconds($1.endTime) - CMTimeGetSeconds($1.startTime))
+        }
+        let budget = targetCount - segments.count
+        let idealDuration = totalDuration / Double(targetCount)
+
+        // 找出长片段，按时长降序，保留原始索引
+        let longSegments = segments.enumerated()
+            .filter { CMTimeGetSeconds($0.element.endTime) - CMTimeGetSeconds($0.element.startTime) > idealDuration }
+            .sorted { (CMTimeGetSeconds($0.element.endTime) - CMTimeGetSeconds($0.element.startTime)) > (CMTimeGetSeconds($1.element.endTime) - CMTimeGetSeconds($1.element.startTime)) }
+
+        guard !longSegments.isEmpty else { return segments }
+
+        let totalLongDuration = longSegments.reduce(0.0) {
+            $0 + (CMTimeGetSeconds($1.element.endTime) - CMTimeGetSeconds($1.element.startTime))
+        }
+
+        var remainingBudget = budget
+        var replacementMap: [Int: [ClipSegment]] = [:]
+
+        for (originalIdx, longSeg) in longSegments {
+            guard remainingBudget > 0 else { break }
+
+            let segDuration = CMTimeGetSeconds(longSeg.endTime) - CMTimeGetSeconds(longSeg.startTime)
+            var allocatedSplit: Int
+            if longSegments.count == 1 {
+                allocatedSplit = remainingBudget
+            } else {
+                allocatedSplit = max(1, Int(round(Double(remainingBudget) * (segDuration / totalLongDuration))))
+                allocatedSplit = min(allocatedSplit, remainingBudget)
+            }
+
+            let partCount = allocatedSplit + 1
+            let partDuration = segDuration / Double(partCount)
+
+            var parts: [ClipSegment] = []
+            for i in 0..<partCount {
+                let startTime = CMTimeAdd(longSeg.startTime, CMTime(seconds: Double(i) * partDuration, preferredTimescale: 600))
+                let endTime: CMTime
+                if i == partCount - 1 {
+                    endTime = longSeg.endTime
+                } else {
+                    endTime = CMTimeAdd(longSeg.startTime, CMTime(seconds: Double(i + 1) * partDuration, preferredTimescale: 600))
+                }
+                parts.append(ClipSegment(sourceURL: longSeg.sourceURL, startTime: startTime, endTime: endTime))
+            }
+
+            replacementMap[originalIdx] = parts
+            remainingBudget -= allocatedSplit
+        }
+
+        // 重建片段列表
+        var result: [ClipSegment] = []
+        for (idx, seg) in segments.enumerated() {
+            if let replacement = replacementMap[idx] {
+                result.append(contentsOf: replacement)
+            } else {
+                result.append(seg)
+            }
+        }
+
+        return result
     }
 
     // MARK: - Validation

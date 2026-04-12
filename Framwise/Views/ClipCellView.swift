@@ -20,6 +20,8 @@ struct ClipCellView: View {
     @State private var isLoading = true
     @State private var isAnimating = false
 
+    private var isWaste: Bool { clip.wasteType != .none }
+
     private let animationTimer = Timer.publish(every: 0.15, on: .main, in: .common).autoconnect()
 
     var body: some View {
@@ -81,6 +83,34 @@ struct ClipCellView: View {
                     .frame(width: size.width, height: size.height)
             }
 
+            // Waste overlay
+            if isWaste {
+                // Red tint overlay
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.red.opacity(0.4))
+                    .frame(width: size.width, height: size.height)
+
+                // Waste badge
+                VStack {
+                    HStack {
+                        HStack(spacing: 3) {
+                            Image(systemName: "trash")
+                                .font(.system(size: 9))
+                            Text(wasteLabel)
+                                .font(.system(size: 9, weight: .semibold))
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 3)
+                        .background(Color.red.opacity(0.85))
+                        .cornerRadius(4)
+                        .padding(6)
+                        Spacer()
+                    }
+                    Spacer()
+                }
+            }
+
             // Info overlay
             VStack {
                 Spacer()
@@ -125,7 +155,7 @@ struct ClipCellView: View {
             }
         }
         .onAppear {
-            isAnimating = true
+            isAnimating = !isWaste
             loadThumbnails()
         }
         .onDisappear {
@@ -133,6 +163,15 @@ struct ClipCellView: View {
         }
         .onChange(of: clip.id) { _, _ in
             loadThumbnails()
+        }
+    }
+
+    private var wasteLabel: String {
+        switch clip.wasteType {
+        case .blackout: return "Blackout"
+        case .dark: return "Dark"
+        case .solid: return "Solid"
+        case .none: return ""
         }
     }
 

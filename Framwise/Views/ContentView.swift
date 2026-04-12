@@ -329,7 +329,7 @@ struct ExportSheetView: View {
 // MARK: - Settings View
 
 struct SettingsView: View {
-    @AppStorage("maxSegmentDuration") private var maxSegmentDuration = 5.0
+    @AppStorage("segmentCount") private var segmentCount = 36
     @AppStorage("sceneDetectionSensitivity") private var sceneDetectionSensitivity = 0.3
 
     var body: some View {
@@ -344,10 +344,13 @@ struct SettingsView: View {
             }
 
             Section("Segment Splitting") {
-                Slider(value: $maxSegmentDuration, in: 3...15, step: 1) {
-                    Text("Max Segment Duration (seconds)")
+                Slider(value: Binding(
+                    get: { Double(segmentCount) },
+                    set: { segmentCount = Int($0) }
+                ), in: 12...120, step: 12) {
+                    Text("Target Segment Count")
                 }
-                Text("Long shots will be split at this interval")
+                Text("Each video will be split into roughly this many segments (\(segmentCount))")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }

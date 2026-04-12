@@ -24,6 +24,7 @@ struct ClipGridView: View {
     @State private var previewingClip: VideoClip?
     @State private var draggedClipID: UUID?
     @State private var dropTargetID: UUID?
+    @State private var hideWasteClips = false
     @FocusState private var isGridFocused: Bool
 
     enum GridSize: String, CaseIterable {
@@ -134,6 +135,26 @@ struct ClipGridView: View {
                     .padding(.vertical, 4)
                     .background(Color.accentColor.opacity(0.1))
                     .cornerRadius(4)
+                }
+
+                // Waste filter
+                let wasteCount = wasteClipCount
+                if wasteCount > 0 {
+                    Button(action: { hideWasteClips.toggle() }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: hideWasteClips ? "eye.slash" : "eye")
+                            if hideWasteClips {
+                                Text("\(wasteCount) hidden")
+                            }
+                        }
+                        .font(.caption)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(hideWasteClips ? Color.red.opacity(0.15) : Color.secondary.opacity(0.1))
+                    .cornerRadius(4)
+                    .help(hideWasteClips ? "Show waste clips" : "Hide waste clips")
                 }
 
                 Spacer()
@@ -290,12 +311,17 @@ struct ClipGridView: View {
 
     private var filteredClips: [VideoClip] {
         guard let session = appState.importSession else { return [] }
-        return gridViewModel.filteredClips(from: session.allClips, selectedIDs: appState.selectedClipIDs, sourceURL: appState.selectedSourceURL)
+        return gridViewModel.filteredClips(from: session.allClips, selectedIDs: appState.selectedClipIDs, sourceURL: appState.selectedSourceURL, hideWaste: hideWasteClips)
     }
 
     private var groupedClips: [(sourceURL: URL, clips: [VideoClip])] {
         guard let session = appState.importSession else { return [] }
-        return gridViewModel.groupedClips(from: session.allClips, selectedIDs: appState.selectedClipIDs, sourceURL: appState.selectedSourceURL)
+        return gridViewModel.groupedClips(from: session.allClips, selectedIDs: appState.selectedClipIDs, sourceURL: appState.selectedSourceURL, hideWaste: hideWasteClips)
+    }
+
+    private var wasteClipCount: Int {
+        guard let session = appState.importSession else { return 0 }
+        return session.allClips.filter { $0.wasteType != .none }.count
     }
 
     private var orderedFlatClips: [VideoClip] {
