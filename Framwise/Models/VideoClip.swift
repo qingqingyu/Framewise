@@ -16,9 +16,15 @@ extension CMTime: Codable {
         var container = try decoder.unkeyedContainer()
         let value = try container.decode(Int64.self)
         let timescale = try container.decode(Int32.self)
-        let flags = try container.decode(UInt32.self)
-        let epoch = try container.decode(Int64.self)
-        self = CMTime(value: value, timescale: timescale, flags: CMTimeFlags(rawValue: flags), epoch: epoch)
+        // Backward compatibility: old format had only value+timescale (2 fields)
+        // New format adds flags+epoch (4 fields)
+        if !container.isAtEnd {
+            let flags = try container.decode(UInt32.self)
+            let epoch = try container.decode(Int64.self)
+            self = CMTime(value: value, timescale: timescale, flags: CMTimeFlags(rawValue: flags), epoch: epoch)
+        } else {
+            self = CMTime(value: value, timescale: timescale)
+        }
     }
 
     public func encode(to encoder: Encoder) throws {
