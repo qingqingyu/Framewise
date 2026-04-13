@@ -855,7 +855,7 @@ struct ClipPreviewModal: View {
         .frame(width: 640, height: 480)
         .focusable()
         .onKeyPress(.space) {
-            isPresented = false
+            viewModel.togglePlayPause()
             return .handled
         }
         .onAppear {
