@@ -355,7 +355,11 @@ struct ClipGridView: View {
         guard let session = appState.importSession,
               let order = session.userClipOrder else { return [] }
         let clipMap = Dictionary(uniqueKeysWithValues: session.allClips.map { ($0.id, $0) })
-        return order.compactMap { clipMap[$0] }
+        let clips = order.compactMap { clipMap[$0] }
+        if hideWasteClips {
+            return clips.filter { $0.wasteType == .none }
+        }
+        return clips
     }
 
     @ViewBuilder
