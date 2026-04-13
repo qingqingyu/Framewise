@@ -122,48 +122,107 @@ class ExportViewModel: ObservableObject {
 
     // MARK: - FCPXML Generation
 
-    func generateFCPXML(from clips: [VideoClip]) async throws -> String {
-        // 获取所有唯一的源文件
-        let sourceFiles = Dictionary(grouping: clips) { $0.sourceFileURL }
-
-        // 加载每个源文件的时长
-        var assetDurations: [URL: Double] = [:]
-        for url in sourceFiles.keys {
-            let asset = AVAsset(url: url)
-            if #available(macOS 13.0, *) {
-                assetDurations[url] = CMTimeGetSeconds(try await asset.load(.duration))
-            } else {
-                assetDurations[url] = CMTimeGetSeconds(asset.duration)
-            }
-        }
-
-        return buildFCPXMLString(clips: clips, assetDurations: assetDurations)
+    /// Source video metadata loaded for FCPXML export
+    struct SourceVideoInfo {
+        let url: URL
+        let duration: Double
+        let frameRate: Double
+        let width: Int
+        let height: Int
     }
 
-    func buildFCPXMLString(clips: [VideoClip], assetDurations: [URL: Double]) -> String {
-        let sourceFiles = Dictionary(grouping: clips) { $0.sourceFileURL }
+    func generateFCPXML(from clips: [VideoClip]) async throws -> String {
+        // Unique source URLs in stable order
+        let sourceURLs = clips.map { $0.sourceFileURL }.uniqued()
 
-        // 计算总时长
+        // Load metadata for each source video (parallel)
+        let videoInfos: [SourceVideoInfo] = await withTaskGroup(of: SourceVideoInfo?.self) { group in
+            for url in sourceURLs {
+                group.addTask {
+                    guard let info = try? await Self.loadVideoInfo(for: url) else { return nil }
+                    return info
+                }
+            }
+            var results: [SourceVideoInfo] = []
+            for await info in group.compactMap({ $0 }) {
+                results.append(info)
+            }
+            return results.sorted { sourceURLs.firstIndex(of: $0.url) ?? 0 < sourceURLs.firstIndex(of: $1.url) ?? 0 }
+        }
+
+        // Use first video's properties for the sequence format, fallback to 1080p24
+        let primaryInfo = videoInfos.first
+        let frameRate = primaryInfo?.frameRate ?? 24.0
+        let width = primaryInfo?.width ?? 1920
+        let height = primaryInfo?.height ?? 1080
+
+        return buildFCPXMLString(clips: clips, videoInfos: videoInfos, frameRate: frameRate, width: width, height: height)
+    }
+
+    private static func loadVideoInfo(for url: URL) async throws -> SourceVideoInfo {
+        let asset = AVAsset(url: url)
+        let duration: CMTime
+        if #available(macOS 13.0, *) {
+            duration = try await asset.load(.duration)
+        } else {
+            duration = asset.duration
+        }
+
+        guard let track = try await asset.loadTracks(withMediaType: .video).first else {
+            return SourceVideoInfo(url: url, duration: CMTimeGetSeconds(duration), frameRate: 24, width: 1920, height: 1080)
+        }
+
+        let frameRate: Double
+        let naturalSize: CGSize
+        if #available(macOS 13.0, *) {
+            frameRate = try await Double(track.load(.nominalFrameRate))
+            naturalSize = try await track.load(.naturalSize)
+        } else {
+            frameRate = Double(track.nominalFrameRate)
+            naturalSize = track.naturalSize
+        }
+
+        return SourceVideoInfo(
+            url: url,
+            duration: CMTimeGetSeconds(duration),
+            frameRate: frameRate > 0 ? frameRate : 24,
+            width: Int(naturalSize.width) > 0 ? Int(naturalSize.width) : 1920,
+            height: Int(naturalSize.height) > 0 ? Int(naturalSize.height) : 1080
+        )
+    }
+
+    func buildFCPXMLString(clips: [VideoClip], videoInfos: [SourceVideoInfo], frameRate: Double, width: Int, height: Int) -> String {
         let totalDuration = clips.reduce(0.0) { $0 + $1.duration }
+
+        // Build URL → assetId mapping (stable, ordered)
+        let assetIdMap: [URL: String] = Dictionary(uniqueKeysWithValues: videoInfos.enumerated().map { (i, info) in
+            (info.url, "r\(i + 1)")
+        })
+
+        // Compute format attributes from actual video properties
+        let formatName = "FFVideoFormat\(height)p\(Int(round(frameRate)))"
+        let frameDurationNum = 100
+        let frameDurationDenom = Int(round(frameRate * 100))
+        let isDropFrame = abs(frameRate - 29.97) < 0.01 || abs(frameRate - 59.94) < 0.01
+        let tcFormat = isDropFrame ? "DF" : "NDF"
 
         var xml = """
         <?xml version="1.0" encoding="UTF-8"?>
         <!DOCTYPE fcpxml>
         <fcpxml version="1.9">
             <resources>
-                <format id="r1001" name="FFVideoFormat1080p24" frameDuration="100/2400s" width="1920" height="1080"/>
+                <format id="r_fmt" name="\(formatName)" frameDuration="\(frameDurationNum)/\(frameDurationDenom)s" width="\(width)" height="\(height)"/>
 
         """
 
-        // 添加资源
-        for (index, (url, _)) in sourceFiles.enumerated() {
-            let duration = assetDurations[url] ?? 0
-            let assetId = "r\(index + 1)"
+        // Add asset resources
+        for info in videoInfos {
+            let assetId = assetIdMap[info.url] ?? "r_unknown"
 
             xml += """
-                    <asset id="\(xmlEscaped(assetId))" name="\(xmlEscaped(url.lastPathComponent))" src="file://\(xmlEscaped(url.path))" duration="\(duration)s">
+                    <asset id="\(xmlEscaped(assetId))" name="\(xmlEscaped(info.url.lastPathComponent))" src="\(xmlEscaped(info.url.absoluteString))" duration="\(info.duration)s">
                         <metadata>
-                            <md key="com.apple.proapps.studio.clip.name" value="\(xmlEscaped(url.lastPathComponent))"/>
+                            <md key="com.apple.proapps.studio.clip.name" value="\(xmlEscaped(info.url.lastPathComponent))"/>
                         </metadata>
                     </asset>
 
@@ -175,19 +234,18 @@ class ExportViewModel: ObservableObject {
             <library>
                 <event name="Framwise Export">
                     <project name="Selected Clips">
-                        <sequence format="r1001" duration="\(totalDuration)s" tcStart="0s">
+                        <sequence format="r_fmt" duration="\(totalDuration)s" tcStart="0s" tcFormat="\(tcFormat)">
                             <spine>
         """
 
-        // 添加clips到时间轴
+        // Add clips to timeline
         var currentOffset: Double = 0
 
         for clip in clips {
-            guard let assetIndex = sourceFiles.keys.enumerated().first(where: { $0.element == clip.sourceFileURL })?.offset else {
+            guard let assetId = assetIdMap[clip.sourceFileURL] else {
                 continue
             }
 
-            let assetId = "r\(assetIndex + 1)"
             let startTime = CMTimeGetSeconds(clip.timecodeStart)
             let duration = clip.duration
             let offset = currentOffset
@@ -221,5 +279,14 @@ class ExportViewModel: ObservableObject {
             .replacingOccurrences(of: ">", with: "&gt;")
             .replacingOccurrences(of: "\"", with: "&quot;")
             .replacingOccurrences(of: "'", with: "&apos;")
+    }
+}
+
+// MARK: - Array uniqued helper
+
+extension Array where Element: Hashable {
+    func uniqued() -> [Element] {
+        var seen = Set<Element>()
+        return filter { seen.insert($0).inserted }
     }
 }

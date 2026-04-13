@@ -101,23 +101,34 @@ final class ExportViewModelTests: XCTestCase {
         XCTAssertTrue(edl.contains("FROM PATH: /tmp/myclip.mov"))
     }
 
-    // MARK: - C. FCPXML Generation (via buildFCPXMLString with fake durations)
+    // MARK: - C. FCPXML Generation (via buildFCPXMLString with fake video info)
+
+    private func makeVideoInfo(
+        url: URL,
+        duration: Double = 60.0,
+        frameRate: Double = 24.0,
+        width: Int = 1920,
+        height: Int = 1080
+    ) -> ExportViewModel.SourceVideoInfo {
+        ExportViewModel.SourceVideoInfo(url: url, duration: duration, frameRate: frameRate, width: width, height: height)
+    }
 
     func testFCPXML_ContainsFormatResource() {
-        // REGRESSION: format resource must be present
+        // REGRESSION: format resource must be present with dynamic properties
+        let url = URL(fileURLWithPath: "/tmp/test.mov")
         let clips = [makeClip(startSeconds: 0, endSeconds: 5)]
-        let xml = viewModel.buildFCPXMLString(
-            clips: clips,
-            assetDurations: [URL(fileURLWithPath: "/tmp/test.mov"): 60.0]
-        )
-        XCTAssertTrue(xml.contains(#"format id="r1001""#), "FCPXML must contain format resource")
+        let infos = [makeVideoInfo(url: url, frameRate: 25, width: 3840, height: 2160)]
+        let xml = viewModel.buildFCPXMLString(clips: clips, videoInfos: infos, frameRate: 25, width: 3840, height: 2160)
+        XCTAssertTrue(xml.contains(#"format id="r_fmt""#), "FCPXML must contain format resource")
+        XCTAssertTrue(xml.contains("2160p25"), "Format name should reflect actual video resolution and frame rate")
     }
 
     func testFCPXML_XmlEscapedFilenames() {
         // REGRESSION: filenames with special chars must be escaped
         let clips = [makeClip(sourceName: "Tom&Jerry.mov", startSeconds: 0, endSeconds: 5)]
         let url = URL(fileURLWithPath: "/tmp/Tom&Jerry.mov")
-        let xml = viewModel.buildFCPXMLString(clips: clips, assetDurations: [url: 60.0])
+        let infos = [makeVideoInfo(url: url)]
+        let xml = viewModel.buildFCPXMLString(clips: clips, videoInfos: infos, frameRate: 24, width: 1920, height: 1080)
 
         XCTAssertTrue(xml.contains("Tom&amp;Jerry.mov"), "Ampersand in filename must be escaped")
         XCTAssertFalse(xml.contains("Tom&J"), "Raw ampersand should not appear in output")
@@ -128,35 +139,52 @@ final class ExportViewModelTests: XCTestCase {
         let clip2 = makeClip(sourceName: "a.mov", startSeconds: 20, endSeconds: 30)
         let clips = [clip1, clip2]
         let url = URL(fileURLWithPath: "/tmp/a.mov")
+        let infos = [makeVideoInfo(url: url, duration: 120.0)]
 
-        let xml = viewModel.buildFCPXMLString(clips: clips, assetDurations: [url: 120.0])
+        let xml = viewModel.buildFCPXMLString(clips: clips, videoInfos: infos, frameRate: 24, width: 1920, height: 1080)
 
         // Total duration = 10 + 10 = 20
         XCTAssertTrue(xml.contains("duration=\"20.0s\""), "Sequence duration should equal sum of clip durations")
     }
 
     func testFCPXML_TcStartIsZero() {
+        let url = URL(fileURLWithPath: "/tmp/test.mov")
         let clips = [makeClip(startSeconds: 0, endSeconds: 5)]
-        let xml = viewModel.buildFCPXMLString(
-            clips: clips,
-            assetDurations: [URL(fileURLWithPath: "/tmp/test.mov"): 60.0]
-        )
+        let infos = [makeVideoInfo(url: url)]
+        let xml = viewModel.buildFCPXMLString(clips: clips, videoInfos: infos, frameRate: 24, width: 1920, height: 1080)
         XCTAssertTrue(xml.contains("tcStart=\"0s\""), "Sequence tcStart should be 0s")
     }
 
     func testFCPXML_ClipOffsetsAreSequential() {
+        let clip1 = makeClip(sourceName: "test.mov", startSeconds: 0, endSeconds: 10)
+        let clip2 = makeClip(sourceName: "test.mov", startSeconds: 20, endSeconds: 25)
+        let clip3 = makeClip(sourceName: "test.mov", startSeconds: 50, endSeconds: 53)
         let url = URL(fileURLWithPath: "/tmp/test.mov")
-        let clip1 = makeClip(sourceName: "a.mov", startSeconds: 0, endSeconds: 10)
-        let clip2 = makeClip(sourceName: "a.mov", startSeconds: 20, endSeconds: 25)
-        let clip3 = makeClip(sourceName: "a.mov", startSeconds: 50, endSeconds: 53)
         let clips = [clip1, clip2, clip3]
+        let infos = [makeVideoInfo(url: url, duration: 120.0)]
 
-        let xml = viewModel.buildFCPXMLString(clips: clips, assetDurations: [url: 120.0])
+        let xml = viewModel.buildFCPXMLString(clips: clips, videoInfos: infos, frameRate: 24, width: 1920, height: 1080)
 
         // Offsets should be 0s, 10s, 15s (10+5)
         XCTAssertTrue(xml.contains("offset=\"0.0s\""), "First clip offset should be 0s")
         XCTAssertTrue(xml.contains("offset=\"10.0s\""), "Second clip offset should be 10s")
         XCTAssertTrue(xml.contains("offset=\"15.0s\""), "Third clip offset should be 15s")
+    }
+
+    func testFCPXML_TcFormatDropFrame() {
+        let url = URL(fileURLWithPath: "/tmp/test.mov")
+        let clips = [makeClip(startSeconds: 0, endSeconds: 5)]
+        let infos = [makeVideoInfo(url: url, frameRate: 29.97)]
+        let xml = viewModel.buildFCPXMLString(clips: clips, videoInfos: infos, frameRate: 29.97, width: 1920, height: 1080)
+        XCTAssertTrue(xml.contains(#"tcFormat="DF""#), "29.97fps should use drop frame format")
+    }
+
+    func testFCPXML_AssetUsesAbsoluteString() {
+        let url = URL(fileURLWithPath: "/tmp/test.mov")
+        let clips = [makeClip(startSeconds: 0, endSeconds: 5)]
+        let infos = [makeVideoInfo(url: url)]
+        let xml = viewModel.buildFCPXMLString(clips: clips, videoInfos: infos, frameRate: 24, width: 1920, height: 1080)
+        XCTAssertTrue(xml.contains("src=\"file:///tmp/test.mov\""), "Asset src should use proper file URL")
     }
 
     // MARK: - D. File Naming
