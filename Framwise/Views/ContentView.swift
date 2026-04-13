@@ -301,25 +301,21 @@ struct SidebarView: View {
 
     private func handleDrop(providers: [NSItemProvider]) {
         let group = DispatchGroup()
-        var urls: [URL] = []
-
-        let supportedExtensions = ["mp4", "mov", "mxf", "avi", "mkv", "m4v"]
+        let protectedURLs = ProtectedArray<URL>()
+        let supportedExtensions = Set(["mp4", "mov", "mxf", "avi", "mkv", "m4v"])
 
         for provider in providers {
             group.enter()
             _ = provider.loadObject(ofClass: URL.self) { url, _ in
-                if let url = url {
-                    let ext = url.pathExtension.lowercased()
-                    if supportedExtensions.contains(ext) {
-                        urls.append(url)
-                    }
+                if let url = url, supportedExtensions.contains(url.pathExtension.lowercased()) {
+                    protectedURLs.append(url)
                 }
                 group.leave()
             }
         }
 
         group.notify(queue: .main) {
-            importFilesFromURLs(urls)
+            importFilesFromURLs(protectedURLs.items)
         }
     }
 
@@ -438,6 +434,25 @@ struct SettingsView: View {
             }
         }
         .padding()
+    }
+}
+
+// MARK: - Thread-safe array for concurrent callbacks
+
+private final class ProtectedArray<T> {
+    private var _items: [T] = []
+    private let lock = NSLock()
+
+    var items: [T] {
+        lock.lock()
+        defer { lock.unlock() }
+        return _items
+    }
+
+    func append(_ item: T) {
+        lock.lock()
+        _items.append(item)
+        lock.unlock()
     }
 }
 

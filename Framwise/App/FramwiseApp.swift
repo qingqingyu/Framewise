@@ -61,9 +61,13 @@ class AppState: ObservableObject {
     private let store = SessionStore()
     private var cancellables = Set<AnyCancellable>()
 
+    /// Selected clips in the user's arranged order (respects drag-reorder)
     var selectedClips: [VideoClip] {
         guard let session = importSession else { return [] }
-        return session.allClips.filter { selectedClipIDs.contains($0.id) }
+        let selected = session.allClips.filter { selectedClipIDs.contains($0.id) }
+        guard let order = session.userClipOrder else { return selected }
+        let clipMap = Dictionary(uniqueKeysWithValues: selected.map { ($0.id, $0) })
+        return order.compactMap { clipMap[$0] }
     }
 
     init() {

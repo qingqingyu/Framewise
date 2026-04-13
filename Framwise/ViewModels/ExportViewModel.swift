@@ -136,21 +136,34 @@ class ExportViewModel: ObservableObject {
         let sourceURLs = clips.map { $0.sourceFileURL }.uniqued()
 
         // Load metadata for each source video (parallel)
-        let videoInfos: [SourceVideoInfo] = await withTaskGroup(of: SourceVideoInfo?.self) { group in
-            for url in sourceURLs {
+        let indexedResults: [(index: Int, info: SourceVideoInfo)] = await withTaskGroup(of: (Int, SourceVideoInfo?).self) { group in
+            for (index, url) in sourceURLs.enumerated() {
                 group.addTask {
-                    guard let info = try? await Self.loadVideoInfo(for: url) else { return nil }
-                    return info
+                    let info = try? await Self.loadVideoInfo(for: url)
+                    return (index, info)
                 }
             }
-            var results: [SourceVideoInfo] = []
-            for await info in group.compactMap({ $0 }) {
-                results.append(info)
+            var results: [(index: Int, info: SourceVideoInfo)] = []
+            for await (index, maybeInfo) in group {
+                if let info = maybeInfo {
+                    results.append((index, info))
+                }
             }
-            return results.sorted { sourceURLs.firstIndex(of: $0.url) ?? 0 < sourceURLs.firstIndex(of: $1.url) ?? 0 }
+            return results.sorted { $0.index < $1.index }
         }
 
-        // Use first video's properties for the sequence format, fallback to 1080p24
+        // Check that all source videos were loaded successfully
+        let loadedIndices = Set(indexedResults.map { $0.index })
+        let failedURLs = sourceURLs.enumerated()
+            .filter { !loadedIndices.contains($0.offset) }
+            .map { $0.element.lastPathComponent }
+        if !failedURLs.isEmpty {
+            throw ExportError.sourceFilesInaccessible(failedURLs)
+        }
+
+        let videoInfos = indexedResults.map { $0.info }
+
+        // Use first video's properties for the sequence format
         let primaryInfo = videoInfos.first
         let frameRate = primaryInfo?.frameRate ?? 24.0
         let width = primaryInfo?.width ?? 1920
@@ -279,6 +292,19 @@ class ExportViewModel: ObservableObject {
             .replacingOccurrences(of: ">", with: "&gt;")
             .replacingOccurrences(of: "\"", with: "&quot;")
             .replacingOccurrences(of: "'", with: "&apos;")
+    }
+}
+
+// MARK: - Export Errors
+
+enum ExportError: LocalizedError {
+    case sourceFilesInaccessible([String])
+
+    var errorDescription: String? {
+        switch self {
+        case .sourceFilesInaccessible(let names):
+            return "Cannot read video files: \(names.joined(separator: ", ")). The files may have been moved or deleted."
+        }
     }
 }
 
