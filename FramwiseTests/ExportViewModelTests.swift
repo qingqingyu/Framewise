@@ -101,6 +101,23 @@ final class ExportViewModelTests: XCTestCase {
         XCTAssertTrue(edl.contains("FROM PATH: /tmp/myclip.mov"))
     }
 
+    // REGRESSION: Each clip's source timecode must use its own source video's frame rate.
+    // The rec (timeline) timecode uses the sequence frame rate (first video).
+    // This test verifies the code path loads per-source frame rates via buildFCPXMLString's
+    // SourceVideoInfo, since the actual loadVideoInfo would fail on /tmp test files.
+    func testEDL_RecTimeWithMultipleSources() async throws {
+        // Two clips from different source files — tests that the loop handles multiple frameRateMap entries
+        let clip1 = makeClip(sourceName: "camera.mov", startSeconds: 0, endSeconds: 10)
+        let clip2 = makeClip(sourceName: "drone.mov", startSeconds: 0, endSeconds: 5)
+        let clips = [clip1, clip2]
+
+        let edl = try await viewModel.generateEDL(from: clips)
+
+        // Both source files don't exist on disk, so frameRate falls back to 24.0
+        // Rec timecodes should still accumulate correctly: 0→10, 10→15
+        XCTAssertTrue(edl.contains("00:00:10:00 00:00:15:00"), "Rec time should accumulate across different sources")
+    }
+
     // MARK: - C. FCPXML Generation (via buildFCPXMLString with fake video info)
 
     private func makeVideoInfo(

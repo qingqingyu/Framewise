@@ -86,17 +86,35 @@ class ExportViewModel: ObservableObject {
     // MARK: - EDL Generation (CMX 3600)
 
     func generateEDL(from clips: [VideoClip]) async throws -> String {
-        // Load frame rate from first source video for accurate timecodes
+        // Load frame rate per source video for accurate timecodes
         let sourceURLs = clips.map { $0.sourceFileURL }.uniqued()
-        let frameRate: Double
-        if let firstURL = sourceURLs.first,
-           let info = try? await Self.loadVideoInfo(for: firstURL) {
-            frameRate = info.frameRate
-        } else {
-            frameRate = 24.0
+
+        // Parallel load all source video metadata
+        let infoResults: [(index: Int, info: SourceVideoInfo)] = await withTaskGroup(of: (Int, SourceVideoInfo?).self) { group in
+            for (index, url) in sourceURLs.enumerated() {
+                group.addTask {
+                    let info = try? await Self.loadVideoInfo(for: url)
+                    return (index, info)
+                }
+            }
+            var results: [(index: Int, info: SourceVideoInfo)] = []
+            for await (index, maybeInfo) in group {
+                if let info = maybeInfo {
+                    results.append((index, info))
+                }
+            }
+            return results.sorted { $0.index < $1.index }
         }
 
-        let isDropFrame = abs(frameRate - 29.97) < 0.01 || abs(frameRate - 59.94) < 0.01
+        // Build URL → frameRate lookup (fallback to 24.0 for inaccessible files)
+        let frameRateMap: [URL: Double] = Dictionary(uniqueKeysWithValues: sourceURLs.enumerated().compactMap { (index, url) -> (URL, Double)? in
+            guard let info = infoResults.first(where: { $0.index == index }) else { return nil }
+            return (url, info.info.frameRate)
+        })
+
+        // FCM header uses the first source video's frame rate
+        let primaryFrameRate = frameRateMap[sourceURLs.first ?? URL(fileURLWithPath: "/")] ?? 24.0
+        let isDropFrame = abs(primaryFrameRate - 29.97) < 0.01 || abs(primaryFrameRate - 59.94) < 0.01
         let fcmHeader = isDropFrame ? "FCM: DROP FRAME" : "FCM: NON-DROP FRAME"
 
         var edl = """
@@ -113,14 +131,17 @@ class ExportViewModel: ObservableObject {
             // 原始素材名称（截断为8字符）
             let reelName = String(clip.sourceFileName.prefix(8)).padding(toLength: 8, withPad: " ", startingAt: 0)
 
-            // 时间码（使用实际帧率）
-            let tcIn = TimecodeUtils.formatTimecodeEDL(clip.timecodeStart, frameRate: frameRate)
-            let tcOut = TimecodeUtils.formatTimecodeEDL(clip.timecodeEnd, frameRate: frameRate)
+            // 每个 clip 使用其源视频的实际帧率
+            let clipFrameRate = frameRateMap[clip.sourceFileURL] ?? 24.0
 
-            // 时间轴时间码（累积，O(1)）
-            let recIn = TimecodeUtils.formatTimecodeEDL(recTime, frameRate: frameRate)
+            // 时间码（使用该 clip 源视频的帧率）
+            let tcIn = TimecodeUtils.formatTimecodeEDL(clip.timecodeStart, frameRate: clipFrameRate)
+            let tcOut = TimecodeUtils.formatTimecodeEDL(clip.timecodeEnd, frameRate: clipFrameRate)
+
+            // 时间轴时间码（累积，O(1)，使用 sequence 的帧率）
+            let recIn = TimecodeUtils.formatTimecodeEDL(recTime, frameRate: primaryFrameRate)
             recTime = CMTimeAdd(recTime, CMTimeSubtract(clip.timecodeEnd, clip.timecodeStart))
-            let recOut = TimecodeUtils.formatTimecodeEDL(recTime, frameRate: frameRate)
+            let recOut = TimecodeUtils.formatTimecodeEDL(recTime, frameRate: primaryFrameRate)
 
             edl += """
             \(eventNumber)  \(reelName)   V     C        \(tcIn) \(tcOut) \(recIn) \(recOut)
