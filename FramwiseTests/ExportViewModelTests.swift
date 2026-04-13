@@ -134,6 +134,17 @@ final class ExportViewModelTests: XCTestCase {
         XCTAssertFalse(xml.contains("Tom&J"), "Raw ampersand should not appear in output")
     }
 
+    func testFCPXML_XmlEscapedApostropheAndQuote() {
+        // REGRESSION: wedding filenames with apostrophes and quotes
+        let clips = [makeClip(sourceName: "John & Sarah's Wedding.mov", startSeconds: 0, endSeconds: 5)]
+        let url = URL(fileURLWithPath: "/tmp/John & Sarah's Wedding.mov")
+        let infos = [makeVideoInfo(url: url)]
+        let xml = viewModel.buildFCPXMLString(clips: clips, videoInfos: infos, frameRate: 24, width: 1920, height: 1080)
+
+        XCTAssertTrue(xml.contains("John &amp; Sarah&apos;s Wedding.mov"), "Ampersand and apostrophe must be escaped")
+        XCTAssertFalse(xml.contains("Sarah's"), "Raw apostrophe should not appear in attribute values")
+    }
+
     func testFCPXML_SequenceDurationMatchesClipSum() {
         let clip1 = makeClip(sourceName: "a.mov", startSeconds: 0, endSeconds: 10)
         let clip2 = makeClip(sourceName: "a.mov", startSeconds: 20, endSeconds: 30)
