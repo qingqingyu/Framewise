@@ -44,6 +44,7 @@ struct FramwiseApp: App {
 
 // MARK: - App State
 
+@MainActor
 class AppState: ObservableObject {
     @Published var importSession: ImportSession? {
         didSet { subscribeToSessionChanges() }
