@@ -29,10 +29,17 @@ class ImportSession: ObservableObject {
 
     func addClips(_ clips: [VideoClip]) {
         allClips.append(contentsOf: clips)
+        // If user has a custom order, append new clips at the end
+        if userClipOrder != nil {
+            userClipOrder!.append(contentsOf: clips.map { $0.id })
+        }
     }
 
     func addClip(_ clip: VideoClip) {
         allClips.append(clip)
+        if userClipOrder != nil {
+            userClipOrder!.append(clip.id)
+        }
     }
 
     func addSourceFile(_ url: URL) {

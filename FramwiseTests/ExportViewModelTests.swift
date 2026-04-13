@@ -56,16 +56,16 @@ final class ExportViewModelTests: XCTestCase {
 
     // MARK: - B. EDL Generation
 
-    func testEDL_ContainsHeader() throws {
+    func testEDL_ContainsHeader() async throws {
         let clips = [makeClip(startSeconds: 0, endSeconds: 5)]
-        let edl = try viewModel.generateEDL(from: clips)
+        let edl = try await viewModel.generateEDL(from: clips)
         XCTAssertTrue(edl.contains("TITLE: Framwise Export"))
         XCTAssertTrue(edl.contains("FCM: NON-DROP FRAME"))
     }
 
-    func testEDL_ReelNameTruncation() throws {
+    func testEDL_ReelNameTruncation() async throws {
         let clips = [makeClip(sourceName: "VeryLongFileName.mov", startSeconds: 0, endSeconds: 5)]
-        let edl = try viewModel.generateEDL(from: clips)
+        let edl = try await viewModel.generateEDL(from: clips)
 
         // Extract the event line (contains event number + reel name)
         let lines = edl.components(separatedBy: "\n")
@@ -80,23 +80,23 @@ final class ExportViewModelTests: XCTestCase {
         }
     }
 
-    func testEDL_RecTimeAccumulation() throws {
+    func testEDL_RecTimeAccumulation() async throws {
         // REGRESSION: verify O(1) rec time accumulation (not O(n^2) recalculation)
         let clip1 = makeClip(sourceName: "a.mov", startSeconds: 0, endSeconds: 10)
         let clip2 = makeClip(sourceName: "b.mov", startSeconds: 0, endSeconds: 5)
         let clip3 = makeClip(sourceName: "c.mov", startSeconds: 0, endSeconds: 3)
         let clips = [clip1, clip2, clip3]
 
-        let edl = try viewModel.generateEDL(from: clips)
+        let edl = try await viewModel.generateEDL(from: clips)
 
         // Rec timecodes: 0→10, 10→15, 15→18
         XCTAssertTrue(edl.contains("00:00:10:00 00:00:15:00"), "Clip 2 rec should be 10→15")
         XCTAssertTrue(edl.contains("00:00:15:00 00:00:18:00"), "Clip 3 rec should be 15→18")
     }
 
-    func testEDL_ClipNameAndPath() throws {
+    func testEDL_ClipNameAndPath() async throws {
         let clips = [makeClip(sourceName: "myclip.mov", startSeconds: 0, endSeconds: 5)]
-        let edl = try viewModel.generateEDL(from: clips)
+        let edl = try await viewModel.generateEDL(from: clips)
         XCTAssertTrue(edl.contains("FROM CLIP NAME: myclip.mov"))
         XCTAssertTrue(edl.contains("FROM PATH: /tmp/myclip.mov"))
     }

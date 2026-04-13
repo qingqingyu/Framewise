@@ -784,7 +784,23 @@ struct ClipPreviewModal: View {
 
             // Video player
             ZStack {
-                if let player = viewModel.player {
+                if let error = viewModel.error {
+                    Rectangle()
+                        .fill(Color.black)
+                        .aspectRatio(16/9, contentMode: .fit)
+                        .overlay(
+                            VStack(spacing: 8) {
+                                Image(systemName: "exclamationmark.triangle")
+                                    .font(.title)
+                                    .foregroundColor(.secondary)
+                                Text(error.localizedDescription)
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .multilineTextAlignment(.center)
+                                    .padding(.horizontal, 24)
+                            }
+                        )
+                } else if let player = viewModel.player {
                     VideoPlayerView(player: player)
                         .aspectRatio(16/9, contentMode: .fit)
                         .background(Color.black)

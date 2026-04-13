@@ -45,7 +45,7 @@ class ExportViewModel: ObservableObject {
 
             switch format {
             case .edl:
-                content = try generateEDL(from: clips)
+                content = try await generateEDL(from: clips)
             case .fcpxml:
                 content = try await generateFCPXML(from: clips)
             }
@@ -85,10 +85,23 @@ class ExportViewModel: ObservableObject {
 
     // MARK: - EDL Generation (CMX 3600)
 
-    func generateEDL(from clips: [VideoClip]) throws -> String {
+    func generateEDL(from clips: [VideoClip]) async throws -> String {
+        // Load frame rate from first source video for accurate timecodes
+        let sourceURLs = clips.map { $0.sourceFileURL }.uniqued()
+        let frameRate: Double
+        if let firstURL = sourceURLs.first,
+           let info = try? await Self.loadVideoInfo(for: firstURL) {
+            frameRate = info.frameRate
+        } else {
+            frameRate = 24.0
+        }
+
+        let isDropFrame = abs(frameRate - 29.97) < 0.01 || abs(frameRate - 59.94) < 0.01
+        let fcmHeader = isDropFrame ? "FCM: DROP FRAME" : "FCM: NON-DROP FRAME"
+
         var edl = """
         TITLE: Framwise Export
-        FCM: NON-DROP FRAME
+        \(fcmHeader)
 
         """
 
@@ -100,14 +113,14 @@ class ExportViewModel: ObservableObject {
             // 原始素材名称（截断为8字符）
             let reelName = String(clip.sourceFileName.prefix(8)).padding(toLength: 8, withPad: " ", startingAt: 0)
 
-            // 时间码
-            let tcIn = TimecodeUtils.formatTimecodeEDL(clip.timecodeStart)
-            let tcOut = TimecodeUtils.formatTimecodeEDL(clip.timecodeEnd)
+            // 时间码（使用实际帧率）
+            let tcIn = TimecodeUtils.formatTimecodeEDL(clip.timecodeStart, frameRate: frameRate)
+            let tcOut = TimecodeUtils.formatTimecodeEDL(clip.timecodeEnd, frameRate: frameRate)
 
             // 时间轴时间码（累积，O(1)）
-            let recIn = TimecodeUtils.formatTimecodeEDL(recTime)
+            let recIn = TimecodeUtils.formatTimecodeEDL(recTime, frameRate: frameRate)
             recTime = CMTimeAdd(recTime, CMTimeSubtract(clip.timecodeEnd, clip.timecodeStart))
-            let recOut = TimecodeUtils.formatTimecodeEDL(recTime)
+            let recOut = TimecodeUtils.formatTimecodeEDL(recTime, frameRate: frameRate)
 
             edl += """
             \(eventNumber)  \(reelName)   V     C        \(tcIn) \(tcOut) \(recIn) \(recOut)

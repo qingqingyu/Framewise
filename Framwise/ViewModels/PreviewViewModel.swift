@@ -16,6 +16,7 @@ class PreviewViewModel: ObservableObject {
     @Published var currentTime: Double = 0
     @Published var duration: Double = 0
     @Published var currentClip: VideoClip?
+    @Published var error: Error?
 
     private var timeObserver: Any?
     private var cancellables = Set<AnyCancellable>()
@@ -63,11 +64,21 @@ class PreviewViewModel: ObservableObject {
             }
         }
 
-        // Observe when item is ready
+        // Observe player item status (ready or failed)
         playerItem.publisher(for: \.status)
             .sink { [weak self] status in
-                if status == .readyToPlay {
+                switch status {
+                case .readyToPlay:
                     self?.duration = CMTimeGetSeconds(clip.timecodeEnd) - CMTimeGetSeconds(clip.timecodeStart)
+                case .failed:
+                    self?.error = playerItem.error ?? NSError(
+                        domain: AVFoundationErrorDomain,
+                        code: -1,
+                        userInfo: [NSLocalizedDescriptionKey: "Failed to load video. The file may have been moved or deleted."]
+                    )
+                    self?.cleanupPlayer()
+                default:
+                    break
                 }
             }
             .store(in: &cancellables)
