@@ -354,6 +354,7 @@ struct ExportSheetView: View {
     @Environment(\.dismiss) var dismiss
 
     @State private var exportedFileURL: URL?
+    @State private var saveError: String?
 
     var body: some View {
         VStack(spacing: 20) {
@@ -388,7 +389,15 @@ struct ExportSheetView: View {
                             panel.allowedContentTypes = [.init(filenameExtension: exportViewModel.exportFormat.fileExtension) ?? .data]
                             panel.begin { response in
                                 if response == .OK, let destURL = panel.url {
-                                    try? FileManager.default.copyItem(at: url, to: destURL)
+                                    do {
+                                        // Remove existing file to avoid copyItem failure
+                                        if FileManager.default.fileExists(atPath: destURL.path) {
+                                            try FileManager.default.removeItem(at: destURL)
+                                        }
+                                        try FileManager.default.copyItem(at: url, to: destURL)
+                                    } catch {
+                                        saveError = "Failed to save file: \(error.localizedDescription)"
+                                    }
                                 }
                             }
                             dismiss()
@@ -396,11 +405,27 @@ struct ExportSheetView: View {
                     }
                 }
                 .keyboardShortcut(.defaultAction)
-                .disabled(appState.selectedClipIDs.isEmpty)
+                .disabled(appState.selectedClipIDs.isEmpty || exportViewModel.isExporting)
             }
         }
         .padding(30)
         .frame(width: 400)
+        .alert("Export Error", isPresented: Binding(
+            get: { exportViewModel.error != nil },
+            set: { if !$0 { exportViewModel.error = nil } }
+        ), presenting: exportViewModel.error) { _ in
+            Button("OK") { exportViewModel.error = nil }
+        } message: { error in
+            Text(error.localizedDescription)
+        }
+        .alert("Save Error", isPresented: Binding(
+            get: { saveError != nil },
+            set: { if !$0 { saveError = nil } }
+        ), presenting: saveError) { _ in
+            Button("OK") { saveError = nil }
+        } message: { message in
+            Text(message)
+        }
     }
 }
 
