@@ -356,6 +356,11 @@ struct ExportSheetView: View {
     @State private var exportedFileURL: URL?
     @State private var saveError: String?
 
+    /// Clips to export, excluding waste clips (blackout/dark/solid)
+    private var clipsToExport: [VideoClip] {
+        appState.selectedClips.filter { $0.wasteType == .none }
+    }
+
     var body: some View {
         VStack(spacing: 20) {
             Text("Export Selected Clips")
@@ -368,7 +373,7 @@ struct ExportSheetView: View {
             }
             .pickerStyle(.radioGroup)
 
-            Text("\(appState.selectedClipIDs.count) clips will be exported")
+            Text("\(clipsToExport.count) clips will be exported")
                 .foregroundColor(.secondary)
 
             HStack {
@@ -380,7 +385,7 @@ struct ExportSheetView: View {
                 Button("Export") {
                     Task {
                         if let url = await exportViewModel.export(
-                            clips: appState.selectedClips,
+                            clips: clipsToExport,
                             format: exportViewModel.exportFormat
                         ) {
                             exportedFileURL = url
@@ -395,17 +400,17 @@ struct ExportSheetView: View {
                                             try FileManager.default.removeItem(at: destURL)
                                         }
                                         try FileManager.default.copyItem(at: url, to: destURL)
+                                        dismiss()
                                     } catch {
                                         saveError = "Failed to save file: \(error.localizedDescription)"
                                     }
                                 }
                             }
-                            dismiss()
                         }
                     }
                 }
                 .keyboardShortcut(.defaultAction)
-                .disabled(appState.selectedClipIDs.isEmpty || exportViewModel.isExporting)
+                .disabled(clipsToExport.isEmpty || exportViewModel.isExporting)
             }
         }
         .padding(30)

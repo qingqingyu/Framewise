@@ -194,8 +194,9 @@ struct ClipGridView: View {
                 // Selection actions
                 Menu {
                     Button("Select All") {
-                        if let session = appState.importSession {
-                            gridViewModel.selectAll(session.allClips, in: appState)
+                        let currentClips = groupedClips.flatMap { $0.clips }
+                        if !currentClips.isEmpty {
+                            gridViewModel.selectAll(currentClips, in: appState)
                         }
                     }
                     Button("Deselect All") {
