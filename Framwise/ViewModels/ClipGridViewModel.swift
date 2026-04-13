@@ -122,10 +122,13 @@ class ClipGridViewModel: ObservableObject {
         appState.selectedClipIDs.removeAll()
     }
 
-    /// Invert selection
+    /// Invert selection within the given clips, preserving selections outside the view
     func invertSelection(_ clips: [VideoClip], in appState: AppState) {
-        let allIDs = Set(clips.map { $0.id })
-        let currentSelection = appState.selectedClipIDs
-        appState.selectedClipIDs = allIDs.subtracting(currentSelection)
+        let viewIDs = Set(clips.map { $0.id })
+        let currentlySelectedInView = appState.selectedClipIDs.intersection(viewIDs)
+        let invertedInView = viewIDs.subtracting(currentlySelectedInView)
+        // Remove all view clips from selection, then add back the inverted ones
+        appState.selectedClipIDs.subtract(viewIDs)
+        appState.selectedClipIDs.formUnion(invertedInView)
     }
 }
