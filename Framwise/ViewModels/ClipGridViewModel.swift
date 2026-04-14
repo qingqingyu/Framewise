@@ -48,7 +48,7 @@ class ClipGridViewModel: ObservableObject {
 
     private var cachedInput: FilterInput?
     private var cachedFilteredClips: [VideoClip] = []
-    private var cachedGroupedClips: [(sourceURL: URL, clips: [VideoClip])] = []
+    private var cachedGroupedClips: [(sourceURL: URL, clips: [VideoClip])]? = nil
 
     /// Filter and sort clips based on current settings (cached)
     func filteredClips(from allClips: [VideoClip], selectedIDs: Set<UUID> = [], sourceURL: URL? = nil, tagFilter: UUID? = nil, hideWaste: Bool = false) -> [VideoClip] {
@@ -71,7 +71,7 @@ class ClipGridViewModel: ObservableObject {
         cachedInput = input
         cachedFilteredClips = result
         // Invalidate grouped cache when filtered changes
-        cachedGroupedClips = []
+        cachedGroupedClips = nil
         return result
     }
 
@@ -80,8 +80,8 @@ class ClipGridViewModel: ObservableObject {
         // groupedClips depends on filteredClips, so first ensure filtered cache is warm
         let _ = filteredClips(from: allClips, selectedIDs: selectedIDs, sourceURL: sourceURL, tagFilter: tagFilter, hideWaste: hideWaste)
 
-        if !cachedGroupedClips.isEmpty {
-            return cachedGroupedClips
+        if let cached = cachedGroupedClips {
+            return cached
         }
 
         let result = computeGroupedClips(from: cachedFilteredClips, sourceURL: sourceURL)
@@ -156,13 +156,6 @@ class ClipGridViewModel: ObservableObject {
         return groupOrder.map { url in
             (sourceURL: url, clips: groups[url] ?? [])
         }
-    }
-
-    /// Invalidate cache (call when external state changes significantly)
-    func invalidateCache() {
-        cachedInput = nil
-        cachedFilteredClips = []
-        cachedGroupedClips = []
     }
 
     /// Toggle selection for a clip

@@ -101,34 +101,40 @@ extension TimecodeUtils {
 
         // Nominal frame rate (30 or 60) — what the timecode counts in
         let nominalRate = round(frameRate)  // 30.0 or 60.0
+        let nominalInt = Int(nominalRate)
+
         // Total frames as if running at nominal rate
-        var totalFrames = Int(round(seconds * nominalRate))
+        let rawFrames = Int(round(seconds * nominalRate))
 
         // Drop-frame correction:
-        // Every minute (except every 10th), drop `dropFrames` frames
+        // Every minute (except every 10th), skip `dropFrames` frame numbers
         let dropFrames = nominalRate == 60.0 ? 4 : 2
+        let framesPer10min = nominalInt * 600  // 18000 for 30fps
+        let framesPer1min = nominalInt * 60     // 1800 for 30fps
 
-        let framesPer10min = Int(nominalRate) * 600  // 18000 for 30fps
-        let framesPer1min = Int(nominalRate) * 60     // 1800 for 30fps
+        // Step 1: How many complete 10-minute blocks?
+        let tenMinBlocks = rawFrames / framesPer10min
+        // Each 10-min block drops 9 * dropFrames (minutes 1-9 drop, minute 0 doesn't)
+        let droppedBy10Min = tenMinBlocks * 9 * dropFrames
 
-        // Number of 10-minute blocks
-        let tenMinBlocks = totalFrames / framesPer10min
-        totalFrames -= tenMinBlocks * (9 * dropFrames)
+        // Step 2: Frames remaining within the current (partial) 10-minute block
+        let remainingInBlock = rawFrames % framesPer10min
 
-        // Remaining frames within the current 10-minute block
-        let remaining = totalFrames - tenMinBlocks * framesPer10min
+        // Step 3: Within that remainder, how many full 1-minute intervals?
+        // Minute 0 doesn't drop, minutes 1-9 each drop `dropFrames`
+        let oneMinBlocks = remainingInBlock / framesPer1min
+        // If we're past minute 0, each completed minute drops `dropFrames`
+        let droppedInBlock = max(0, oneMinBlocks - 1) * dropFrames
 
-        if remaining > 0 {
-            // Number of full minutes within the 10-min block (the first minute is index 0, doesn't drop)
-            let oneMinBlocks = (remaining - 1) / framesPer1min
-            totalFrames -= oneMinBlocks * dropFrames
-        }
+        // Step 4: Timecode frame number = raw frames - all dropped frames
+        var tcFrames = rawFrames - droppedBy10Min - droppedInBlock
 
-        let ff = totalFrames % Int(nominalRate)
-        let totalSecs = totalFrames / Int(nominalRate)
-        let ss = totalSecs % 60
-        let mm = (totalSecs / 60) % 60
-        let hh = totalSecs / 3600
+        let ff = tcFrames % nominalInt
+        tcFrames /= nominalInt
+        let ss = tcFrames % 60
+        tcFrames /= 60
+        let mm = tcFrames % 60
+        let hh = tcFrames / 60
 
         return String(format: "%02d:%02d:%02d;%02d", hh, mm, ss, ff)
     }

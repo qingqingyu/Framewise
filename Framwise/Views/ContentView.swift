@@ -480,7 +480,6 @@ struct SettingsView: View {
     }
 }
 
-
 #Preview {
     ContentView()
         .environmentObject(AppState())
