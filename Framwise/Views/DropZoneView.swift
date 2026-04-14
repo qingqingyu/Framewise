@@ -176,8 +176,8 @@ struct DropZoneView: View {
             }
             if !urls.isEmpty {
                 importFiles(urls: urls)
-            }
-            if !unsupportedNames.isEmpty {
+            } else if !unsupportedNames.isEmpty {
+                // Only show error when ALL dropped files are unsupported
                 importViewModel.error = ImportError.unsupportedFormat(unsupportedNames.joined(separator: ", "))
             }
         }
