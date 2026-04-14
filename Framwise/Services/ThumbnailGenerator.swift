@@ -24,6 +24,7 @@ actor ThumbnailGenerator {
     }()
 
     private var generators: [URL: AVAssetImageGenerator] = [:]
+    private var generatorOrder: [URL] = []  // LRU: least-recently-used at front
     private let maxGenerators = 20
     private let ciContext = CIContext(options: [.useSoftwareRenderer: false])
 
@@ -49,11 +50,6 @@ actor ThumbnailGenerator {
     /// Disk cache folder URL for a source video
     private func diskCacheDirectory(for url: URL) -> URL {
         diskCacheRoot.appendingPathComponent(diskCacheFolder(for: url), isDirectory: true)
-    }
-
-    /// PNG filename for a specific thumbnail frame
-    private func diskCacheFileName(start: Double, end: Double, frameIndex: Int) -> String {
-        String(format: "clip_%.2f_%.2f_%d.png", start, end, frameIndex)
     }
 
     // MARK: - Thumbnail Generation
@@ -118,13 +114,15 @@ actor ThumbnailGenerator {
     /// Get or create an AVAssetImageGenerator for a source URL
     private func getOrCreateGenerator(for url: URL) -> AVAssetImageGenerator {
         if let existing = generators[url] {
+            // Move to end (most recently used)
+            generatorOrder.removeAll { $0 == url }
+            generatorOrder.append(url)
             return existing
         }
-        // Evict oldest generators if at capacity
-        if generators.count >= maxGenerators {
-            if let oldestKey = generators.keys.first {
-                generators.removeValue(forKey: oldestKey)
-            }
+        // Evict least-recently-used generator if at capacity
+        if generators.count >= maxGenerators, let lru = generatorOrder.first {
+            generators.removeValue(forKey: lru)
+            generatorOrder.removeFirst()
         }
         let asset = AVAsset(url: url)
         let gen = AVAssetImageGenerator(asset: asset)
@@ -132,6 +130,7 @@ actor ThumbnailGenerator {
         gen.requestedTimeToleranceBefore = CMTime(seconds: 0.1, preferredTimescale: 600)
         gen.requestedTimeToleranceAfter = CMTime(seconds: 0.1, preferredTimescale: 600)
         generators[url] = gen
+        generatorOrder.append(url)
         return gen
     }
 
@@ -428,6 +427,7 @@ actor ThumbnailGenerator {
     func clearCache() {
         cache.removeAllObjects()
         generators.removeAll()
+        generatorOrder.removeAll()
 
         // Also clear disk cache
         let fm = FileManager.default

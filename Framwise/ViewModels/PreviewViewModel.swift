@@ -38,8 +38,10 @@ class PreviewViewModel: ObservableObject {
         let startTime = clip.timecodeStart
         let endTime = clip.timecodeEnd
 
-        // Seek to start
-        newPlayer.seek(to: startTime, toleranceBefore: .zero, toleranceAfter: .zero)
+        // Seek to start, then begin playback once ready
+        newPlayer.seek(to: startTime, toleranceBefore: CMTime(seconds: 0.1, preferredTimescale: 600), toleranceAfter: CMTime(seconds: 0.1, preferredTimescale: 600)) { [weak self] _ in
+            self?.play()
+        }
 
         duration = CMTimeGetSeconds(endTime) - CMTimeGetSeconds(startTime)
 
@@ -56,11 +58,11 @@ class PreviewViewModel: ObservableObject {
             // Already on main queue — no Task needed
             self.currentTime = currentSeconds - startSeconds
 
-            // Stop at end and loop back to start
+            // Loop back to start when reaching end
             if currentSeconds >= endSeconds {
-                self.pause()
                 player.seek(to: clipStartTime, toleranceBefore: .zero, toleranceAfter: .zero)
                 self.currentTime = 0
+                // Continue playing for seamless loop
             }
         }
 
@@ -110,7 +112,7 @@ class PreviewViewModel: ObservableObject {
     func seek(to time: Double) {
         guard let player = player, let clip = currentClip else { return }
         let targetTime = CMTimeAdd(clip.timecodeStart, CMTime(seconds: time, preferredTimescale: 600))
-        player.seek(to: targetTime, toleranceBefore: .zero, toleranceAfter: .zero)
+        player.seek(to: targetTime, toleranceBefore: CMTime(seconds: 0.1, preferredTimescale: 600), toleranceAfter: CMTime(seconds: 0.1, preferredTimescale: 600))
         currentTime = time
     }
 

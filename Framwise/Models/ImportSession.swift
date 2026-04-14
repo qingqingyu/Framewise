@@ -77,6 +77,9 @@ class ImportSession: ObservableObject {
     // MARK: - Tag CRUD
 
     func addTag(_ tag: ClipTag) {
+        // Skip if a tag with the same name already exists
+        let existingNames = Set(tags.map { $0.name })
+        guard !existingNames.contains(tag.name) else { return }
         tags.append(tag)
     }
 

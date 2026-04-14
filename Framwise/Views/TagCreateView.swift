@@ -46,7 +46,8 @@ struct TagCreateView: View {
                 .keyboardShortcut(.cancelAction)
 
                 Button("Create") {
-                    let tag = ClipTag(name: tagName, color: selectedColor)
+                    let trimmed = tagName.trimmingCharacters(in: .whitespaces)
+                    let tag = ClipTag(name: trimmed, color: selectedColor)
                     onCreate(tag)
                     dismiss()
                 }

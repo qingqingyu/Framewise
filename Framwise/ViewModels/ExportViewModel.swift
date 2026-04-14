@@ -59,11 +59,9 @@ class ExportViewModel: ObservableObject {
 
             try content.write(to: fileURL, atomically: true, encoding: .utf8)
 
-            isExporting = false
             return fileURL
         } catch {
             self.error = error
-            isExporting = false
             return nil
         }
     }

@@ -413,8 +413,9 @@ struct ExportSheetView: View {
                             panel.allowedContentTypes = [.init(filenameExtension: exportViewModel.exportFormat.fileExtension) ?? .data]
                             panel.begin { response in
                                 defer {
-                                    // Always clean up temp file after save panel closes
+                                    // Always clean up temp file and reset state after save panel closes
                                     try? FileManager.default.removeItem(at: url)
+                                    exportViewModel.isExporting = false
                                 }
                                 if response == .OK, let destURL = panel.url {
                                     do {
@@ -429,6 +430,9 @@ struct ExportSheetView: View {
                                     }
                                 }
                             }
+                        } else {
+                            // Export failed (error already set), reset state
+                            exportViewModel.isExporting = false
                         }
                     }
                 }
