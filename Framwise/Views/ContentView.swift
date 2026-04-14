@@ -124,6 +124,7 @@ struct ContentView: View {
     }
 
     private func clearSession() {
+        importViewModel.cancelImport()
         appState.clearSession()
     }
 }

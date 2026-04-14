@@ -159,17 +159,27 @@ struct DropZoneView: View {
 
         Task {
             var urls: [URL] = []
+            var unsupportedNames: [String] = []
             for provider in providers {
                 let url: URL? = await withCheckedContinuation { continuation in
                     provider.loadObject(ofClass: URL.self) { url, _ in
                         continuation.resume(returning: url)
                     }
                 }
-                if let url, supportedExtensions.contains(url.pathExtension.lowercased()) {
-                    urls.append(url)
+                if let url {
+                    if supportedExtensions.contains(url.pathExtension.lowercased()) {
+                        urls.append(url)
+                    } else {
+                        unsupportedNames.append(url.lastPathComponent)
+                    }
                 }
             }
-            importFiles(urls: urls)
+            if !urls.isEmpty {
+                importFiles(urls: urls)
+            }
+            if !unsupportedNames.isEmpty {
+                importViewModel.error = ImportError.unsupportedFormat(unsupportedNames.joined(separator: ", "))
+            }
         }
     }
 

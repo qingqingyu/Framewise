@@ -62,9 +62,11 @@ enum TimecodeUtils {
         return String(format: "%02d:%02d", mins, secs)
     }
 
-    /// Parse timecode string (HH:MM:SS:FF) to CMTime
+    /// Parse timecode string (HH:MM:SS:FF or HH:MM:SS;FF for drop-frame) to CMTime
     static func parseTimecode(_ string: String, frameRate: Double = 24) -> CMTime? {
-        let components = string.split(separator: ":").map { Double($0) }
+        // Normalize: replace ; with : so a single split works for both DF and NDF
+        let normalized = string.replacingOccurrences(of: ";", with: ":")
+        let components = normalized.split(separator: ":").map { Double($0) }
         guard components.count == 4,
               let hours = components[0],
               let minutes = components[1],

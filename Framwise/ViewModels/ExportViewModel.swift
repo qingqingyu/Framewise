@@ -334,9 +334,11 @@ class ExportViewModel: ObservableObject {
 
         // Add clips to timeline
         var currentOffset: Double = 0
+        var skippedClipCount = 0
 
         for clip in clips {
             guard let assetId = assetIdMap[clip.sourceFileURL] else {
+                skippedClipCount += 1
                 continue
             }
 
@@ -350,6 +352,11 @@ class ExportViewModel: ObservableObject {
             """
 
             currentOffset += duration
+        }
+
+        if skippedClipCount > 0 {
+            let skipMsg = "\(skippedClipCount) clip(s) skipped due to inaccessible source files."
+            warning = warning.map { $0 + " " + skipMsg } ?? skipMsg
         }
 
         xml += """

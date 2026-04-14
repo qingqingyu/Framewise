@@ -43,6 +43,16 @@ class VideoImportViewModel: ObservableObject {
         return clamped(value, in: 0.1...0.9, default: 0.3)
     }
 
+    /// Reset import state (called when session is cleared mid-import)
+    func cancelImport() {
+        isImporting = false
+        isAnalyzing = false
+        importProgress = 0
+        analyzingProgress = 0
+        statusMessage = ""
+        error = nil
+    }
+
     private func clamped(_ value: Int, in range: ClosedRange<Int>, default defaultValue: Int) -> Int {
         guard value >= range.lowerBound else { return defaultValue }
         return min(value, range.upperBound)
@@ -243,16 +253,26 @@ class VideoImportViewModel: ObservableObject {
 
     // MARK: - Clip Refinement (Pure)
 
+    /// Minimum clip duration after splitting (seconds)
+    /// Prevents micro-clips that have no editing value
+    private static let minimumClipDuration: Double = 0.5
+
     /// Refine long clips by splitting them — pure input/output, no session interaction
     nonisolated private static func refineLongClips(
         _ clips: [VideoClip],
         targetCount: Int,
         totalDuration: Double
     ) -> [VideoClip] {
-        guard clips.count < targetCount else { return clips }
+        // Scale targetCount with video duration to avoid over-splitting short videos
+        // A 2s video shouldn't be split into 36 parts (~0.056s each)
+        let minimumPartDuration = minimumClipDuration
+        let maxPartsFromDuration = max(1, Int(totalDuration / minimumPartDuration))
+        let effectiveTarget = min(targetCount, maxPartsFromDuration)
 
-        let budget = targetCount - clips.count
-        let idealDuration = totalDuration / Double(targetCount)
+        guard clips.count < effectiveTarget else { return clips }
+
+        let budget = effectiveTarget - clips.count
+        let idealDuration = totalDuration / Double(effectiveTarget)
 
         let longClips = clips
             .filter { $0.duration > idealDuration }
@@ -275,6 +295,10 @@ class VideoImportViewModel: ObservableObject {
                 allocatedSplit = max(1, Int(round(Double(remainingBudget) * (longClip.duration / totalLongDuration))))
                 allocatedSplit = min(allocatedSplit, remainingBudget)
             }
+
+            // Cap splits so each part is at least minimumClipDuration
+            let maxAllowedSplits = max(1, Int(longClip.duration / minimumPartDuration) - 1)
+            allocatedSplit = min(allocatedSplit, maxAllowedSplits)
 
             let partCount = allocatedSplit + 1
             let newClips = splitClipIntoParts(clip: longClip, partCount: partCount)
