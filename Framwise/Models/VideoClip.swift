@@ -81,8 +81,11 @@ struct VideoClip: Identifiable, Hashable {
         CMTimeGetSeconds(timecodeEnd) - CMTimeGetSeconds(timecodeStart)
     }
 
-    /// Formatted duration string (MM:SS)
+    /// Formatted duration string (MM:SS, or X.Xs for sub-second)
     var durationString: String {
+        if duration < 1 {
+            return String(format: "%.1fs", duration)
+        }
         let totalSeconds = Int(duration)
         let minutes = totalSeconds / 60
         let seconds = totalSeconds % 60

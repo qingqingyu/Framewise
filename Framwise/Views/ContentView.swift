@@ -377,7 +377,10 @@ struct ExportSheetView: View {
             }
             .pickerStyle(.radioGroup)
 
-            if excludedWasteCount > 0 {
+            if clipsToExport.isEmpty && excludedWasteCount > 0 {
+                Text("All \(appState.selectedClips.count) selected clips are waste (blackout/dark/solid)")
+                    .foregroundColor(.orange)
+            } else if excludedWasteCount > 0 {
                 Text("\(appState.selectedClips.count) selected, \(excludedWasteCount) waste clips excluded")
                     .foregroundColor(.secondary)
             } else {

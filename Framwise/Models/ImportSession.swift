@@ -162,7 +162,14 @@ class ImportSession: ObservableObject {
         isAnalyzed = data.isAnalyzed
         userClipOrder = data.userClipOrder
         tags = data.tags
-        activeTagFilter = data.activeTagFilter
+
+        // Validate activeTagFilter references an existing tag
+        if let filter = data.activeTagFilter {
+            let tagIDs = Set(tags.map { $0.id })
+            activeTagFilter = tagIDs.contains(filter) ? filter : nil
+        } else {
+            activeTagFilter = nil
+        }
 
         // Remove source files that no longer exist on disk
         let fm = FileManager.default

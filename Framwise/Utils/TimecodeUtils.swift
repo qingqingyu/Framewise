@@ -30,9 +30,13 @@ enum TimecodeUtils {
         return String(format: "%02d:%02d:%02d:%02d", hours, minutes, secs, frames)
     }
 
-    /// Format CMTime to EDL timecode (HH:MM:SS:FF, 6 digits for hours)
+    /// Format CMTime to EDL timecode (HH:MM:SS:FF or HH:MM:SS;FF for drop-frame)
+    /// Automatically uses drop-frame format for 29.97/59.94fps
     static func formatTimecodeEDL(_ time: CMTime, frameRate: Double = 24) -> String {
         let totalSeconds = CMTimeGetSeconds(time)
+        if isDropFrame(frameRate) {
+            return formatDropFrameTimecode(seconds: totalSeconds, frameRate: frameRate)
+        }
         return formatTimecode(seconds: totalSeconds, frameRate: frameRate)
     }
 
@@ -91,43 +95,44 @@ extension TimecodeUtils {
     }
 
     /// Format drop frame timecode (uses ; instead of : before frames)
-    /// Correctly accounts for dropped frames in 29.97fps and 59.94fps
+    /// Correctly accounts for dropped frame numbers in 29.97fps and 59.94fps
+    ///
+    /// Standard SMPTE drop-frame algorithm:
+    /// 1. Convert seconds → actual frame count at the real rate (29.97fps)
+    /// 2. Count how many frame numbers have been dropped (skipped) up to this point
+    /// 3. Timecode number = actual frames + dropped frame numbers
+    ///
+    /// For 29.97fps: every minute except every 10th, 2 frame numbers are skipped
+    /// For 59.94fps: every minute except every 10th, 4 frame numbers are skipped
     static func formatDropFrameTimecode(seconds: Double, frameRate: Double = 29.97) -> String {
-        let isDrop = isDropFrame(frameRate)
-
-        if !isDrop {
+        guard isDropFrame(frameRate) else {
             return formatTimecode(seconds: seconds, frameRate: frameRate)
         }
 
-        // Nominal frame rate (30 or 60) — what the timecode counts in
-        let nominalRate = round(frameRate)  // 30.0 or 60.0
-        let nominalInt = Int(nominalRate)
+        let nominalInt = Int(round(frameRate))  // 30 or 60
+        let dropFrames = nominalInt == 60 ? 4 : 2
 
-        // Total frames as if running at nominal rate
-        let rawFrames = Int(round(seconds * nominalRate))
+        // Actual frame count at the real frame rate
+        let actualFrames = Int(round(seconds * frameRate))
 
-        // Drop-frame correction:
-        // Every minute (except every 10th), skip `dropFrames` frame numbers
-        let dropFrames = nominalRate == 60.0 ? 4 : 2
-        let framesPer10min = nominalInt * 600  // 18000 for 30fps
-        let framesPer1min = nominalInt * 60     // 1800 for 30fps
+        // DF-aware frame counts:
+        // Within each 10-minute cycle: minute 0 has no drops, minutes 1-9 each drop
+        let framesPer10Min = nominalInt * 600 - 9 * dropFrames  // e.g., 17982 for 29.97fps
+        let framesPer1Min = nominalInt * 60 - dropFrames         // e.g., 1798 for 29.97fps
 
-        // Step 1: How many complete 10-minute blocks?
-        let tenMinBlocks = rawFrames / framesPer10min
-        // Each 10-min block drops 9 * dropFrames (minutes 1-9 drop, minute 0 doesn't)
-        let droppedBy10Min = tenMinBlocks * 9 * dropFrames
+        let tenMinBlocks = actualFrames / framesPer10Min
+        let remaining = actualFrames % framesPer10Min
 
-        // Step 2: Frames remaining within the current (partial) 10-minute block
-        let remainingInBlock = rawFrames % framesPer10min
+        // Within the 10-min block, count how many drop-minutes we've passed
+        let oneMinBlocks: Int
+        if remaining >= dropFrames {
+            oneMinBlocks = (remaining - dropFrames) / framesPer1Min
+        } else {
+            oneMinBlocks = 0
+        }
 
-        // Step 3: Within that remainder, how many full 1-minute intervals?
-        // Minute 0 doesn't drop, minutes 1-9 each drop `dropFrames`
-        let oneMinBlocks = remainingInBlock / framesPer1min
-        // If we're past minute 0, each completed minute drops `dropFrames`
-        let droppedInBlock = max(0, oneMinBlocks - 1) * dropFrames
-
-        // Step 4: Timecode frame number = raw frames - all dropped frames
-        var tcFrames = rawFrames - droppedBy10Min - droppedInBlock
+        let totalDrops = tenMinBlocks * 9 * dropFrames + oneMinBlocks * dropFrames
+        var tcFrames = actualFrames + totalDrops
 
         let ff = tcFrames % nominalInt
         tcFrames /= nominalInt

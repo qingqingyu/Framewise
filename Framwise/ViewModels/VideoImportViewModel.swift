@@ -56,6 +56,7 @@ class VideoImportViewModel: ObservableObject {
     // MARK: - Streaming Import (Parallel)
 
     func importVideosStreaming(from urls: [URL], into session: ImportSession) async {
+        guard !isImporting else { return }
         isImporting = true
         isAnalyzing = true
         error = nil

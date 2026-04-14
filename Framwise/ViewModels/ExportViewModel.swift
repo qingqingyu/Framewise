@@ -125,6 +125,10 @@ class ExportViewModel: ObservableObject {
 
         """
 
+        // Rec timeline: for DF rates, count at nominal rate (30fps) to keep
+        // timecodes aligned with real time; for NDF rates, use actual rate.
+        let recCountRate: Double = isDropFrame ? round(primaryFrameRate) : primaryFrameRate
+
         var recFrameCount: Int = 0
 
         for (index, clip) in clips.enumerated() {
@@ -137,24 +141,22 @@ class ExportViewModel: ObservableObject {
             }
             let reelName = String(asciiName.prefix(8)).padding(toLength: 8, withPad: " ", startingAt: 0)
 
-            // 每个 clip 使用其源视频的实际帧率
+            // Source timecodes: per-clip frame rate, auto-selects DF for NTSC
             let clipFrameRate = frameRateMap[clip.sourceFileURL] ?? 24.0
-
-            // 时间码（使用该 clip 源视频的帧率）
             let tcIn = TimecodeUtils.formatTimecodeEDL(clip.timecodeStart, frameRate: clipFrameRate)
             let tcOut = TimecodeUtils.formatTimecodeEDL(clip.timecodeEnd, frameRate: clipFrameRate)
 
-            // 时间轴时间码（使用整数帧号累积，避免浮点误差）
+            // Rec timecodes: frame counting at recCountRate to avoid float drift
+            let clipDurationFrames = Int(round(clip.duration * recCountRate))
+            let recInFrame = recFrameCount
+            recFrameCount += clipDurationFrames
+
             let recIn = TimecodeUtils.formatTimecodeEDL(
-                TimecodeUtils.time(from: recFrameCount, frameRate: primaryFrameRate),
+                TimecodeUtils.time(from: recInFrame, frameRate: recCountRate),
                 frameRate: primaryFrameRate
             )
-            // Rec timeline uses primaryFrameRate; use source clip's own frame-accurate frame count
-            // then convert to rec timeline frames via duration in seconds
-            let clipDurationFrames = Int(round(clip.duration * primaryFrameRate))
-            recFrameCount += clipDurationFrames
             let recOut = TimecodeUtils.formatTimecodeEDL(
-                TimecodeUtils.time(from: recFrameCount, frameRate: primaryFrameRate),
+                TimecodeUtils.time(from: recFrameCount, frameRate: recCountRate),
                 frameRate: primaryFrameRate
             )
 
@@ -263,8 +265,20 @@ class ExportViewModel: ObservableObject {
 
         // Compute format attributes from actual video properties
         let formatName = "FFVideoFormat\(height)p\(Int(round(frameRate)))"
-        let frameDurationNum = 100
-        let frameDurationDenom = Int(round(frameRate * 100))
+
+        // Frame duration: use FCPXML-standard rational form for NTSC rates
+        let frameDurationNum: Int
+        let frameDurationDenom: Int
+        if abs(frameRate - 29.97) < 0.01 {
+            frameDurationNum = 1001
+            frameDurationDenom = 30000
+        } else if abs(frameRate - 59.94) < 0.01 {
+            frameDurationNum = 1001
+            frameDurationDenom = 60000
+        } else {
+            frameDurationNum = 100
+            frameDurationDenom = Int(round(frameRate * 100))
+        }
         let isDropFrame = abs(frameRate - 29.97) < 0.01 || abs(frameRate - 59.94) < 0.01
         let tcFormat = isDropFrame ? "DF" : "NDF"
 
