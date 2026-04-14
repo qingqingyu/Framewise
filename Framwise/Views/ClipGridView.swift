@@ -357,9 +357,10 @@ struct ClipGridView: View {
         guard let session = appState.importSession,
               let order = session.userClipOrder else { return [] }
         // Apply the same filters as groupedClips via gridViewModel
-        let filtered = Set(filteredClips.map { $0.id })
+        let filteredSet = Set(filteredClips.map { $0.id })
+        let clipMap = Dictionary(uniqueKeysWithValues: session.allClips.map { ($0.id, $0) })
         return order.compactMap { id in
-            filtered.contains(id) ? session.allClips.first(where: { $0.id == id }) : nil
+            filteredSet.contains(id) ? clipMap[id] : nil
         }
     }
 

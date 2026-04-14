@@ -173,7 +173,6 @@ class ImportSession: ObservableObject {
 
         // Remove clips whose source file no longer exists
         if sourceFiles.count < data.sourceFiles.count {
-            let removedClipIDs = Set(allClips.filter { !validSourceURLs.contains($0.sourceFileURL) }.map { $0.id })
             allClips.removeAll { !validSourceURLs.contains($0.sourceFileURL) }
 
             // Clean up userClipOrder to remove stale IDs

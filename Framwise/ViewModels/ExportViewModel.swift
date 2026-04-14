@@ -149,11 +149,9 @@ class ExportViewModel: ObservableObject {
                 TimecodeUtils.time(from: recFrameCount, frameRate: primaryFrameRate),
                 frameRate: primaryFrameRate
             )
-            // Use source frame rate for frame-accurate duration, then convert to rec timeline frames
-            let srcStartFrame = TimecodeUtils.frameNumber(from: clip.timecodeStart, frameRate: clipFrameRate)
-            let srcEndFrame = TimecodeUtils.frameNumber(from: clip.timecodeEnd, frameRate: clipFrameRate)
-            let srcDurationFrames = srcEndFrame - srcStartFrame
-            let clipDurationFrames = srcDurationFrames  // Reel time: frame count is frame-rate-independent
+            // Rec timeline uses primaryFrameRate; use source clip's own frame-accurate frame count
+            // then convert to rec timeline frames via duration in seconds
+            let clipDurationFrames = Int(round(clip.duration * primaryFrameRate))
             recFrameCount += clipDurationFrames
             let recOut = TimecodeUtils.formatTimecodeEDL(
                 TimecodeUtils.time(from: recFrameCount, frameRate: primaryFrameRate),
@@ -270,25 +268,18 @@ class ExportViewModel: ObservableObject {
         let isDropFrame = abs(frameRate - 29.97) < 0.01 || abs(frameRate - 59.94) < 0.01
         let tcFormat = isDropFrame ? "DF" : "NDF"
 
-        // Convert seconds to frame-accurate FCPXML time string (e.g., "1200/2400s")
+        // Convert seconds to frame-accurate FCPXML time string (e.g., "100/2400s")
         let framesPerSecond = frameDurationDenom
         let frameDurationNumValue = frameDurationNum
         func fcpxmlTime(_ seconds: Double) -> String {
-            let totalFrames = Int(round(seconds * Double(framesPerSecond) / Double(frameDurationNumValue)))
-            let wholePart = totalFrames / framesPerSecond
-            let remainder = totalFrames % framesPerSecond
-            if remainder == 0 {
-                return "\(wholePart * frameDurationNumValue)/\(framesPerSecond)s"
-            }
-            // Reduce fraction using GCD
-            let g = gcd(remainder, framesPerSecond)
-            let num = (wholePart * framesPerSecond + remainder) / g * frameDurationNumValue
-            let den = framesPerSecond / g
-            return "\(num)/\(den)s"
+            let totalTicks = Int(round(seconds * Double(framesPerSecond) / Double(frameDurationNumValue)))
+            let rawNum = totalTicks * frameDurationNumValue
+            let g = gcd(rawNum, framesPerSecond)
+            return "\(rawNum / g)/\(framesPerSecond / g)s"
         }
 
         func gcd(_ a: Int, _ b: Int) -> Int {
-            var a = a, b = b
+            var a = abs(a), b = abs(b)
             while b != 0 { (a, b) = (b, a % b) }
             return a
         }
@@ -374,19 +365,6 @@ class ExportViewModel: ObservableObject {
             .replacingOccurrences(of: ">", with: "&gt;")
             .replacingOccurrences(of: "\"", with: "&quot;")
             .replacingOccurrences(of: "'", with: "&apos;")
-    }
-}
-
-// MARK: - Export Errors
-
-enum ExportError: LocalizedError {
-    case sourceFilesInaccessible([String])
-
-    var errorDescription: String? {
-        switch self {
-        case .sourceFilesInaccessible(let names):
-            return "Cannot read video files: \(names.joined(separator: ", ")). The files may have been moved or deleted."
-        }
     }
 }
 
