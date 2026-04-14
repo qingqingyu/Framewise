@@ -77,7 +77,9 @@ class AppState: ObservableObject {
             let session = ImportSession()
             session.restore(from: data)
             self.importSession = session
-            self.selectedClipIDs = data.selectedClipIDs
+            // Filter out IDs that no longer correspond to existing clips
+            let validIDs = Set(session.allClips.map { $0.id })
+            self.selectedClipIDs = data.selectedClipIDs.intersection(validIDs)
         }
     }
 

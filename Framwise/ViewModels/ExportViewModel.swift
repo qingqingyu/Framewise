@@ -123,13 +123,17 @@ class ExportViewModel: ObservableObject {
 
         """
 
-        var recTime: CMTime = .zero
+        var recFrameCount: Int = 0
 
         for (index, clip) in clips.enumerated() {
             let eventNumber = String(format: "%03d", index + 1)
 
-            // 原始素材名称（截断为8字符）
-            let reelName = String(clip.sourceFileName.prefix(8)).padding(toLength: 8, withPad: " ", startingAt: 0)
+            // Reel name: ASCII-safe, 8 chars max (CMX 3600 standard)
+            // Replace non-ASCII with underscore, then truncate/pad to 8 chars
+            let asciiName = clip.sourceFileName.unicodeScalars.map { scalar in
+                scalar.isASCII && scalar.value >= 0x20 && scalar.value < 0x7F ? Character(scalar) : "_"
+            }
+            let reelName = String(asciiName.prefix(8)).padding(toLength: 8, withPad: " ", startingAt: 0)
 
             // 每个 clip 使用其源视频的实际帧率
             let clipFrameRate = frameRateMap[clip.sourceFileURL] ?? 24.0
@@ -138,10 +142,17 @@ class ExportViewModel: ObservableObject {
             let tcIn = TimecodeUtils.formatTimecodeEDL(clip.timecodeStart, frameRate: clipFrameRate)
             let tcOut = TimecodeUtils.formatTimecodeEDL(clip.timecodeEnd, frameRate: clipFrameRate)
 
-            // 时间轴时间码（累积，O(1)，使用 sequence 的帧率）
-            let recIn = TimecodeUtils.formatTimecodeEDL(recTime, frameRate: primaryFrameRate)
-            recTime = CMTimeAdd(recTime, CMTimeSubtract(clip.timecodeEnd, clip.timecodeStart))
-            let recOut = TimecodeUtils.formatTimecodeEDL(recTime, frameRate: primaryFrameRate)
+            // 时间轴时间码（使用整数帧号累积，避免浮点误差）
+            let recIn = TimecodeUtils.formatTimecodeEDL(
+                TimecodeUtils.time(from: recFrameCount, frameRate: primaryFrameRate),
+                frameRate: primaryFrameRate
+            )
+            let clipDurationFrames = Int(round(clip.duration * primaryFrameRate))
+            recFrameCount += clipDurationFrames
+            let recOut = TimecodeUtils.formatTimecodeEDL(
+                TimecodeUtils.time(from: recFrameCount, frameRate: primaryFrameRate),
+                frameRate: primaryFrameRate
+            )
 
             edl += """
             \(eventNumber)  \(reelName)   V     C        \(tcIn) \(tcOut) \(recIn) \(recOut)
@@ -320,7 +331,15 @@ class ExportViewModel: ObservableObject {
     // MARK: - XML Escaping
 
     func xmlEscaped(_ string: String) -> String {
-        string
+        // Filter out XML 1.0 illegal control characters (0x00-0x1F except TAB/LF/CR, and 0x7F)
+        let filtered = string.unicodeScalars.filter { scalar in
+            if scalar.value < 0x20 {
+                return scalar == "\t" || scalar == "\n" || scalar == "\r"
+            }
+            return scalar.value != 0x7F
+        }.map(String.init).joined()
+
+        return filtered
             .replacingOccurrences(of: "&", with: "&amp;")
             .replacingOccurrences(of: "<", with: "&lt;")
             .replacingOccurrences(of: ">", with: "&gt;")

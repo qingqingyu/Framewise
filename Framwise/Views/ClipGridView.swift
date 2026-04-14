@@ -441,13 +441,13 @@ struct ClipGridView: View {
                     }
                 }
 
-                // Remove Tag submenu (only show tags assigned to this clip)
+                // Remove Tag submenu
                 let clipTags = session.tags.filter { clip.tagIDs.contains($0.id) }
                 if !clipTags.isEmpty {
                     Menu("Remove Tag") {
                         ForEach(clipTags) { tag in
                             Button(action: {
-                                session.removeTag(tag.id, from: clip.id)
+                                removeTagFromTarget(tag.id, clipID: clip.id)
                             }) {
                                 HStack {
                                     Circle()
@@ -482,9 +482,9 @@ struct ClipGridView: View {
     }
 
     private func selectAllFromSameFile(as referenceClip: VideoClip) {
-        guard let session = appState.importSession else { return }
-        let sameFileClips = session.allClips.filter { $0.sourceFileURL == referenceClip.sourceFileURL }
-        for clip in sameFileClips {
+        // Use currently filtered clips (respects waste/tag/source filters) instead of allClips
+        let currentClips = filteredClips.filter { $0.sourceFileURL == referenceClip.sourceFileURL }
+        for clip in currentClips {
             appState.selectedClipIDs.insert(clip.id)
         }
     }
@@ -499,6 +499,19 @@ struct ClipGridView: View {
             }
         } else {
             session.assignTag(tagID, to: clipID)
+        }
+    }
+
+    private func removeTagFromTarget(_ tagID: UUID, clipID: UUID) {
+        guard let session = appState.importSession else { return }
+        // If multiple clips are selected AND the right-clicked clip is among them,
+        // remove tag from all selected. Otherwise remove only from the right-clicked clip.
+        if appState.selectedClipIDs.count > 1 && appState.selectedClipIDs.contains(clipID) {
+            for id in appState.selectedClipIDs {
+                session.removeTag(tagID, from: id)
+            }
+        } else {
+            session.removeTag(tagID, from: clipID)
         }
     }
 

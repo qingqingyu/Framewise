@@ -32,8 +32,66 @@ class ClipGridViewModel: ObservableObject {
         }
     }
 
-    /// Filter and sort clips based on current settings
+    // MARK: - Cached Filter Results
+
+    /// Cache key inputs
+    private struct FilterInput: Equatable {
+        let clipIDs: [UUID]  // Use IDs instead of full clips for lighter comparison
+        let selectedIDs: Set<UUID>
+        let sourceURL: URL?
+        let tagFilter: UUID?
+        let hideWaste: Bool
+        let searchText: String
+        let sortOrder: SortOrder
+        let viewMode: ViewMode
+    }
+
+    private var cachedInput: FilterInput?
+    private var cachedFilteredClips: [VideoClip] = []
+    private var cachedGroupedClips: [(sourceURL: URL, clips: [VideoClip])] = []
+
+    /// Filter and sort clips based on current settings (cached)
     func filteredClips(from allClips: [VideoClip], selectedIDs: Set<UUID> = [], sourceURL: URL? = nil, tagFilter: UUID? = nil, hideWaste: Bool = false) -> [VideoClip] {
+        let input = FilterInput(
+            clipIDs: allClips.map { $0.id },
+            selectedIDs: selectedIDs,
+            sourceURL: sourceURL,
+            tagFilter: tagFilter,
+            hideWaste: hideWaste,
+            searchText: searchText,
+            sortOrder: sortOrder,
+            viewMode: viewMode
+        )
+
+        if cachedInput == input {
+            return cachedFilteredClips
+        }
+
+        let result = computeFilteredClips(from: allClips, selectedIDs: selectedIDs, sourceURL: sourceURL, tagFilter: tagFilter, hideWaste: hideWaste)
+        cachedInput = input
+        cachedFilteredClips = result
+        // Invalidate grouped cache when filtered changes
+        cachedGroupedClips = []
+        return result
+    }
+
+    /// Group clips by source file (cached, depends on filteredClips)
+    func groupedClips(from allClips: [VideoClip], selectedIDs: Set<UUID> = [], sourceURL: URL? = nil, tagFilter: UUID? = nil, hideWaste: Bool = false) -> [(sourceURL: URL, clips: [VideoClip])] {
+        // groupedClips depends on filteredClips, so first ensure filtered cache is warm
+        let _ = filteredClips(from: allClips, selectedIDs: selectedIDs, sourceURL: sourceURL, tagFilter: tagFilter, hideWaste: hideWaste)
+
+        if !cachedGroupedClips.isEmpty {
+            return cachedGroupedClips
+        }
+
+        let result = computeGroupedClips(from: cachedFilteredClips, sourceURL: sourceURL)
+        cachedGroupedClips = result
+        return result
+    }
+
+    // MARK: - Actual Computation (private)
+
+    private func computeFilteredClips(from allClips: [VideoClip], selectedIDs: Set<UUID>, sourceURL: URL?, tagFilter: UUID?, hideWaste: Bool) -> [VideoClip] {
         var result = allClips
 
         // Waste filter
@@ -76,13 +134,10 @@ class ClipGridViewModel: ObservableObject {
         return result
     }
 
-    /// Group clips by source file
-    func groupedClips(from allClips: [VideoClip], selectedIDs: Set<UUID> = [], sourceURL: URL? = nil, tagFilter: UUID? = nil, hideWaste: Bool = false) -> [(sourceURL: URL, clips: [VideoClip])] {
-        let filtered = filteredClips(from: allClips, selectedIDs: selectedIDs, sourceURL: sourceURL, tagFilter: tagFilter, hideWaste: hideWaste)
-
+    private func computeGroupedClips(from filtered: [VideoClip], sourceURL: URL?) -> [(sourceURL: URL, clips: [VideoClip])] {
         // If filtering by a specific source URL, don't group (only one group)
-        if sourceURL != nil {
-            return [(sourceURL: sourceURL!, clips: filtered)]
+        if let sourceURL = sourceURL {
+            return [(sourceURL: sourceURL, clips: filtered)]
         }
 
         // 按 sourceURL 分组
@@ -101,6 +156,13 @@ class ClipGridViewModel: ObservableObject {
         return groupOrder.map { url in
             (sourceURL: url, clips: groups[url] ?? [])
         }
+    }
+
+    /// Invalidate cache (call when external state changes significantly)
+    func invalidateCache() {
+        cachedInput = nil
+        cachedFilteredClips = []
+        cachedGroupedClips = []
     }
 
     /// Toggle selection for a clip

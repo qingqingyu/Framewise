@@ -300,22 +300,21 @@ struct SidebarView: View {
     }
 
     private func handleDrop(providers: [NSItemProvider]) {
-        let group = DispatchGroup()
-        let protectedURLs = ProtectedArray<URL>()
         let supportedExtensions = Set(["mp4", "mov", "mxf", "avi", "mkv", "m4v"])
 
-        for provider in providers {
-            group.enter()
-            _ = provider.loadObject(ofClass: URL.self) { url, _ in
-                if let url = url, supportedExtensions.contains(url.pathExtension.lowercased()) {
-                    protectedURLs.append(url)
+        Task {
+            var urls: [URL] = []
+            for provider in providers {
+                let url: URL? = await withCheckedContinuation { continuation in
+                    provider.loadObject(ofClass: URL.self) { url, _ in
+                        continuation.resume(returning: url)
+                    }
                 }
-                group.leave()
+                if let url, supportedExtensions.contains(url.pathExtension.lowercased()) {
+                    urls.append(url)
+                }
             }
-        }
-
-        group.notify(queue: .main) {
-            importFilesFromURLs(protectedURLs.items)
+            importFilesFromURLs(urls)
         }
     }
 
@@ -361,6 +360,11 @@ struct ExportSheetView: View {
         appState.selectedClips.filter { $0.wasteType == .none }
     }
 
+    /// Number of waste clips excluded from export
+    private var excludedWasteCount: Int {
+        appState.selectedClips.count - clipsToExport.count
+    }
+
     var body: some View {
         VStack(spacing: 20) {
             Text("Export Selected Clips")
@@ -373,8 +377,13 @@ struct ExportSheetView: View {
             }
             .pickerStyle(.radioGroup)
 
-            Text("\(clipsToExport.count) clips will be exported")
-                .foregroundColor(.secondary)
+            if excludedWasteCount > 0 {
+                Text("\(appState.selectedClips.count) selected, \(excludedWasteCount) waste clips excluded")
+                    .foregroundColor(.secondary)
+            } else {
+                Text("\(clipsToExport.count) clips will be exported")
+                    .foregroundColor(.secondary)
+            }
 
             HStack {
                 Button("Cancel") {
@@ -393,6 +402,10 @@ struct ExportSheetView: View {
                             panel.nameFieldStringValue = url.lastPathComponent
                             panel.allowedContentTypes = [.init(filenameExtension: exportViewModel.exportFormat.fileExtension) ?? .data]
                             panel.begin { response in
+                                defer {
+                                    // Always clean up temp file after save panel closes
+                                    try? FileManager.default.removeItem(at: url)
+                                }
                                 if response == .OK, let destURL = panel.url {
                                     do {
                                         // Remove existing file to avoid copyItem failure
@@ -467,24 +480,6 @@ struct SettingsView: View {
     }
 }
 
-// MARK: - Thread-safe array for concurrent callbacks
-
-private final class ProtectedArray<T> {
-    private var _items: [T] = []
-    private let lock = NSLock()
-
-    var items: [T] {
-        lock.lock()
-        defer { lock.unlock() }
-        return _items
-    }
-
-    func append(_ item: T) {
-        lock.lock()
-        _items.append(item)
-        lock.unlock()
-    }
-}
 
 #Preview {
     ContentView()

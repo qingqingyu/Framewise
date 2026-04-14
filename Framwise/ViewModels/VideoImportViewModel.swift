@@ -91,6 +91,7 @@ class VideoImportViewModel: ObservableObject {
         let targetCount = self.targetSegmentCount
 
         var completedCount = 0
+        var failedCount = 0
         var firstError: Error?
 
         await withTaskGroup(of: Result<VideoImportResult, Error>.self) { group in
@@ -120,6 +121,7 @@ class VideoImportViewModel: ObservableObject {
                 case .success(let result):
                     mergeResult(result, into: session)
                 case .failure(let error):
+                    failedCount += 1
                     #if DEBUG
                     print("[VideoImport] Failed to analyze video: \(error.localizedDescription)")
                     #endif
@@ -130,12 +132,16 @@ class VideoImportViewModel: ObservableObject {
             }
         }
 
-        if let error = firstError, completedCount == 0 {
+        if let error = firstError, completedCount == failedCount {
             self.error = error
             statusMessage = "Error: \(error.localizedDescription)"
         } else {
             session.isAnalyzed = true
-            statusMessage = "Import complete: \(session.clipCount) clips"
+            if failedCount > 0 {
+                statusMessage = "Import complete: \(session.clipCount) clips (\(failedCount) file\(failedCount == 1 ? "" : "s") skipped)"
+            } else {
+                statusMessage = "Import complete: \(session.clipCount) clips"
+            }
         }
     }
 

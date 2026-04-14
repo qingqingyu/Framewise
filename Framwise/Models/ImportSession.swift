@@ -8,6 +8,7 @@
 import Foundation
 import AVFoundation
 
+@MainActor
 class ImportSession: ObservableObject {
     let id = UUID()
     let createdDate = Date()
@@ -148,5 +149,11 @@ class ImportSession: ObservableObject {
         userClipOrder = data.userClipOrder
         tags = data.tags
         activeTagFilter = data.activeTagFilter
+
+        // Remove source files that no longer exist on disk
+        let fm = FileManager.default
+        sourceFiles.removeAll { url in
+            !fm.fileExists(atPath: url.path)
+        }
     }
 }

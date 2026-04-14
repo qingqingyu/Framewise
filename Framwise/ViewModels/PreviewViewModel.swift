@@ -52,15 +52,14 @@ class PreviewViewModel: ObservableObject {
             let startSeconds = CMTimeGetSeconds(clipStartTime)
             let endSeconds = CMTimeGetSeconds(clipEndTime)
 
-            Task { @MainActor in
-                self.currentTime = currentSeconds - startSeconds
+            // Already on main queue — no Task needed
+            self.currentTime = currentSeconds - startSeconds
 
-                // Stop at end and loop back to start
-                if currentSeconds >= endSeconds {
-                    self.pause()
-                    player.seek(to: clipStartTime, toleranceBefore: .zero, toleranceAfter: .zero)
-                    self.currentTime = 0
-                }
+            // Stop at end and loop back to start
+            if currentSeconds >= endSeconds {
+                self.pause()
+                player.seek(to: clipStartTime, toleranceBefore: .zero, toleranceAfter: .zero)
+                self.currentTime = 0
             }
         }
 

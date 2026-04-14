@@ -91,20 +91,45 @@ extension TimecodeUtils {
     }
 
     /// Format drop frame timecode (uses ; instead of : before frames)
+    /// Correctly accounts for dropped frames in 29.97fps and 59.94fps
     static func formatDropFrameTimecode(seconds: Double, frameRate: Double = 29.97) -> String {
         let isDrop = isDropFrame(frameRate)
 
-        // For drop frame, we need to account for dropped frames
-        // In 29.97fps, frames 0 and 1 are dropped at the start of each minute except every 10th minute
-        // This is a simplified implementation
+        if !isDrop {
+            return formatTimecode(seconds: seconds, frameRate: frameRate)
+        }
 
-        let hours = Int(seconds / 3600)
-        let minutes = Int((seconds.truncatingRemainder(dividingBy: 3600)) / 60)
-        let secs = Int((seconds.truncatingRemainder(dividingBy: 60)))
-        let frames = Int(((seconds.truncatingRemainder(dividingBy: 1)) * frameRate))
+        // Nominal frame rate (30 or 60) — what the timecode counts in
+        let nominalRate = round(frameRate)  // 30.0 or 60.0
+        // Total frames as if running at nominal rate
+        var totalFrames = Int(round(seconds * nominalRate))
 
-        let separator = isDrop ? ";" : ":"
+        // Drop-frame correction:
+        // Every minute (except every 10th), drop `dropFrames` frames
+        let dropFrames = nominalRate == 60.0 ? 4 : 2
 
-        return String(format: "%02d:%02d:%02d\(separator)%02d", hours, minutes, secs, frames)
+        let framesPer10min = Int(nominalRate) * 600  // 18000 for 30fps
+        let framesPer1min = Int(nominalRate) * 60     // 1800 for 30fps
+
+        // Number of 10-minute blocks
+        let tenMinBlocks = totalFrames / framesPer10min
+        totalFrames -= tenMinBlocks * (9 * dropFrames)
+
+        // Remaining frames within the current 10-minute block
+        let remaining = totalFrames - tenMinBlocks * framesPer10min
+
+        if remaining > 0 {
+            // Number of full minutes within the 10-min block (the first minute is index 0, doesn't drop)
+            let oneMinBlocks = (remaining - 1) / framesPer1min
+            totalFrames -= oneMinBlocks * dropFrames
+        }
+
+        let ff = totalFrames % Int(nominalRate)
+        let totalSecs = totalFrames / Int(nominalRate)
+        let ss = totalSecs % 60
+        let mm = (totalSecs / 60) % 60
+        let hh = totalSecs / 3600
+
+        return String(format: "%02d:%02d:%02d;%02d", hh, mm, ss, ff)
     }
 }

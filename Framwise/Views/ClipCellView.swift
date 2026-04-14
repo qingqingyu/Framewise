@@ -20,13 +20,13 @@ struct ClipCellView: View {
     @State private var isHovering = false
     @State private var isLoading = true
     @State private var isAnimating = false
+    @State private var isVisible = false
 
     private var isWaste: Bool { clip.wasteType != .none }
 
-    private let animationTimer = Timer.publish(every: 0.15, on: .main, in: .common).autoconnect()
-
     var body: some View {
-        ZStack(alignment: .bottomLeading) {
+        TimelineView(.periodic(from: .now, by: 0.15)) { context in
+            ZStack(alignment: .bottomLeading) {
             // Thumbnail
             Group {
                 if let currentThumbnail = thumbnails[safe: currentThumbnailIndex] {
@@ -166,22 +166,25 @@ struct ClipCellView: View {
         .onHover { hovering in
             isHovering = hovering
         }
-        .onReceive(animationTimer) { _ in
-            // Auto-animate when have multiple thumbnails and view is visible
-            guard isAnimating && thumbnails.count > 1 else { return }
+        .onChange(of: context.date) {
+            // Advance thumbnail animation on each timeline tick
+            guard isAnimating && isVisible && thumbnails.count > 1 else { return }
             withAnimation(.easeInOut(duration: 0.1)) {
                 currentThumbnailIndex = (currentThumbnailIndex + 1) % thumbnails.count
             }
         }
         .onAppear {
+            isVisible = true
             isAnimating = !isWaste
             loadThumbnails()
         }
         .onDisappear {
+            isVisible = false
             isAnimating = false
         }
         .onChange(of: clip.id) { _, _ in
             loadThumbnails()
+        }
         }
     }
 

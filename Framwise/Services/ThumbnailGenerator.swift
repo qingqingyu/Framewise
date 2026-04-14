@@ -165,6 +165,11 @@ actor ThumbnailGenerator {
         }
 
         // Batch extract uncached frames via AVFoundation's native batch API
+        // Build a lookup from requested CMTime → array index for out-of-order callback matching
+        let timeToIndex: [(time: CMTime, index: Int)] = uncachedIndices.map { entry in
+            (time: entry.time.timeValue, index: entry.index)
+        }
+
         let batchImages: [Int: CGImage] = try await withCheckedThrowingContinuation {
             (continuation: CheckedContinuation<[Int: CGImage], Error>) in
             var collected: [Int: CGImage] = [:]
@@ -172,9 +177,6 @@ actor ThumbnailGenerator {
             var remaining = totalCount
             var firstError: Error?
             var resumed = false
-            // Pre-build ordered index list for deterministic callback matching
-            let orderedIndices = uncachedIndices.map { $0.index }
-            var callbackIndex = 0
 
             generator.generateCGImagesAsynchronously(
                 forTimes: uncachedIndices.map { $0.time }
@@ -183,9 +185,11 @@ actor ThumbnailGenerator {
                 guard !resumed else { return }
 
                 if let image = image {
-                    // Use ordered counter instead of float comparison
-                    if callbackIndex < orderedIndices.count {
-                        collected[orderedIndices[callbackIndex]] = image
+                    // Match by requestedTime — AVFoundation does not guarantee callback order
+                    if let match = timeToIndex.first(where: {
+                        CMTimeCompare($0.time, requestedTime) == 0
+                    }) {
+                        collected[match.index] = image
                     }
                 } else if firstError == nil, let error = error {
                     firstError = error
@@ -197,7 +201,6 @@ actor ThumbnailGenerator {
                     )
                 }
 
-                callbackIndex += 1
                 remaining -= 1
                 if remaining == 0 {
                     resumed = true
