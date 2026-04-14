@@ -141,10 +141,10 @@ class ExportViewModel: ObservableObject {
             }
             let reelName = String(asciiName.prefix(8)).padding(toLength: 8, withPad: " ", startingAt: 0)
 
-            // Source timecodes: per-clip frame rate, auto-selects DF for NTSC
+            // Source timecodes: respect EDL's FCM mode (DF or NDF)
             let clipFrameRate = frameRateMap[clip.sourceFileURL] ?? 24.0
-            let tcIn = TimecodeUtils.formatTimecodeEDL(clip.timecodeStart, frameRate: clipFrameRate)
-            let tcOut = TimecodeUtils.formatTimecodeEDL(clip.timecodeEnd, frameRate: clipFrameRate)
+            let tcIn = TimecodeUtils.formatTimecodeEDL(clip.timecodeStart, frameRate: clipFrameRate, edlDropFrame: isDropFrame)
+            let tcOut = TimecodeUtils.formatTimecodeEDL(clip.timecodeEnd, frameRate: clipFrameRate, edlDropFrame: isDropFrame)
 
             // Rec timecodes: frame counting at recCountRate to avoid float drift
             let clipDurationFrames = Int(round(clip.duration * recCountRate))
@@ -153,11 +153,13 @@ class ExportViewModel: ObservableObject {
 
             let recIn = TimecodeUtils.formatTimecodeEDL(
                 TimecodeUtils.time(from: recInFrame, frameRate: recCountRate),
-                frameRate: primaryFrameRate
+                frameRate: primaryFrameRate,
+                edlDropFrame: isDropFrame
             )
             let recOut = TimecodeUtils.formatTimecodeEDL(
                 TimecodeUtils.time(from: recFrameCount, frameRate: recCountRate),
-                frameRate: primaryFrameRate
+                frameRate: primaryFrameRate,
+                edlDropFrame: isDropFrame
             )
 
             edl += """

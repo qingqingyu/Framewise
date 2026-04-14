@@ -19,25 +19,40 @@ enum TimecodeUtils {
     }
 
     /// Format seconds to HH:MM:SS:FF display string
-    static func formatTimecode(seconds: Double, frameRate: Double = 24) -> String {
-        guard seconds >= 0 else { return "00:00:00:00" }
+    static func formatTimecode(seconds: Double, frameRate: Double = 24, frameSeparator: String = ":") -> String {
+        guard seconds >= 0 else { return "00:00:00\(frameSeparator)00" }
 
         let hours = Int(seconds / 3600)
         let minutes = Int((seconds.truncatingRemainder(dividingBy: 3600)) / 60)
         let secs = Int((seconds.truncatingRemainder(dividingBy: 60)))
         let frames = Int(((seconds.truncatingRemainder(dividingBy: 1)) * frameRate))
 
-        return String(format: "%02d:%02d:%02d:%02d", hours, minutes, secs, frames)
+        return String(format: "%02d:%02d:%02d\(frameSeparator)%02d", hours, minutes, secs, frames)
     }
 
     /// Format CMTime to EDL timecode (HH:MM:SS:FF or HH:MM:SS;FF for drop-frame)
-    /// Automatically uses drop-frame format for 29.97/59.94fps
-    static func formatTimecodeEDL(_ time: CMTime, frameRate: Double = 24) -> String {
+    /// - Parameters:
+    ///   - time: Time to format
+    ///   - frameRate: Frame rate of the source clip
+    ///   - edlDropFrame: Override DF/NDF mode. nil = auto-detect from frameRate.
+    ///     Pass true/false to force all timecodes to match the EDL's FCM header.
+    static func formatTimecodeEDL(_ time: CMTime, frameRate: Double = 24, edlDropFrame: Bool? = nil) -> String {
         let totalSeconds = CMTimeGetSeconds(time)
-        if isDropFrame(frameRate) {
-            return formatDropFrameTimecode(seconds: totalSeconds, frameRate: frameRate)
+        let useDropFrame = edlDropFrame ?? isDropFrame(frameRate)
+
+        if useDropFrame {
+            if isDropFrame(frameRate) {
+                // NTSC clip in DF EDL: apply DF algorithm
+                return formatDropFrameTimecode(seconds: totalSeconds, frameRate: frameRate)
+            } else {
+                // Non-NTSC clip in DF EDL: same frame numbers, ; separator
+                return formatTimecode(seconds: totalSeconds, frameRate: frameRate, frameSeparator: ";")
+            }
         }
-        return formatTimecode(seconds: totalSeconds, frameRate: frameRate)
+
+        // NDF mode: use nominal rate for NTSC clips (count at 30fps, not 29.97fps)
+        let countRate = isDropFrame(frameRate) ? round(frameRate) : frameRate
+        return formatTimecode(seconds: totalSeconds, frameRate: countRate)
     }
 
     /// Format seconds to simple MM:SS display
