@@ -70,7 +70,7 @@ class VideoImportViewModel: ObservableObject {
             analyzingProgress = 1.0
         }
 
-        // Pre-validate all files (fail fast)
+        // Pre-validate all files first, then add to session (avoid partial state)
         for url in urls {
             do {
                 try validateVideoFile(url)
@@ -79,6 +79,8 @@ class VideoImportViewModel: ObservableObject {
                 statusMessage = "Error: \(error.localizedDescription)"
                 return
             }
+        }
+        for url in urls {
             session.addSourceFile(url)
         }
 
@@ -115,6 +117,7 @@ class VideoImportViewModel: ObservableObject {
             for await groupResult in group {
                 completedCount += 1
                 importProgress = Double(completedCount) / Double(urls.count)
+                analyzingProgress = importProgress
                 currentVideoName = "Processing \(completedCount)/\(urls.count) videos..."
 
                 switch groupResult {

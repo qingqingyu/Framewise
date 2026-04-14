@@ -155,25 +155,20 @@ struct DropZoneView: View {
     // MARK: - File Handling
 
     private func handleDrop(providers: [NSItemProvider]) {
-        let group = DispatchGroup()
-        var urls: [URL] = []
+        let supportedExtensions = Set(["mp4", "mov", "mxf", "avi", "mkv", "m4v"])
 
-        let supportedExtensions = ["mp4", "mov", "mxf", "avi", "mkv", "m4v"]
-
-        for provider in providers {
-            group.enter()
-            _ = provider.loadObject(ofClass: URL.self) { url, _ in
-                if let url = url {
-                    let ext = url.pathExtension.lowercased()
-                    if supportedExtensions.contains(ext) {
-                        urls.append(url)
+        Task {
+            var urls: [URL] = []
+            for provider in providers {
+                let url: URL? = await withCheckedContinuation { continuation in
+                    provider.loadObject(ofClass: URL.self) { url, _ in
+                        continuation.resume(returning: url)
                     }
                 }
-                group.leave()
+                if let url, supportedExtensions.contains(url.pathExtension.lowercased()) {
+                    urls.append(url)
+                }
             }
-        }
-
-        group.notify(queue: .main) {
             importFiles(urls: urls)
         }
     }

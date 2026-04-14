@@ -78,7 +78,9 @@ struct ClipPreviewView: View {
                     DragGesture(minimumDistance: 0)
                         .onChanged { value in
                             let progress = max(0, min(1, value.location.x / geometry.size.width))
-                            viewModel.currentTime = progress * viewModel.duration
+                            let targetTime = progress * viewModel.duration
+                            viewModel.currentTime = targetTime
+                            viewModel.seek(to: targetTime)
                         }
                         .onEnded { value in
                             let progress = max(0, min(1, value.location.x / geometry.size.width))

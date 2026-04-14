@@ -104,7 +104,7 @@ actor SceneDetector {
     /// Detect scene change points with streaming events
     func detectScenesStream(in asset: AVAsset) -> AsyncStream<SceneEvent> {
         AsyncStream { continuation in
-            Task {
+            let task = Task {
                 do {
                     let duration = try await asset.load(.duration)
                     let durationSeconds = CMTimeGetSeconds(duration)
@@ -139,6 +139,12 @@ actor SceneDetector {
                     var lastSceneTime = 0.0
 
                     while currentTime < durationSeconds {
+                        // Check for cancellation
+                        guard !Task.isCancelled else {
+                            continuation.finish()
+                            return
+                        }
+
                         let time = CMTime(seconds: currentTime, preferredTimescale: 600)
 
                         do {
@@ -179,6 +185,10 @@ actor SceneDetector {
                     continuation.yield(.error(error))
                     continuation.finish()
                 }
+            }
+            // Cancel the task when the stream consumer stops listening
+            continuation.onTermination = { @Sendable _ in
+                task.cancel()
             }
         }
     }

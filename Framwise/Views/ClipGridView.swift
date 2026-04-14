@@ -352,15 +352,15 @@ struct ClipGridView: View {
         return session.allClips.filter { $0.wasteType != .none }.count
     }
 
+    /// Clips in user's custom order, with all filters (search/tag/source/viewMode/waste) applied
     private var orderedFlatClips: [VideoClip] {
         guard let session = appState.importSession,
               let order = session.userClipOrder else { return [] }
-        let clipMap = Dictionary(uniqueKeysWithValues: session.allClips.map { ($0.id, $0) })
-        let clips = order.compactMap { clipMap[$0] }
-        if hideWasteClips {
-            return clips.filter { $0.wasteType == .none }
+        // Apply the same filters as groupedClips via gridViewModel
+        let filtered = Set(filteredClips.map { $0.id })
+        return order.compactMap { id in
+            filtered.contains(id) ? session.allClips.first(where: { $0.id == id }) : nil
         }
-        return clips
     }
 
     @ViewBuilder
@@ -491,12 +491,8 @@ struct ClipGridView: View {
 
     private func assignTagToTarget(_ tagID: UUID, clipID: UUID) {
         guard let session = appState.importSession else { return }
-        // If multiple clips are selected AND the right-clicked clip is among them,
-        // assign to all selected. Otherwise assign only to the right-clicked clip.
         if appState.selectedClipIDs.count > 1 && appState.selectedClipIDs.contains(clipID) {
-            for id in appState.selectedClipIDs {
-                session.assignTag(tagID, to: id)
-            }
+            session.assignTag(tagID, toClipIDs: appState.selectedClipIDs)
         } else {
             session.assignTag(tagID, to: clipID)
         }
@@ -504,12 +500,8 @@ struct ClipGridView: View {
 
     private func removeTagFromTarget(_ tagID: UUID, clipID: UUID) {
         guard let session = appState.importSession else { return }
-        // If multiple clips are selected AND the right-clicked clip is among them,
-        // remove tag from all selected. Otherwise remove only from the right-clicked clip.
         if appState.selectedClipIDs.count > 1 && appState.selectedClipIDs.contains(clipID) {
-            for id in appState.selectedClipIDs {
-                session.removeTag(tagID, from: id)
-            }
+            session.removeTag(tagID, fromClipIDs: appState.selectedClipIDs)
         } else {
             session.removeTag(tagID, from: clipID)
         }
@@ -787,7 +779,10 @@ struct ClipPreviewModal: View {
                         .foregroundColor(.secondary)
                 }
                 Spacer()
-                Button(action: { isPresented = false }) {
+                Button(action: {
+                    viewModel.cleanupPlayer()
+                    isPresented = false
+                }) {
                     Image(systemName: "xmark.circle.fill")
                         .font(.title2)
                         .foregroundColor(.secondary)
@@ -863,7 +858,9 @@ struct ClipPreviewModal: View {
                         DragGesture(minimumDistance: 0)
                             .onChanged { value in
                                 let progress = max(0, min(1, value.location.x / geometry.size.width))
-                                viewModel.currentTime = progress * viewModel.duration
+                                let targetTime = progress * viewModel.duration
+                                viewModel.currentTime = targetTime
+                                viewModel.seek(to: targetTime)
                             }
                             .onEnded { value in
                                 let progress = max(0, min(1, value.location.x / geometry.size.width))

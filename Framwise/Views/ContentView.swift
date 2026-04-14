@@ -385,6 +385,12 @@ struct ExportSheetView: View {
                     .foregroundColor(.secondary)
             }
 
+            if let warning = exportViewModel.warning {
+                Text(warning)
+                    .foregroundColor(.orange)
+                    .font(.caption)
+            }
+
             HStack {
                 Button("Cancel") {
                     dismiss()

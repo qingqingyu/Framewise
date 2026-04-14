@@ -25,6 +25,7 @@ class PreviewViewModel: ObservableObject {
     func loadClip(_ clip: VideoClip) {
         // Clean up previous player
         cleanupPlayer()
+        error = nil
 
         currentClip = clip
         let asset = AVAsset(url: clip.sourceFileURL)

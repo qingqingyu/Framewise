@@ -13,6 +13,7 @@ class ExportViewModel: ObservableObject {
     @Published var isExporting = false
     @Published var exportFormat: ExportFormat = .edl
     @Published var error: Error?
+    @Published var warning: String?
 
     enum ExportFormat: String, CaseIterable {
         case edl = "EDL"
@@ -38,6 +39,7 @@ class ExportViewModel: ObservableObject {
     func export(clips: [VideoClip], format: ExportFormat) async -> URL? {
         isExporting = true
         error = nil
+        warning = nil
 
         do {
             let content: String
@@ -147,7 +149,11 @@ class ExportViewModel: ObservableObject {
                 TimecodeUtils.time(from: recFrameCount, frameRate: primaryFrameRate),
                 frameRate: primaryFrameRate
             )
-            let clipDurationFrames = Int(round(clip.duration * primaryFrameRate))
+            // Use source frame rate for frame-accurate duration, then convert to rec timeline frames
+            let srcStartFrame = TimecodeUtils.frameNumber(from: clip.timecodeStart, frameRate: clipFrameRate)
+            let srcEndFrame = TimecodeUtils.frameNumber(from: clip.timecodeEnd, frameRate: clipFrameRate)
+            let srcDurationFrames = srcEndFrame - srcStartFrame
+            let clipDurationFrames = srcDurationFrames  // Reel time: frame count is frame-rate-independent
             recFrameCount += clipDurationFrames
             let recOut = TimecodeUtils.formatTimecodeEDL(
                 TimecodeUtils.time(from: recFrameCount, frameRate: primaryFrameRate),
@@ -197,13 +203,13 @@ class ExportViewModel: ObservableObject {
             return results.sorted { $0.index < $1.index }
         }
 
-        // Check that all source videos were loaded successfully
+        // Check for inaccessible source videos (use fallback values instead of failing)
         let loadedIndices = Set(indexedResults.map { $0.index })
         let failedURLs = sourceURLs.enumerated()
             .filter { !loadedIndices.contains($0.offset) }
             .map { $0.element.lastPathComponent }
         if !failedURLs.isEmpty {
-            throw ExportError.sourceFilesInaccessible(failedURLs)
+            warning = "Could not read metadata for: \(failedURLs.joined(separator: ", ")). Using default values."
         }
 
         let videoInfos = indexedResults.map { $0.info }
@@ -264,6 +270,29 @@ class ExportViewModel: ObservableObject {
         let isDropFrame = abs(frameRate - 29.97) < 0.01 || abs(frameRate - 59.94) < 0.01
         let tcFormat = isDropFrame ? "DF" : "NDF"
 
+        // Convert seconds to frame-accurate FCPXML time string (e.g., "1200/2400s")
+        let framesPerSecond = frameDurationDenom
+        let frameDurationNumValue = frameDurationNum
+        func fcpxmlTime(_ seconds: Double) -> String {
+            let totalFrames = Int(round(seconds * Double(framesPerSecond) / Double(frameDurationNumValue)))
+            let wholePart = totalFrames / framesPerSecond
+            let remainder = totalFrames % framesPerSecond
+            if remainder == 0 {
+                return "\(wholePart * frameDurationNumValue)/\(framesPerSecond)s"
+            }
+            // Reduce fraction using GCD
+            let g = gcd(remainder, framesPerSecond)
+            let num = (wholePart * framesPerSecond + remainder) / g * frameDurationNumValue
+            let den = framesPerSecond / g
+            return "\(num)/\(den)s"
+        }
+
+        func gcd(_ a: Int, _ b: Int) -> Int {
+            var a = a, b = b
+            while b != 0 { (a, b) = (b, a % b) }
+            return a
+        }
+
         var xml = """
         <?xml version="1.0" encoding="UTF-8"?>
         <!DOCTYPE fcpxml>
@@ -278,7 +307,7 @@ class ExportViewModel: ObservableObject {
             let assetId = assetIdMap[info.url] ?? "r_unknown"
 
             xml += """
-                    <asset id="\(xmlEscaped(assetId))" name="\(xmlEscaped(info.url.lastPathComponent))" src="\(xmlEscaped(info.url.absoluteString))" duration="\(info.duration)s">
+                    <asset id="\(xmlEscaped(assetId))" name="\(xmlEscaped(info.url.lastPathComponent))" src="\(xmlEscaped(info.url.absoluteString))" duration="\(fcpxmlTime(info.duration))">
                         <metadata>
                             <md key="com.apple.proapps.studio.clip.name" value="\(xmlEscaped(info.url.lastPathComponent))"/>
                         </metadata>
@@ -292,7 +321,7 @@ class ExportViewModel: ObservableObject {
             <library>
                 <event name="Framwise Export">
                     <project name="Selected Clips">
-                        <sequence format="r_fmt" duration="\(totalDuration)s" tcStart="0s" tcFormat="\(tcFormat)">
+                        <sequence format="r_fmt" duration="\(fcpxmlTime(totalDuration))" tcStart="0s" tcFormat="\(tcFormat)">
                             <spine>
         """
 
@@ -309,7 +338,7 @@ class ExportViewModel: ObservableObject {
             let offset = currentOffset
 
             xml += """
-                                <asset-clip name="\(xmlEscaped(clip.sourceFileName))" offset="\(offset)s" ref="\(xmlEscaped(assetId))" duration="\(duration)s" start="\(startTime)s"/>
+                                <asset-clip name="\(xmlEscaped(clip.sourceFileName))" offset="\(fcpxmlTime(offset))" ref="\(xmlEscaped(assetId))" duration="\(fcpxmlTime(duration))" start="\(fcpxmlTime(startTime))"/>
 
             """
 

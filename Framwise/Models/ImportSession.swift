@@ -105,9 +105,23 @@ class ImportSession: ObservableObject {
         }
     }
 
+    func assignTag(_ tagID: UUID, toClipIDs clipIDs: Set<UUID>) {
+        let targetSet = clipIDs
+        for i in allClips.indices where targetSet.contains(allClips[i].id) {
+            allClips[i].tagIDs.insert(tagID)
+        }
+    }
+
     func removeTag(_ tagID: UUID, from clipID: UUID) {
         if let index = allClips.firstIndex(where: { $0.id == clipID }) {
             allClips[index].tagIDs.remove(tagID)
+        }
+    }
+
+    func removeTag(_ tagID: UUID, fromClipIDs clipIDs: Set<UUID>) {
+        let targetSet = clipIDs
+        for i in allClips.indices where targetSet.contains(allClips[i].id) {
+            allClips[i].tagIDs.remove(tagID)
         }
     }
 
@@ -152,8 +166,22 @@ class ImportSession: ObservableObject {
 
         // Remove source files that no longer exist on disk
         let fm = FileManager.default
-        sourceFiles.removeAll { url in
-            !fm.fileExists(atPath: url.path)
+        let validSourceURLs = Set(sourceFiles.filter { url in
+            fm.fileExists(atPath: url.path)
+        })
+        sourceFiles.removeAll { !validSourceURLs.contains($0) }
+
+        // Remove clips whose source file no longer exists
+        if sourceFiles.count < data.sourceFiles.count {
+            let removedClipIDs = Set(allClips.filter { !validSourceURLs.contains($0.sourceFileURL) }.map { $0.id })
+            allClips.removeAll { !validSourceURLs.contains($0.sourceFileURL) }
+
+            // Clean up userClipOrder to remove stale IDs
+            if var order = userClipOrder {
+                let remainingIDs = Set(allClips.map { $0.id })
+                order.removeAll { !remainingIDs.contains($0) }
+                userClipOrder = order.isEmpty ? nil : order
+            }
         }
     }
 }
