@@ -190,14 +190,14 @@ actor ThumbnailGenerator {
                     }) {
                         collected[match.index] = image
                     }
-                } else if firstError == nil, let error = error {
-                    firstError = error
-                } else if firstError == nil {
-                    firstError = NSError(
-                        domain: AVFoundationErrorDomain,
-                        code: -1,
-                        userInfo: [NSLocalizedDescriptionKey: "Failed to extract frame at \(CMTimeGetSeconds(requestedTime))s"]
-                    )
+                } else {
+                    if firstError == nil {
+                        firstError = error ?? NSError(
+                            domain: AVFoundationErrorDomain,
+                            code: -1,
+                            userInfo: [NSLocalizedDescriptionKey: "Failed to extract frame at \(CMTimeGetSeconds(requestedTime))s"]
+                        )
+                    }
                 }
 
                 remaining -= 1

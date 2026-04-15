@@ -21,6 +21,7 @@ struct ClipCellView: View {
     @State private var isLoading = true
     @State private var isAnimating = false
     @State private var isVisible = false
+    @State private var loadTask: Task<Void, Never>?
 
     private var isWaste: Bool { clip.wasteType != .none }
 
@@ -117,15 +118,13 @@ struct ClipCellView: View {
                     Spacer()
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
-                            // Tag dots
+                            // Tag dots (sorted by tag order in session, not UUID)
                             if !clip.tagIDs.isEmpty {
                                 HStack(spacing: 3) {
-                                    ForEach(Array(clip.tagIDs.sorted().prefix(4)), id: \.self) { tagID in
-                                        if let tag = tags.first(where: { $0.id == tagID }) {
-                                            Circle()
-                                                .fill(tag.color.systemColor)
-                                                .frame(width: 6, height: 6)
-                                        }
+                                    ForEach(Array(tags.filter { clip.tagIDs.contains($0.id) }.prefix(4))) { tag in
+                                        Circle()
+                                            .fill(tag.color.systemColor)
+                                            .frame(width: 6, height: 6)
                                     }
                                     if clip.tagIDs.count > 4 {
                                         Text("+\(clip.tagIDs.count - 4)")
@@ -198,22 +197,26 @@ struct ClipCellView: View {
     }
 
     private func loadThumbnails() {
+        // Cancel any in-flight load
+        loadTask?.cancel()
         isLoading = true
         thumbnails = []
         currentThumbnailIndex = 0
 
-        Task {
+        loadTask = Task {
             do {
                 let images = try await thumbnailGenerator.generateThumbnails(
                     for: clip,
                     count: 5,
                     targetSize: size
                 )
+                guard !Task.isCancelled else { return }
                 await MainActor.run {
                     self.thumbnails = images
                     self.isLoading = false
                 }
             } catch {
+                guard !Task.isCancelled else { return }
                 await MainActor.run {
                     self.isLoading = false
                 }

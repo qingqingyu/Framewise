@@ -52,8 +52,10 @@ class ExportViewModel: ObservableObject {
                 content = try await generateFCPXML(from: clips)
             }
 
-            // 保存到临时文件
+            // 保存到隔离的临时子目录
             let tempDir = FileManager.default.temporaryDirectory
+                .appendingPathComponent("Framwise_Export", isDirectory: true)
+            try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
             let fileName = generateExportFileName(from: clips, fileExtension: fileExtension)
             let fileURL = tempDir.appendingPathComponent(fileName)
 

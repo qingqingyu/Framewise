@@ -155,7 +155,6 @@ struct DropZoneView: View {
     // MARK: - File Handling
 
     private func handleDrop(providers: [NSItemProvider]) {
-        let supportedExtensions = Set(["mp4", "mov", "mxf", "avi", "mkv", "m4v"])
 
         Task {
             var urls: [URL] = []
@@ -167,7 +166,7 @@ struct DropZoneView: View {
                     }
                 }
                 if let url {
-                    if supportedExtensions.contains(url.pathExtension.lowercased()) {
+                    if supportedVideoExtensions.contains(url.pathExtension.lowercased()) {
                         urls.append(url)
                     } else {
                         unsupportedNames.append(url.lastPathComponent)

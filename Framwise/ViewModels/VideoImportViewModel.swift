@@ -81,7 +81,7 @@ class VideoImportViewModel: ObservableObject {
             analyzingProgress = 1.0
         }
 
-        // Pre-validate all files first, then add to session (avoid partial state)
+        // Pre-validate all files first (fail fast, no partial state)
         for url in urls {
             do {
                 try validateVideoFile(url)
@@ -91,6 +91,7 @@ class VideoImportViewModel: ObservableObject {
                 return
             }
         }
+        // All validated — now add source files atomically
         for url in urls {
             session.addSourceFile(url)
         }
@@ -514,15 +515,17 @@ class VideoImportViewModel: ObservableObject {
         }
 
         // 检查是否是支持的格式
-        let supportedExtensions = ["mp4", "mov", "mxf", "avi", "mkv", "m4v"]
         let ext = url.pathExtension.lowercased()
-        guard supportedExtensions.contains(ext) else {
+        guard supportedVideoExtensions.contains(ext) else {
             throw ImportError.unsupportedFormat(ext)
         }
     }
 }
 
 // MARK: - Errors
+
+/// Supported video file extensions (single source of truth)
+let supportedVideoExtensions: Set<String> = ["mp4", "mov", "mxf", "avi", "mkv", "m4v"]
 
 enum ImportError: LocalizedError {
     case fileNotFound(URL)

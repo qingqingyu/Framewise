@@ -60,7 +60,7 @@ actor SceneDetector {
         let samplesPerSecond = min(max(Double(frameRate) / 2, 5), 15)
         let sampleInterval = 1.0 / samplesPerSecond
 
-        var sceneChanges: [CMTime] = [CMTime.zero]  // 从0开始
+        var sceneChanges: [CMTime] = []
         var previousHistogram: [Double]?
 
         var currentTime = 0.0
@@ -95,10 +95,8 @@ actor SceneDetector {
             currentTime += sampleInterval
         }
 
-        // 添加结束点
-        sceneChanges.append(duration)
-
-        return sceneChanges
+        // 起点 + 结束点
+        return [CMTime.zero] + sceneChanges + [duration]
     }
 
     /// Detect scene change points with streaming events
@@ -132,7 +130,7 @@ actor SceneDetector {
                     let samplesPerSecond = min(max(Double(frameRate) / 2, 5), 15)
                     let sampleInterval = 1.0 / samplesPerSecond
 
-                    var sceneChanges: [CMTime] = [CMTime.zero]
+                    var sceneChanges: [CMTime] = []
                     var previousHistogram: [Double]?
 
                     var currentTime = 0.0
@@ -175,11 +173,8 @@ actor SceneDetector {
                         currentTime += sampleInterval
                     }
 
-                    // 添加结束点
-                    sceneChanges.append(duration)
-
-                    // Emit completion
-                    continuation.yield(.completed(sceneChanges))
+                    // Emit completion: start + detected cuts + end
+                    continuation.yield(.completed([CMTime.zero] + sceneChanges + [duration]))
                     continuation.finish()
                 } catch {
                     continuation.yield(.error(error))

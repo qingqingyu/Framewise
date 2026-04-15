@@ -332,7 +332,7 @@ struct ClipGridView: View {
         }
         .sheet(isPresented: $showCreateTag) {
             TagCreateView { tag in
-                appState.importSession?.addTag(tag)
+                _ = appState.importSession?.addTag(tag)
             }
         }
     }

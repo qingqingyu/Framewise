@@ -12,12 +12,25 @@ import CoreImage
 // MARK: - CMTime Codable
 
 extension CMTime: Codable {
+    private enum CodingKeys: String, CodingKey {
+        case value, timescale, flags, epoch
+    }
+
     public init(from decoder: Decoder) throws {
+        // Try keyed container first (current format)
+        if let keyed = try? decoder.container(keyedBy: CodingKeys.self) {
+            let value = try keyed.decode(Int64.self, forKey: .value)
+            let timescale = try keyed.decode(Int32.self, forKey: .timescale)
+            let flags = try keyed.decode(UInt32.self, forKey: .flags)
+            let epoch = try keyed.decode(Int64.self, forKey: .epoch)
+            self = CMTime(value: value, timescale: timescale, flags: CMTimeFlags(rawValue: flags), epoch: epoch)
+            return
+        }
+
+        // Fallback: legacy unkeyed container (old format)
         var container = try decoder.unkeyedContainer()
         let value = try container.decode(Int64.self)
         let timescale = try container.decode(Int32.self)
-        // Backward compatibility: old format had only value+timescale (2 fields)
-        // New format adds flags+epoch (4 fields)
         if !container.isAtEnd {
             let flags = try container.decode(UInt32.self)
             let epoch = try container.decode(Int64.self)
@@ -28,11 +41,11 @@ extension CMTime: Codable {
     }
 
     public func encode(to encoder: Encoder) throws {
-        var container = encoder.unkeyedContainer()
-        try container.encode(value)
-        try container.encode(timescale)
-        try container.encode(flags.rawValue)
-        try container.encode(epoch)
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(value, forKey: .value)
+        try container.encode(timescale, forKey: .timescale)
+        try container.encode(flags.rawValue, forKey: .flags)
+        try container.encode(epoch, forKey: .epoch)
     }
 }
 

@@ -81,6 +81,7 @@ class SessionStore {
             selectedClipIDs: selectedClipIDs
         )
         let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
         let jsonData = try encoder.encode(data)
         try jsonData.write(to: fileURL, options: .atomic)
     }
@@ -88,13 +89,33 @@ class SessionStore {
     func load() throws -> SessionData? {
         guard FileManager.default.fileExists(atPath: fileURL.path) else { return nil }
         let jsonData = try Data(contentsOf: fileURL)
+
+        // Try iso8601 first (current format), fall back to double (legacy format)
         let decoder = JSONDecoder()
-        var data = try decoder.decode(SessionData.self, from: jsonData)
+        var data: SessionData
+        if let decoded = try? decodeWithISO8601(jsonData) {
+            data = decoded
+        } else {
+            data = try decodeWithDoubleDate(jsonData)
+        }
+
         // Forward-migrate older versions
         if data.version < Self.currentVersion {
             data = migrate(data)
         }
         return data
+    }
+
+    private func decodeWithISO8601(_ data: Data) throws -> SessionData {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try decoder.decode(SessionData.self, from: data)
+    }
+
+    private func decodeWithDoubleDate(_ data: Data) throws -> SessionData {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .secondsSince1970
+        return try decoder.decode(SessionData.self, from: data)
     }
 
     func delete() {

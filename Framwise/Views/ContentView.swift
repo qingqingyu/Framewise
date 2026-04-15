@@ -249,7 +249,9 @@ struct SidebarView: View {
         }
         .sheet(isPresented: $showCreateTag) {
             TagCreateView { tag in
-                appState.importSession?.addTag(tag)
+                if let session = appState.importSession, !session.addTag(tag) {
+                    // Tag with same name already exists — ignore silently
+                }
             }
         }
         .alert("Rename Tag", isPresented: Binding(
@@ -301,7 +303,6 @@ struct SidebarView: View {
     }
 
     private func handleDrop(providers: [NSItemProvider]) {
-        let supportedExtensions = Set(["mp4", "mov", "mxf", "avi", "mkv", "m4v"])
 
         Task {
             var urls: [URL] = []
@@ -311,7 +312,7 @@ struct SidebarView: View {
                         continuation.resume(returning: url)
                     }
                 }
-                if let url, supportedExtensions.contains(url.pathExtension.lowercased()) {
+                if let url, supportedVideoExtensions.contains(url.pathExtension.lowercased()) {
                     urls.append(url)
                 }
             }

@@ -78,7 +78,7 @@ actor WasteDetector {
                 }
             }
 
-            guard frameAnalyses.count >= 2 else { continue }
+            guard frameAnalyses.count >= 1 else { continue }
 
             let wasteType = classifyWaste(frames: frameAnalyses)
             if wasteType != .none {
@@ -161,7 +161,8 @@ actor WasteDetector {
         return .none
     }
 
-    /// Majority voting: 3 frames, >=2 must agree on same waste type
+    /// Majority voting: >=2 of 3 frames must agree on same waste type.
+    /// For short clips with only 1 sample, a single unanimous vote suffices.
     private func classifyWaste(frames: [FrameAnalysis]) -> WasteType {
         var votes: [WasteType: Int] = [:]
         for frame in frames {
@@ -172,8 +173,12 @@ actor WasteDetector {
         }
 
         // Find type with most votes
-        if let (type, count) = votes.max(by: { $0.value < $1.value }), count >= requiredVotes {
-            return type
+        if let (type, count) = votes.max(by: { $0.value < $1.value }) {
+            // For 1 sample: single vote is enough; for 2-3 samples: need requiredVotes
+            let threshold = frames.count == 1 ? 1 : requiredVotes
+            if count >= threshold {
+                return type
+            }
         }
         return .none
     }

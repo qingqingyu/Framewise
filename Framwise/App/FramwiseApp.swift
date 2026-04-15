@@ -129,7 +129,13 @@ class AppState: ObservableObject {
 
     private func saveToDisk() {
         guard let session = importSession else { return }
-        try? store.save(session: session, selectedClipIDs: selectedClipIDs)
+        do {
+            try store.save(session: session, selectedClipIDs: selectedClipIDs)
+        } catch {
+            #if DEBUG
+            print("[AppState] Failed to save session: \(error.localizedDescription)")
+            #endif
+        }
     }
 }
 
