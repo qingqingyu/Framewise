@@ -117,8 +117,13 @@ struct DropZoneView: View {
                         HStack {
                             Image(systemName: "film")
                                 .foregroundColor(.accentColor)
-                            Text("\(importViewModel.clipsFoundCount) clips found")
-                                .font(.headline)
+                            if let session = appState.importSession, session.clipCount > importViewModel.clipsFoundCount {
+                                Text("\(importViewModel.clipsFoundCount) new (\(session.clipCount) total)")
+                                    .font(.headline)
+                            } else {
+                                Text("\(importViewModel.clipsFoundCount) clips found")
+                                    .font(.headline)
+                            }
                         }
                         .padding(.top, 4)
                     }
@@ -199,9 +204,7 @@ struct DropZoneView: View {
             appState.importSession = ImportSession()
         }
 
-        Task {
-            await importViewModel.importVideosStreaming(from: urls, into: appState.importSession!)
-        }
+        importViewModel.importVideosStreaming(from: urls, into: appState.importSession!)
     }
 }
 

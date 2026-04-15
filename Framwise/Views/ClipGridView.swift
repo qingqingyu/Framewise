@@ -531,10 +531,6 @@ struct CollapsedTimelineView: View {
         groups.flatMap { $0.clips }
     }
 
-    private var maxTime: Double {
-        max(allClips.map { CMTimeGetSeconds($0.timecodeEnd) }.max() ?? 1, 0.001)
-    }
-
     private var fileColorMap: [URL: Color] {
         let colors: [Color] = [
             .blue, .green, .orange, .purple, .pink, .cyan, .indigo, .mint,
@@ -548,12 +544,22 @@ struct CollapsedTimelineView: View {
     var body: some View {
         if allClips.isEmpty {
             EmptyView()
+        } else if groups.count <= 1 {
+            // Single source: use original single-track layout
+            singleTrackContent
         } else {
-            timelineContent
+            // Multi-source: stack per-source tracks
+            multiTrackContent
         }
     }
 
-    private var timelineContent: some View {
+    // MARK: - Single Track (1 source)
+
+    private var maxTime: Double {
+        max(allClips.map { CMTimeGetSeconds($0.timecodeEnd) }.max() ?? 1, 0.001)
+    }
+
+    private var singleTrackContent: some View {
         TimelineGeometryReader(
             allClips: allClips,
             maxTime: maxTime,
@@ -571,6 +577,42 @@ struct CollapsedTimelineView: View {
         .background(Color(NSColor.controlBackgroundColor))
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Timeline navigation with \(allClips.count) clips")
+    }
+
+    // MARK: - Multi Track (per-source)
+
+    private var multiTrackContent: some View {
+        VStack(spacing: 2) {
+            ForEach(groups, id: \.sourceURL) { group in
+                let groupMaxTime = max(group.clips.map { CMTimeGetSeconds($0.timecodeEnd) }.max() ?? 1, 0.001)
+                HStack(spacing: 4) {
+                    // Source label
+                    Text(group.sourceURL.deletingPathExtension().lastPathComponent)
+                        .font(.system(size: 8, design: .monospaced))
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                        .frame(width: 60, alignment: .leading)
+
+                    TimelineGeometryReader(
+                        allClips: group.clips,
+                        maxTime: groupMaxTime,
+                        fileColorMap: fileColorMap,
+                        selectedClipIDs: selectedClipIDs,
+                        hoveredClipID: hoveredClipID,
+                        onClipTap: onClipTap,
+                        onHover: { clipID, hovering in
+                            hoveredClipID = hovering ? clipID : nil
+                        }
+                    )
+                    .frame(height: 16)
+                }
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 4)
+        .background(Color(NSColor.controlBackgroundColor))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Timeline navigation with \(allClips.count) clips from \(groups.count) sources")
     }
 }
 

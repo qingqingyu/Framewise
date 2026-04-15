@@ -53,9 +53,15 @@ struct ContentView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Analyzing \(importViewModel.currentVideoName)...")
                                 .font(.caption)
-                            Text("\(importViewModel.clipsFoundCount) clips found")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
+                            if let session = appState.importSession, session.clipCount > importViewModel.clipsFoundCount {
+                                Text("\(importViewModel.clipsFoundCount) new (\(session.clipCount) total)")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            } else {
+                                Text("\(importViewModel.clipsFoundCount) clips found")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
                         }
                     }
                     .padding(.horizontal, 8)
@@ -118,9 +124,7 @@ struct ContentView: View {
             appState.importSession = ImportSession()
         }
 
-        Task {
-            await importViewModel.importVideosStreaming(from: urls, into: appState.importSession!)
-        }
+        importViewModel.importVideosStreaming(from: urls, into: appState.importSession!)
     }
 
     private func clearSession() {
@@ -266,7 +270,10 @@ struct SidebarView: View {
                 if let tagID = renamingTagID {
                     let trimmed = renamingTagName.trimmingCharacters(in: .whitespaces)
                     if !trimmed.isEmpty {
-                        appState.importSession?.renameTag(tagID, to: trimmed)
+                        if !(appState.importSession?.renameTag(tagID, to: trimmed) ?? true) {
+                            // Duplicate name — keep alert open for user to correct
+                            return
+                        }
                     }
                 }
                 renamingTagID = nil
@@ -306,17 +313,26 @@ struct SidebarView: View {
 
         Task {
             var urls: [URL] = []
+            var unsupportedNames: [String] = []
             for provider in providers {
                 let url: URL? = await withCheckedContinuation { continuation in
                     provider.loadObject(ofClass: URL.self) { url, _ in
                         continuation.resume(returning: url)
                     }
                 }
-                if let url, supportedVideoExtensions.contains(url.pathExtension.lowercased()) {
-                    urls.append(url)
+                if let url {
+                    if supportedVideoExtensions.contains(url.pathExtension.lowercased()) {
+                        urls.append(url)
+                    } else {
+                        unsupportedNames.append(url.lastPathComponent)
+                    }
                 }
             }
-            importFilesFromURLs(urls)
+            if !urls.isEmpty {
+                importFilesFromURLs(urls)
+            } else if !unsupportedNames.isEmpty {
+                importViewModel.error = ImportError.unsupportedFormat(unsupportedNames.joined(separator: ", "))
+            }
         }
     }
 
@@ -327,9 +343,7 @@ struct SidebarView: View {
             appState.importSession = ImportSession()
         }
 
-        Task {
-            await importViewModel.importVideosStreaming(from: urls, into: appState.importSession!)
-        }
+        importViewModel.importVideosStreaming(from: urls, into: appState.importSession!)
     }
 
     private func formatDuration(_ seconds: Double) -> String {

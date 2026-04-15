@@ -75,8 +75,14 @@ class VideoImportViewModel: ObservableObject {
 
     // MARK: - Streaming Import (Parallel)
 
-    func importVideosStreaming(from urls: [URL], into session: ImportSession) async {
+    /// Start a streaming parallel import. This method is synchronous — it spawns
+    /// an internal Task stored in `importTask` so that `cancelImport()` can cancel it.
+    func importVideosStreaming(from urls: [URL], into session: ImportSession) {
         guard !isImporting else { return }
+
+        // Cancel any previously running import Task
+        importTask?.cancel()
+
         importGeneration += 1
         let myGeneration = importGeneration
         isImporting = true
@@ -86,93 +92,98 @@ class VideoImportViewModel: ObservableObject {
         clipsFoundCount = 0
         totalFilesCount = urls.count
 
-        defer {
-            // Only reset state if no newer import has started
-            if importGeneration == myGeneration {
-                isImporting = false
-                isAnalyzing = false
-                importProgress = 1.0
-                analyzingProgress = 1.0
+        importTask = Task {
+            defer {
+                // Only reset state if no newer import has started
+                if importGeneration == myGeneration {
+                    isImporting = false
+                    isAnalyzing = false
+                    importProgress = 1.0
+                    analyzingProgress = 1.0
+                }
             }
-        }
 
-        // Pre-validate all files first (fail fast, no partial state)
-        for url in urls {
-            do {
-                try validateVideoFile(url)
-            } catch {
+            // Pre-validate all files first (fail fast, no partial state)
+            for url in urls {
+                guard !Task.isCancelled else { return }
+                do {
+                    try validateVideoFile(url)
+                } catch {
+                    self.error = error
+                    statusMessage = "Error: \(error.localizedDescription)"
+                    return
+                }
+            }
+            // All validated — now add source files atomically
+            for url in urls {
+                session.addSourceFile(url)
+            }
+
+            // Apply settings from UserDefaults
+            await sceneDetector.setSensitivity(sceneDetectionSensitivity)
+
+            // Capture values for use in non-isolated tasks
+            let sceneDetector = self.sceneDetector
+            let wasteDetector = self.wasteDetector
+            let targetCount = self.targetSegmentCount
+
+            var completedCount = 0
+            var failedCount = 0
+            var firstError: Error?
+
+            await withTaskGroup(of: Result<VideoImportResult, Error>.self) { group in
+                for url in urls {
+                    group.addTask {
+                        do {
+                            let result = try await Self.analyzeSingleVideo(
+                                url: url,
+                                sceneDetector: sceneDetector,
+                                wasteDetector: wasteDetector,
+                                targetSegmentCount: targetCount
+                            )
+                            return .success(result)
+                        } catch {
+                            return .failure(error)
+                        }
+                    }
+                }
+
+                // Merge results as each video completes (serial writes to session)
+                // Check cancellation to bail out early when user clears session
+                for await groupResult in group {
+                    guard importGeneration == myGeneration, !Task.isCancelled else { break }
+                    completedCount += 1
+                    importProgress = Double(completedCount) / Double(urls.count)
+                    analyzingProgress = importProgress
+                    currentVideoName = "Processing \(completedCount)/\(urls.count) videos..."
+
+                    switch groupResult {
+                    case .success(let result):
+                        mergeResult(result, into: session)
+                    case .failure(let error):
+                        failedCount += 1
+                        #if DEBUG
+                        print("[VideoImport] Failed to analyze video: \(error.localizedDescription)")
+                        #endif
+                        if firstError == nil {
+                            firstError = error
+                        }
+                    }
+                }
+            }
+
+            guard !Task.isCancelled else { return }
+
+            if let error = firstError, completedCount == failedCount {
                 self.error = error
                 statusMessage = "Error: \(error.localizedDescription)"
-                return
-            }
-        }
-        // All validated — now add source files atomically
-        for url in urls {
-            session.addSourceFile(url)
-        }
-
-        // Apply settings from UserDefaults
-        await sceneDetector.setSensitivity(sceneDetectionSensitivity)
-
-        // Capture values for use in non-isolated tasks
-        let sceneDetector = self.sceneDetector
-        let wasteDetector = self.wasteDetector
-        let targetCount = self.targetSegmentCount
-
-        var completedCount = 0
-        var failedCount = 0
-        var firstError: Error?
-
-        await withTaskGroup(of: Result<VideoImportResult, Error>.self) { group in
-            for url in urls {
-                group.addTask {
-                    do {
-                        let result = try await Self.analyzeSingleVideo(
-                            url: url,
-                            sceneDetector: sceneDetector,
-                            wasteDetector: wasteDetector,
-                            targetSegmentCount: targetCount
-                        )
-                        return .success(result)
-                    } catch {
-                        return .failure(error)
-                    }
-                }
-            }
-
-            // Merge results as each video completes (serial writes to session)
-            // Check cancellation to bail out early when user clears session
-            for await groupResult in group {
-                guard importGeneration == myGeneration else { break }
-                completedCount += 1
-                importProgress = Double(completedCount) / Double(urls.count)
-                analyzingProgress = importProgress
-                currentVideoName = "Processing \(completedCount)/\(urls.count) videos..."
-
-                switch groupResult {
-                case .success(let result):
-                    mergeResult(result, into: session)
-                case .failure(let error):
-                    failedCount += 1
-                    #if DEBUG
-                    print("[VideoImport] Failed to analyze video: \(error.localizedDescription)")
-                    #endif
-                    if firstError == nil {
-                        firstError = error
-                    }
-                }
-            }
-        }
-
-        if let error = firstError, completedCount == failedCount {
-            self.error = error
-            statusMessage = "Error: \(error.localizedDescription)"
-        } else {
-            session.isAnalyzed = true
-            if failedCount > 0 {
-                statusMessage = "Import complete: \(session.clipCount) clips (\(failedCount) file\(failedCount == 1 ? "" : "s") skipped)"
             } else {
-                statusMessage = "Import complete: \(session.clipCount) clips"
+                session.isAnalyzed = true
+                if failedCount > 0 {
+                    statusMessage = "Import complete: \(session.clipCount) clips (\(failedCount) file\(failedCount == 1 ? "" : "s") skipped)"
+                } else {
+                    statusMessage = "Import complete: \(session.clipCount) clips"
+                }
             }
         }
     }
@@ -217,6 +228,7 @@ class VideoImportViewModel: ObservableObject {
         var lastProcessedTime: CMTime = .zero
 
         for await event in stream {
+            guard !Task.isCancelled else { throw CancellationError() }
             switch event {
             case .sceneChange(let time):
                 let segDuration = CMTimeGetSeconds(time) - CMTimeGetSeconds(lastProcessedTime)

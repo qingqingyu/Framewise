@@ -96,10 +96,14 @@ class ImportSession: ObservableObject {
         }
     }
 
-    func renameTag(_ tagID: UUID, to name: String) {
+    @discardableResult
+    func renameTag(_ tagID: UUID, to name: String) -> Bool {
+        let existingNames = Set(tags.filter { $0.id != tagID }.map { $0.name })
+        guard !existingNames.contains(name) else { return false }
         if let index = tags.firstIndex(where: { $0.id == tagID }) {
             tags[index].name = name
         }
+        return true
     }
 
     // MARK: - Clip Tag Assignment
