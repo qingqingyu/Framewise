@@ -54,22 +54,28 @@ actor ThumbnailGenerator {
 
     // MARK: - Thumbnail Generation
 
+    /// Stable cache key for a video frame, avoiding floating-point precision issues
+    private func cacheKey(for url: URL, time: CMTime) -> NSString {
+        let seconds = CMTimeGetSeconds(time)
+        return "\(url.path)_\(String(format: "%.4f", seconds))" as NSString
+    }
+
     /// Generate a thumbnail image at the specified time
     func generateThumbnail(
         for url: URL,
         at time: CMTime,
         targetSize: CGSize = CGSize(width: 200, height: 150)
     ) async throws -> CGImage {
-        let cacheKey = "\(url.path)_\(CMTimeGetSeconds(time))" as NSString
+        let key = cacheKey(for: url, time: time)
 
         // Layer 1: Memory cache
-        if let cached = cache.object(forKey: cacheKey) {
+        if let cached = cache.object(forKey: key) {
             return cached
         }
 
         // Layer 2: Disk cache
         if let diskImage = readFromDisk(url: url, time: time) {
-            cache.setObject(diskImage, forKey: cacheKey)
+            cache.setObject(diskImage, forKey: key)
             return diskImage
         }
 
@@ -80,7 +86,7 @@ actor ThumbnailGenerator {
         let scaledImage = try scaleImage(image, to: targetSize)
 
         // Save to both caches
-        cache.setObject(scaledImage, forKey: cacheKey)
+        cache.setObject(scaledImage, forKey: key)
         saveToDisk(scaledImage, url: url, time: time)
 
         return scaledImage
@@ -148,11 +154,11 @@ actor ThumbnailGenerator {
         var uncachedIndices: [(index: Int, time: NSValue)] = []
 
         for (i, time) in times.enumerated() {
-            let cacheKey = "\(url.path)_\(CMTimeGetSeconds(time))" as NSString
-            if let cached = cache.object(forKey: cacheKey) {
+            let key = cacheKey(for: url, time: time)
+            if let cached = cache.object(forKey: key) {
                 results[i] = cached
             } else if let diskImage = readFromDisk(url: url, time: time) {
-                cache.setObject(diskImage, forKey: cacheKey)
+                cache.setObject(diskImage, forKey: key)
                 results[i] = diskImage
             } else {
                 uncachedIndices.append((index: i, time: NSValue(time: time)))
@@ -217,8 +223,8 @@ actor ThumbnailGenerator {
             do {
                 let scaled = try scaleImage(rawImage, to: targetSize)
                 let time = times[index]
-                let cacheKey = "\(url.path)_\(CMTimeGetSeconds(time))" as NSString
-                cache.setObject(scaled, forKey: cacheKey)
+                let key = cacheKey(for: url, time: time)
+                cache.setObject(scaled, forKey: key)
                 saveToDisk(scaled, url: url, time: time)
                 results[index] = scaled
             } catch {

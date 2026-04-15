@@ -114,8 +114,18 @@ class ExportViewModel: ObservableObject {
             return (url, info.info.frameRate)
         })
 
-        // FCM header uses the first source video's frame rate
-        let primaryFrameRate = frameRateMap[sourceURLs.first ?? URL(fileURLWithPath: "/")] ?? 24.0
+        // FCM header: prefer first source video's frame rate; if inaccessible,
+        // scan remaining loaded videos for a DF rate before falling back to 24.0
+        let primaryFrameRate: Double
+        if let firstRate = frameRateMap[sourceURLs.first ?? URL(fileURLWithPath: "/")] {
+            primaryFrameRate = firstRate
+        } else if let dfRate = frameRateMap.values.first(where: { abs($0 - 29.97) < 0.01 || abs($0 - 59.94) < 0.01 }) {
+            primaryFrameRate = dfRate
+        } else if let anyRate = frameRateMap.values.first {
+            primaryFrameRate = anyRate
+        } else {
+            primaryFrameRate = 24.0
+        }
         let isDropFrame = abs(primaryFrameRate - 29.97) < 0.01 || abs(primaryFrameRate - 59.94) < 0.01
         let fcmHeader = isDropFrame ? "FCM: DROP FRAME" : "FCM: NON-DROP FRAME"
 
@@ -130,9 +140,17 @@ class ExportViewModel: ObservableObject {
         let recCountRate: Double = isDropFrame ? round(primaryFrameRate) : primaryFrameRate
 
         var recFrameCount: Int = 0
+        var eventIndex = 0
+        var skippedInaccessible = 0
 
-        for (index, clip) in clips.enumerated() {
-            let eventNumber = String(format: "%03d", index + 1)
+        for clip in clips {
+            // Skip clips whose source file metadata could not be loaded
+            guard frameRateMap[clip.sourceFileURL] != nil else {
+                skippedInaccessible += 1
+                continue
+            }
+            eventIndex += 1
+            let eventNumber = String(format: "%03d", eventIndex)
 
             // Reel name: ASCII-safe, 8 chars max (CMX 3600 standard)
             // Replace non-ASCII with underscore, then truncate/pad to 8 chars
@@ -168,6 +186,10 @@ class ExportViewModel: ObservableObject {
             * FROM PATH: \(clip.sourceFileURL.path)
 
             """
+        }
+
+        if skippedInaccessible > 0 {
+            warning = "\(skippedInaccessible) clip(s) skipped — source file inaccessible."
         }
 
         return edl

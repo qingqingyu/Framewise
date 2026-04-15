@@ -176,23 +176,45 @@ class ImportSession: ObservableObject {
             activeTagFilter = nil
         }
 
-        // Remove source files that no longer exist on disk
         let fm = FileManager.default
-        let validSourceURLs = Set(sourceFiles.filter { url in
-            fm.fileExists(atPath: url.path)
+        var removedAny = false
+
+        // Build set of source files that still exist AND haven't been replaced
+        let validSourceURLs: Set<URL> = Set(sourceFiles.filter { url in
+            guard fm.fileExists(atPath: url.path) else { return false }
+            // Check if file content changed since last save
+            if let savedMeta = data.sourceFileMetadata[url] {
+                return Self.isFileUnchanged(url: url, savedMeta: savedMeta, fm: fm)
+            }
+            // No metadata saved (legacy session) — accept as-is
+            return true
         })
-        sourceFiles.removeAll { !validSourceURLs.contains($0) }
 
-        // Remove clips whose source file no longer exists
-        if sourceFiles.count < data.sourceFiles.count {
+        if validSourceURLs.count < sourceFiles.count {
+            sourceFiles.removeAll { !validSourceURLs.contains($0) }
             allClips.removeAll { !validSourceURLs.contains($0.sourceFileURL) }
+            removedAny = true
+        }
 
-            // Clean up userClipOrder to remove stale IDs
+        // Clean up userClipOrder to remove stale IDs
+        if removedAny {
             if var order = userClipOrder {
                 let remainingIDs = Set(allClips.map { $0.id })
                 order.removeAll { !remainingIDs.contains($0) }
                 userClipOrder = order.isEmpty ? nil : order
             }
         }
+    }
+
+    /// Compare file mtime and size against saved metadata
+    private static func isFileUnchanged(url: URL, savedMeta: SessionStore.FileMetadata, fm: FileManager) -> Bool {
+        guard let attrs = try? fm.attributesOfItem(atPath: url.path),
+              let mtime = attrs[.modificationDate] as? Date,
+              let size = attrs[.size] as? Int64 else {
+            return false
+        }
+        // Allow 2-second mtime tolerance (filesystem granularity)
+        return abs(mtime.timeIntervalSince1970 - savedMeta.modificationDate) < 2.0
+            && size == savedMeta.fileSize
     }
 }

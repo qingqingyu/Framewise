@@ -34,6 +34,14 @@ class VideoImportViewModel: ObservableObject {
 
     private let sceneDetector = SceneDetector()
     private let wasteDetector = WasteDetector()
+
+    /// Monotonic counter to prevent stale TaskGroup completions from overwriting newer import state.
+    /// Each import increments this; defer blocks only reset state if their generation is still current.
+    private var importGeneration: Int = 0
+
+    /// Handle to the running import Task, so cancelImport can cancel it
+    private var importTask: Task<Void, Never>?
+
     private var targetSegmentCount: Int {
         let count = UserDefaults.standard.integer(forKey: "segmentCount")
         return clamped(count, in: 12...120, default: 36)
@@ -45,6 +53,8 @@ class VideoImportViewModel: ObservableObject {
 
     /// Reset import state (called when session is cleared mid-import)
     func cancelImport() {
+        importTask?.cancel()
+        importTask = nil
         isImporting = false
         isAnalyzing = false
         importProgress = 0
@@ -67,6 +77,8 @@ class VideoImportViewModel: ObservableObject {
 
     func importVideosStreaming(from urls: [URL], into session: ImportSession) async {
         guard !isImporting else { return }
+        importGeneration += 1
+        let myGeneration = importGeneration
         isImporting = true
         isAnalyzing = true
         error = nil
@@ -75,10 +87,13 @@ class VideoImportViewModel: ObservableObject {
         totalFilesCount = urls.count
 
         defer {
-            isImporting = false
-            isAnalyzing = false
-            importProgress = 1.0
-            analyzingProgress = 1.0
+            // Only reset state if no newer import has started
+            if importGeneration == myGeneration {
+                isImporting = false
+                isAnalyzing = false
+                importProgress = 1.0
+                analyzingProgress = 1.0
+            }
         }
 
         // Pre-validate all files first (fail fast, no partial state)
@@ -126,7 +141,9 @@ class VideoImportViewModel: ObservableObject {
             }
 
             // Merge results as each video completes (serial writes to session)
+            // Check cancellation to bail out early when user clears session
             for await groupResult in group {
+                guard importGeneration == myGeneration else { break }
                 completedCount += 1
                 importProgress = Double(completedCount) / Double(urls.count)
                 analyzingProgress = importProgress

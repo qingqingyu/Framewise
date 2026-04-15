@@ -9,7 +9,13 @@ import Foundation
 
 @MainActor
 class SessionStore {
-    static let currentVersion = 1
+    static let currentVersion = 2
+
+    /// Snapshot of a source file's mtime and size for detecting content changes
+    struct FileMetadata: Codable {
+        let modificationDate: Double  // timeInterval since 1970
+        let fileSize: Int64
+    }
 
     struct SessionData: Codable {
         let version: Int
@@ -22,10 +28,12 @@ class SessionStore {
         let tags: [ClipTag]
         let activeTagFilter: UUID?
         let selectedClipIDs: Set<UUID>
+        let sourceFileMetadata: [URL: FileMetadata]  // nil for legacy sessions
 
         enum CodingKeys: String, CodingKey {
             case version, id, createdDate, sourceFiles, allClips
             case isAnalyzed, userClipOrder, tags, activeTagFilter, selectedClipIDs
+            case sourceFileMetadata
         }
 
         init(from decoder: Decoder) throws {
@@ -40,11 +48,13 @@ class SessionStore {
             tags = try c.decodeIfPresent([ClipTag].self, forKey: .tags) ?? []
             activeTagFilter = try c.decodeIfPresent(UUID.self, forKey: .activeTagFilter)
             selectedClipIDs = try c.decodeIfPresent(Set<UUID>.self, forKey: .selectedClipIDs) ?? []
+            sourceFileMetadata = try c.decodeIfPresent([URL: FileMetadata].self, forKey: .sourceFileMetadata) ?? [:]
         }
 
         init(version: Int, id: UUID, createdDate: Date, sourceFiles: [URL],
              allClips: [VideoClip], isAnalyzed: Bool, userClipOrder: [UUID]?,
-             tags: [ClipTag], activeTagFilter: UUID?, selectedClipIDs: Set<UUID>) {
+             tags: [ClipTag], activeTagFilter: UUID?, selectedClipIDs: Set<UUID>,
+             sourceFileMetadata: [URL: FileMetadata] = [:]) {
             self.version = version
             self.id = id
             self.createdDate = createdDate
@@ -55,6 +65,7 @@ class SessionStore {
             self.tags = tags
             self.activeTagFilter = activeTagFilter
             self.selectedClipIDs = selectedClipIDs
+            self.sourceFileMetadata = sourceFileMetadata
         }
     }
 
@@ -68,6 +79,15 @@ class SessionStore {
     }
 
     func save(session: ImportSession, selectedClipIDs: Set<UUID>) throws {
+        // Snapshot source file metadata for change detection on restore
+        let fm = FileManager.default
+        let metadata: [URL: FileMetadata] = Dictionary(uniqueKeysWithValues: session.sourceFiles.compactMap { url -> (URL, FileMetadata)? in
+            guard let attrs = try? fm.attributesOfItem(atPath: url.path),
+                  let mtime = attrs[.modificationDate] as? Date,
+                  let size = attrs[.size] as? Int64 else { return nil }
+            return (url, FileMetadata(modificationDate: mtime.timeIntervalSince1970, fileSize: size))
+        })
+
         let data = SessionData(
             version: Self.currentVersion,
             id: session.id,
@@ -78,7 +98,8 @@ class SessionStore {
             userClipOrder: session.userClipOrder,
             tags: session.tags,
             activeTagFilter: session.activeTagFilter,
-            selectedClipIDs: selectedClipIDs
+            selectedClipIDs: selectedClipIDs,
+            sourceFileMetadata: metadata
         )
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
