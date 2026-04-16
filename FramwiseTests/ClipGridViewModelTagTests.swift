@@ -94,4 +94,34 @@ final class ClipGridViewModelTagTests: XCTestCase {
         let allClips = groups.flatMap { $0.clips }
         XCTAssertEqual(allClips.count, 1)
     }
+
+    // MARK: - Cache regression reproductions
+
+    func testFilteredClips_recomputesWhenTagMembershipChangesUnderActiveTagFilter() {
+        let tagID = UUID()
+        let clip1 = makeClip(name: "a.mov")
+        let clip2 = makeClip(name: "b.mov")
+
+        let initial = vm.filteredClips(from: [clip1, clip2], tagFilter: tagID)
+        XCTAssertTrue(initial.isEmpty)
+
+        var updatedClip1 = clip1
+        updatedClip1.tagIDs.insert(tagID)
+        let refreshed = vm.filteredClips(from: [updatedClip1, clip2], tagFilter: tagID)
+
+        XCTAssertEqual(refreshed.map(\.id), [updatedClip1.id])
+    }
+
+    func testFilteredClips_recomputesWhenWasteVisibilityChangesUnderHideWaste() {
+        var clip1 = makeClip(name: "a.mov")
+        let clip2 = makeClip(name: "b.mov")
+
+        let initial = vm.filteredClips(from: [clip1, clip2], hideWaste: true)
+        XCTAssertEqual(initial.map(\.id), [clip1.id, clip2.id])
+
+        clip1.wasteType = .blackout
+        let refreshed = vm.filteredClips(from: [clip1, clip2], hideWaste: true)
+
+        XCTAssertEqual(refreshed.map(\.id), [clip2.id])
+    }
 }

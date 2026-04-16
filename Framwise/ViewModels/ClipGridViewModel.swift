@@ -36,7 +36,13 @@ class ClipGridViewModel: ObservableObject {
 
     /// Cache key inputs
     private struct FilterInput: Equatable {
-        let clipIDs: [UUID]  // Use IDs instead of full clips for lighter comparison
+        struct ClipFilterState: Equatable {
+            let id: UUID
+            let wasteType: WasteType
+            let tagIDs: [UUID]
+        }
+
+        let clipStates: [ClipFilterState]
         let selectedIDs: Set<UUID>
         let sourceURL: URL?
         let tagFilter: UUID?
@@ -53,7 +59,13 @@ class ClipGridViewModel: ObservableObject {
     /// Filter and sort clips based on current settings (cached)
     func filteredClips(from allClips: [VideoClip], selectedIDs: Set<UUID> = [], sourceURL: URL? = nil, tagFilter: UUID? = nil, hideWaste: Bool = false) -> [VideoClip] {
         let input = FilterInput(
-            clipIDs: allClips.map { $0.id },
+            clipStates: allClips.map {
+                FilterInput.ClipFilterState(
+                    id: $0.id,
+                    wasteType: $0.wasteType,
+                    tagIDs: $0.tagIDs.sorted { $0.uuidString < $1.uuidString }
+                )
+            },
             selectedIDs: selectedIDs,
             sourceURL: sourceURL,
             tagFilter: tagFilter,
