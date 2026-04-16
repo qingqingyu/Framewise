@@ -235,13 +235,13 @@ class ExportViewModel: ObservableObject {
             return results.sorted { $0.index < $1.index }
         }
 
-        // Check for inaccessible source videos (use fallback values instead of failing)
+        // Check for inaccessible source videos
         let loadedIndices = Set(indexedResults.map { $0.index })
         let failedURLs = sourceURLs.enumerated()
             .filter { !loadedIndices.contains($0.offset) }
             .map { $0.element.lastPathComponent }
         if !failedURLs.isEmpty {
-            warning = "Could not read metadata for: \(failedURLs.joined(separator: ", ")). Using default values."
+            warning = "Could not read metadata for: \(failedURLs.joined(separator: ", ")). Affected clips will be skipped."
         }
 
         let videoInfos = indexedResults.map { $0.info }

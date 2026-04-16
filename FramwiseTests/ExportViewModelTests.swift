@@ -280,7 +280,7 @@ final class ExportViewModelTests: XCTestCase {
 
         XCTAssertTrue(xml.contains("a.mov"))
         XCTAssertFalse(xml.contains("b.mov"))
-        XCTAssertEqual(viewModel.warning, "Could not read metadata for: b.mov. Using default values. 1 clip(s) skipped due to inaccessible source files.")
+        XCTAssertEqual(viewModel.warning, "Could not read metadata for: b.mov. Affected clips will be skipped. 1 clip(s) skipped due to inaccessible source files.")
     }
 
     // MARK: - D. File Naming
