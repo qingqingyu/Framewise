@@ -118,6 +118,40 @@ final class ExportViewModelTests: XCTestCase {
         XCTAssertTrue(edl.contains("00:00:10:00 00:00:15:00"), "Rec time should accumulate across different sources")
     }
 
+    func testEDL_AllInaccessibleSources_ThrowsInsteadOfReturningEmptyExport() async {
+        let clips = [
+            makeClip(sourceName: "a.mov", startSeconds: 0, endSeconds: 5),
+            makeClip(sourceName: "b.mov", startSeconds: 10, endSeconds: 15)
+        ]
+        viewModel.videoInfoLoader = { _ in throw CocoaError(.fileReadNoSuchFile) }
+
+        do {
+            _ = try await viewModel.generateEDL(from: clips)
+            XCTFail("Expected inaccessible EDL export to throw")
+        } catch let error as ExportError {
+            XCTAssertEqual(error.errorDescription, "Could not export EDL: metadata could not be read for any selected source files.")
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+    }
+
+    func testEDL_PartiallyInaccessibleSources_WarnsAndExportsAccessibleClips() async throws {
+        let clip1 = makeClip(sourceName: "a.mov", startSeconds: 0, endSeconds: 5)
+        let clip2 = makeClip(sourceName: "b.mov", startSeconds: 10, endSeconds: 15)
+        viewModel.videoInfoLoader = { url in
+            if url.lastPathComponent == "a.mov" {
+                return ExportViewModel.SourceVideoInfo(url: url, duration: 60, frameRate: 24, width: 1920, height: 1080)
+            }
+            throw CocoaError(.fileReadNoSuchFile)
+        }
+
+        let edl = try await viewModel.generateEDL(from: [clip1, clip2])
+
+        XCTAssertTrue(edl.contains("FROM CLIP NAME: a.mov"))
+        XCTAssertFalse(edl.contains("FROM CLIP NAME: b.mov"))
+        XCTAssertEqual(viewModel.warning, "1 clip(s) skipped — source file inaccessible.")
+    }
+
     // MARK: - C. FCPXML Generation (via buildFCPXMLString with fake video info)
 
     private func makeVideoInfo(
@@ -213,6 +247,40 @@ final class ExportViewModelTests: XCTestCase {
         let infos = [makeVideoInfo(url: url)]
         let xml = viewModel.buildFCPXMLString(clips: clips, videoInfos: infos, frameRate: 24, width: 1920, height: 1080)
         XCTAssertTrue(xml.contains("src=\"file:///tmp/test.mov\""), "Asset src should use proper file URL")
+    }
+
+    func testFCPXML_AllInaccessibleSources_ThrowsInsteadOfReturningEmptyExport() async {
+        let clips = [
+            makeClip(sourceName: "a.mov", startSeconds: 0, endSeconds: 5),
+            makeClip(sourceName: "b.mov", startSeconds: 10, endSeconds: 15)
+        ]
+        viewModel.videoInfoLoader = { _ in throw CocoaError(.fileReadNoSuchFile) }
+
+        do {
+            _ = try await viewModel.generateFCPXML(from: clips)
+            XCTFail("Expected inaccessible FCPXML export to throw")
+        } catch let error as ExportError {
+            XCTAssertEqual(error.errorDescription, "Could not export FCPXML: metadata could not be read for any selected source files.")
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+    }
+
+    func testFCPXML_PartiallyInaccessibleSources_WarnsAndExportsAccessibleClips() async throws {
+        let clip1 = makeClip(sourceName: "a.mov", startSeconds: 0, endSeconds: 5)
+        let clip2 = makeClip(sourceName: "b.mov", startSeconds: 10, endSeconds: 15)
+        viewModel.videoInfoLoader = { url in
+            if url.lastPathComponent == "a.mov" {
+                return ExportViewModel.SourceVideoInfo(url: url, duration: 60, frameRate: 24, width: 1920, height: 1080)
+            }
+            throw CocoaError(.fileReadNoSuchFile)
+        }
+
+        let xml = try await viewModel.generateFCPXML(from: [clip1, clip2])
+
+        XCTAssertTrue(xml.contains("a.mov"))
+        XCTAssertFalse(xml.contains("b.mov"))
+        XCTAssertEqual(viewModel.warning, "Could not read metadata for: b.mov. Using default values. 1 clip(s) skipped due to inaccessible source files.")
     }
 
     // MARK: - D. File Naming

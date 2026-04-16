@@ -14,6 +14,9 @@ class ExportViewModel: ObservableObject {
     @Published var exportFormat: ExportFormat = .edl
     @Published var error: Error?
     @Published var warning: String?
+    var videoInfoLoader: (URL) async throws -> SourceVideoInfo = { url in
+        try await ExportViewModel.loadVideoInfo(for: url)
+    }
 
     enum ExportFormat: String, CaseIterable {
         case edl = "EDL"
@@ -95,7 +98,7 @@ class ExportViewModel: ObservableObject {
         let infoResults: [(index: Int, info: SourceVideoInfo)] = await withTaskGroup(of: (Int, SourceVideoInfo?).self) { group in
             for (index, url) in sourceURLs.enumerated() {
                 group.addTask {
-                    let info = try? await Self.loadVideoInfo(for: url)
+                    let info = try? await self.videoInfoLoader(url)
                     return (index, info)
                 }
             }
@@ -142,6 +145,11 @@ class ExportViewModel: ObservableObject {
         var recFrameCount: Int = 0
         var eventIndex = 0
         var skippedInaccessible = 0
+        let accessibleClipCount = clips.filter { frameRateMap[$0.sourceFileURL] != nil }.count
+
+        if !clips.isEmpty && accessibleClipCount == 0 {
+            throw ExportError.allClipsInaccessible(format: .edl)
+        }
 
         for clip in clips {
             // Skip clips whose source file metadata could not be loaded
@@ -214,7 +222,7 @@ class ExportViewModel: ObservableObject {
         let indexedResults: [(index: Int, info: SourceVideoInfo)] = await withTaskGroup(of: (Int, SourceVideoInfo?).self) { group in
             for (index, url) in sourceURLs.enumerated() {
                 group.addTask {
-                    let info = try? await Self.loadVideoInfo(for: url)
+                    let info = try? await self.videoInfoLoader(url)
                     return (index, info)
                 }
             }
@@ -237,6 +245,13 @@ class ExportViewModel: ObservableObject {
         }
 
         let videoInfos = indexedResults.map { $0.info }
+        let accessibleClipCount = clips.filter { clip in
+            videoInfos.contains(where: { $0.url == clip.sourceFileURL })
+        }.count
+
+        if !clips.isEmpty && accessibleClipCount == 0 {
+            throw ExportError.allClipsInaccessible(format: .fcpxml)
+        }
 
         // Use first video's properties for the sequence format
         let primaryInfo = videoInfos.first
@@ -410,6 +425,17 @@ class ExportViewModel: ObservableObject {
             .replacingOccurrences(of: ">", with: "&gt;")
             .replacingOccurrences(of: "\"", with: "&quot;")
             .replacingOccurrences(of: "'", with: "&apos;")
+    }
+}
+
+enum ExportError: LocalizedError {
+    case allClipsInaccessible(format: ExportViewModel.ExportFormat)
+
+    var errorDescription: String? {
+        switch self {
+        case .allClipsInaccessible(let format):
+            return "Could not export \(format.rawValue): metadata could not be read for any selected source files."
+        }
     }
 }
 
