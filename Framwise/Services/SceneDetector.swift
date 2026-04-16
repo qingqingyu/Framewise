@@ -27,59 +27,8 @@ actor SceneDetector {
     /// Minimum duration between detected cuts (in seconds)
     var minimumSceneDuration: Double = 0.5
 
-    private let debugLogPath = "/Users/TWJ/工作/claude/Framwise/.cursor/debug-4a4501.log"
-    private let debugSessionId = "4a4501"
-
-    private func writeDebugLog(
-        runId: String = "pre-fix",
-        hypothesisId: String,
-        location: String,
-        message: String,
-        data: [String: Any]
-    ) {
-        let payload: [String: Any] = [
-            "sessionId": debugSessionId,
-            "runId": runId,
-            "hypothesisId": hypothesisId,
-            "location": location,
-            "message": message,
-            "data": data,
-            "timestamp": Int(Date().timeIntervalSince1970 * 1000)
-        ]
-
-        guard
-            JSONSerialization.isValidJSONObject(payload),
-            let jsonData = try? JSONSerialization.data(withJSONObject: payload),
-            let lineData = String(data: jsonData, encoding: .utf8)?
-                .appending("\n")
-                .data(using: .utf8)
-        else {
-            return
-        }
-
-        let logURL = URL(fileURLWithPath: debugLogPath)
-        if FileManager.default.fileExists(atPath: debugLogPath),
-           let handle = try? FileHandle(forWritingTo: logURL) {
-            defer { try? handle.close() }
-            try? handle.seekToEnd()
-            try? handle.write(contentsOf: lineData)
-        } else {
-            try? lineData.write(to: logURL)
-        }
-    }
-
     /// Update the internal threshold from the user-facing sensitivity setting.
     func setSensitivity(_ value: Double) {
-        // #region agent log
-        writeDebugLog(
-            hypothesisId: "H2",
-            location: "SceneDetector.swift:67",
-            message: "Scene detector sensitivity updated",
-            data: [
-                "sensitivity": value
-            ]
-        )
-        // #endregion
         sensitivity = SceneDetectionSettings.threshold(forUISensitivity: value)
     }
 
@@ -185,25 +134,9 @@ actor SceneDetector {
 
                     var sceneChanges: [CMTime] = []
                     var previousHistogram: [Double]?
-                    var debugComparisonsLogged = 0
 
                     var currentTime = 0.0
                     var lastSceneTime = 0.0
-
-                    // #region agent log
-                    writeDebugLog(
-                        hypothesisId: "H3",
-                        location: "SceneDetector.swift:163",
-                        message: "Streaming scene detection started",
-                        data: [
-                            "durationSeconds": durationSeconds,
-                            "samplesPerSecond": samplesPerSecond,
-                            "sampleInterval": sampleInterval,
-                            "sensitivity": activeSensitivity,
-                            "minimumSceneDuration": activeMinimumSceneDuration
-                        ]
-                    )
-                    // #endregion
 
                     while currentTime < durationSeconds {
                         // Check for cancellation
@@ -223,43 +156,9 @@ actor SceneDetector {
                                 let passesThreshold = difference > activeSensitivity
                                 let meetsMinimumDuration = (currentTime - lastSceneTime) >= activeMinimumSceneDuration
 
-                                if debugComparisonsLogged < 8 {
-                                    debugComparisonsLogged += 1
-                                    // #region agent log
-                                    writeDebugLog(
-                                        hypothesisId: "H4",
-                                        location: "SceneDetector.swift:187",
-                                        message: "Scene comparison evaluated",
-                                        data: [
-                                            "comparisonIndex": debugComparisonsLogged,
-                                            "currentTime": currentTime,
-                                            "lastSceneTime": lastSceneTime,
-                                            "timeSinceLastScene": currentTime - lastSceneTime,
-                                            "difference": difference,
-                                            "sensitivity": activeSensitivity,
-                                            "passesThreshold": passesThreshold,
-                                            "meetsMinimumDuration": meetsMinimumDuration,
-                                            "willEmitSceneChange": passesThreshold && meetsMinimumDuration
-                                        ]
-                                    )
-                                    // #endregion
-                                }
-
                                 if passesThreshold && meetsMinimumDuration {
                                     sceneChanges.append(time)
                                     lastSceneTime = currentTime
-                                    // #region agent log
-                                    writeDebugLog(
-                                        hypothesisId: "H4",
-                                        location: "SceneDetector.swift:206",
-                                        message: "Scene change emitted",
-                                        data: [
-                                            "currentTime": currentTime,
-                                            "difference": difference,
-                                            "sensitivity": activeSensitivity
-                                        ]
-                                    )
-                                    // #endregion
                                     // Emit scene change event
                                     continuation.yield(.sceneChange(time))
                                 }
