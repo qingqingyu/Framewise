@@ -48,7 +48,7 @@ class VideoImportViewModel: ObservableObject {
     }
     private var sceneDetectionSensitivity: Double {
         let value = UserDefaults.standard.double(forKey: "sceneDetectionSensitivity")
-        return clamped(value, in: 0.1...0.9, default: 0.3)
+        return clamped(value, in: 0.1...0.9, default: SceneDetectionSettings.defaultUISensitivity)
     }
 
     /// Reset import state (called when session is cleared mid-import)
@@ -71,6 +71,44 @@ class VideoImportViewModel: ObservableObject {
     private func clamped(_ value: Double, in range: ClosedRange<Double>, default defaultValue: Double) -> Double {
         guard value >= range.lowerBound else { return defaultValue }
         return min(value, range.upperBound)
+    }
+
+    private func writeDebugLog(
+        runId: String = "pre-fix",
+        hypothesisId: String,
+        location: String,
+        message: String,
+        data: [String: Any]
+    ) {
+        let payload: [String: Any] = [
+            "sessionId": "4a4501",
+            "runId": runId,
+            "hypothesisId": hypothesisId,
+            "location": location,
+            "message": message,
+            "data": data,
+            "timestamp": Int(Date().timeIntervalSince1970 * 1000)
+        ]
+
+        guard
+            JSONSerialization.isValidJSONObject(payload),
+            let jsonData = try? JSONSerialization.data(withJSONObject: payload),
+            let lineData = String(data: jsonData, encoding: .utf8)?
+                .appending("\n")
+                .data(using: .utf8)
+        else {
+            return
+        }
+
+        let logURL = URL(fileURLWithPath: "/Users/TWJ/工作/claude/Framwise/.cursor/debug-4a4501.log")
+        if FileManager.default.fileExists(atPath: logURL.path),
+           let handle = try? FileHandle(forWritingTo: logURL) {
+            defer { try? handle.close() }
+            try? handle.seekToEnd()
+            try? handle.write(contentsOf: lineData)
+        } else {
+            try? lineData.write(to: logURL)
+        }
     }
 
     // MARK: - Streaming Import (Parallel)
@@ -120,6 +158,18 @@ class VideoImportViewModel: ObservableObject {
             }
 
             // Apply settings from UserDefaults
+            // #region agent log
+            writeDebugLog(
+                hypothesisId: "H1",
+                location: "VideoImportViewModel.swift:112",
+                message: "Import pipeline loaded scene detection settings",
+                data: [
+                    "sceneDetectionSensitivity": sceneDetectionSensitivity,
+                    "targetSegmentCount": targetSegmentCount,
+                    "urlCount": urls.count
+                ]
+            )
+            // #endregion
             await sceneDetector.setSensitivity(sceneDetectionSensitivity)
 
             // Capture values for use in non-isolated tasks

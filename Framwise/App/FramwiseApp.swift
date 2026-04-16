@@ -12,6 +12,10 @@ import Combine
 struct FramwiseApp: App {
     @StateObject private var appState = AppState()
 
+    init() {
+        SceneDetectionSettings.migrateStoredSensitivityIfNeeded()
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()

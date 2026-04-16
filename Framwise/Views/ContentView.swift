@@ -480,7 +480,7 @@ struct ExportSheetView: View {
 
 struct SettingsView: View {
     @AppStorage("segmentCount") private var segmentCount = 36
-    @AppStorage("sceneDetectionSensitivity") private var sceneDetectionSensitivity = 0.3
+    @AppStorage("sceneDetectionSensitivity") private var sceneDetectionSensitivity = SceneDetectionSettings.defaultUISensitivity
 
     var body: some View {
         Form {
@@ -488,7 +488,7 @@ struct SettingsView: View {
                 Slider(value: $sceneDetectionSensitivity, in: 0.1...0.9, step: 0.05) {
                     Text("Detection Sensitivity")
                 }
-                Text("Higher values = more sensitive to scene changes")
+                Text("Higher values detect more scene changes")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
