@@ -224,7 +224,10 @@ class VideoImportViewModel: ObservableObject {
         let asset = AVAsset(url: url)
 
         // Load tracks
-        try await asset.loadTracks(withMediaType: .video)
+        guard let videoTrack = try await asset.loadTracks(withMediaType: .video).first else {
+            throw SceneDetectorError.noVideoTrack
+        }
+        let sourceFrameRate = max(Double(try await videoTrack.load(.nominalFrameRate)), 24)
 
         let duration = try await asset.load(.duration)
         let totalDuration = CMTimeGetSeconds(duration)
@@ -241,7 +244,7 @@ class VideoImportViewModel: ObservableObject {
             case .sceneChange(let time):
                 let segDuration = CMTimeGetSeconds(time) - CMTimeGetSeconds(lastProcessedTime)
                 if segDuration > 0.1 {
-                    let segment = ClipSegment(sourceURL: url, startTime: lastProcessedTime, endTime: time)
+                    let segment = ClipSegment(sourceURL: url, sourceFrameRate: sourceFrameRate, startTime: lastProcessedTime, endTime: time)
                     clips.append(segment.toVideoClip())
                 }
                 lastProcessedTime = time
@@ -258,7 +261,7 @@ class VideoImportViewModel: ObservableObject {
                 // Process final segment
                 let finalDuration = CMTimeGetSeconds(duration) - CMTimeGetSeconds(lastProcessedTime)
                 if finalDuration > 0.1 {
-                    let segment = ClipSegment(sourceURL: url, startTime: lastProcessedTime, endTime: duration)
+                    let segment = ClipSegment(sourceURL: url, sourceFrameRate: sourceFrameRate, startTime: lastProcessedTime, endTime: duration)
                     clips.append(segment.toVideoClip())
                 }
 
@@ -374,7 +377,7 @@ class VideoImportViewModel: ObservableObject {
                 )
             }
 
-            let segment = ClipSegment(sourceURL: clip.sourceFileURL, startTime: startTime, endTime: endTime)
+            let segment = ClipSegment(sourceURL: clip.sourceFileURL, sourceFrameRate: clip.sourceFrameRate, startTime: startTime, endTime: endTime)
             clips.append(segment.toVideoClip())
         }
 
@@ -423,7 +426,10 @@ class VideoImportViewModel: ObservableObject {
         let asset = AVAsset(url: url)
 
         // 加载tracks
-        try await asset.loadTracks(withMediaType: .video)
+        guard let videoTrack = try await asset.loadTracks(withMediaType: .video).first else {
+            throw SceneDetectorError.noVideoTrack
+        }
+        let sourceFrameRate = max(Double(try await videoTrack.load(.nominalFrameRate)), 24)
 
         // 检测场景变化点
         statusMessage = "Detecting scenes in \(url.lastPathComponent)..."
@@ -433,7 +439,8 @@ class VideoImportViewModel: ObservableObject {
         let segments = try await generateClipSegments(
             from: asset,
             sceneChanges: sceneChanges,
-            sourceURL: url
+            sourceURL: url,
+            sourceFrameRate: sourceFrameRate
         )
 
         return segments.map { $0.toVideoClip() }
@@ -443,7 +450,8 @@ class VideoImportViewModel: ObservableObject {
     private func generateClipSegments(
         from asset: AVAsset,
         sceneChanges: [CMTime],
-        sourceURL: URL
+        sourceURL: URL,
+        sourceFrameRate: Double
     ) async throws -> [ClipSegment] {
         let duration: CMTime
         if #available(macOS 13.0, *) {
@@ -460,7 +468,7 @@ class VideoImportViewModel: ObservableObject {
         for cutPoint in cutPoints {
             let segDuration = CMTimeGetSeconds(cutPoint) - CMTimeGetSeconds(currentTime)
             if segDuration > 0.1 {
-                segments.append(ClipSegment(sourceURL: sourceURL, startTime: currentTime, endTime: cutPoint))
+                segments.append(ClipSegment(sourceURL: sourceURL, sourceFrameRate: sourceFrameRate, startTime: currentTime, endTime: cutPoint))
             }
             currentTime = cutPoint
         }
@@ -468,7 +476,7 @@ class VideoImportViewModel: ObservableObject {
         // 最后一段
         let finalDuration = CMTimeGetSeconds(duration) - CMTimeGetSeconds(currentTime)
         if finalDuration > 0.1 {
-            segments.append(ClipSegment(sourceURL: sourceURL, startTime: currentTime, endTime: duration))
+            segments.append(ClipSegment(sourceURL: sourceURL, sourceFrameRate: sourceFrameRate, startTime: currentTime, endTime: duration))
         }
 
         // 补切长场景
@@ -523,7 +531,7 @@ class VideoImportViewModel: ObservableObject {
                 } else {
                     endTime = CMTimeAdd(longSeg.startTime, CMTime(seconds: Double(i + 1) * partDuration, preferredTimescale: 600))
                 }
-                parts.append(ClipSegment(sourceURL: longSeg.sourceURL, startTime: startTime, endTime: endTime))
+                parts.append(ClipSegment(sourceURL: longSeg.sourceURL, sourceFrameRate: longSeg.sourceFrameRate, startTime: startTime, endTime: endTime))
             }
 
             replacementMap[originalIdx] = parts

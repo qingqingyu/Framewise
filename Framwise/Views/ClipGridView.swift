@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import AppKit
 import AVFoundation
 
 struct ClipGridView: View {
@@ -352,6 +353,13 @@ struct ClipGridView: View {
         return session.allClips.filter { $0.wasteType != .none }.count
     }
 
+    private var visibleClipsInDisplayOrder: [VideoClip] {
+        if appState.importSession?.userClipOrder != nil {
+            return orderedFlatClips
+        }
+        return groupedClips.flatMap(\.clips)
+    }
+
     /// Clips in user's custom order, with all filters (search/tag/source/viewMode/waste) applied
     private var orderedFlatClips: [VideoClip] {
         guard let session = appState.importSession,
@@ -399,7 +407,13 @@ struct ClipGridView: View {
             }
         }
         .onTapGesture {
-            gridViewModel.toggleSelection(clip.id, in: appState)
+            let modifiers = NSEvent.modifierFlags
+            gridViewModel.handleSelection(
+                clip.id,
+                visibleClipIDs: visibleClipsInDisplayOrder.map(\.id),
+                in: appState,
+                extendRangeSelection: modifiers.contains(.shift)
+            )
         }
         .contextMenu {
             Button(appState.selectedClipIDs.contains(clip.id) ? "Deselect" : "Select") {
@@ -483,9 +497,8 @@ struct ClipGridView: View {
     }
 
     private func selectAllFromSameFile(as referenceClip: VideoClip) {
-        // Use currently filtered clips (respects waste/tag/source filters) instead of allClips
-        let currentClips = filteredClips.filter { $0.sourceFileURL == referenceClip.sourceFileURL }
-        for clip in currentClips {
+        guard let session = appState.importSession else { return }
+        for clip in session.allClips where clip.sourceFileURL == referenceClip.sourceFileURL {
             appState.selectedClipIDs.insert(clip.id)
         }
     }

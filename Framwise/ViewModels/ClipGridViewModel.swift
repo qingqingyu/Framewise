@@ -13,6 +13,7 @@ class ClipGridViewModel: ObservableObject {
     @Published var searchText = ""
     @Published var sortOrder: SortOrder = .original
     @Published var viewMode: ViewMode = .all
+    private var selectionAnchorID: UUID?
 
     enum SortOrder {
         case original
@@ -177,16 +178,40 @@ class ClipGridViewModel: ObservableObject {
         } else {
             appState.selectedClipIDs.insert(clipId)
         }
+        selectionAnchorID = clipId
+    }
+
+    /// Handle direct clip interaction, including shift-range selection.
+    func handleSelection(_ clipId: UUID, visibleClipIDs: [UUID], in appState: AppState, extendRangeSelection: Bool) {
+        guard extendRangeSelection else {
+            toggleSelection(clipId, in: appState)
+            return
+        }
+
+        guard
+            let anchorID = selectionAnchorID,
+            let anchorIndex = visibleClipIDs.firstIndex(of: anchorID),
+            let targetIndex = visibleClipIDs.firstIndex(of: clipId)
+        else {
+            toggleSelection(clipId, in: appState)
+            return
+        }
+
+        let bounds = anchorIndex <= targetIndex ? anchorIndex...targetIndex : targetIndex...anchorIndex
+        appState.selectedClipIDs.formUnion(visibleClipIDs[bounds])
+        selectionAnchorID = clipId
     }
 
     /// Select all clips in current view
     func selectAll(_ clips: [VideoClip], in appState: AppState) {
         appState.selectedClipIDs = Set(clips.map { $0.id })
+        selectionAnchorID = clips.last?.id
     }
 
     /// Deselect all clips
     func deselectAll(in appState: AppState) {
         appState.selectedClipIDs.removeAll()
+        selectionAnchorID = nil
     }
 
     /// Invert selection within the given clips, preserving selections outside the view
@@ -197,5 +222,6 @@ class ClipGridViewModel: ObservableObject {
         // Remove all view clips from selection, then add back the inverted ones
         appState.selectedClipIDs.subtract(viewIDs)
         appState.selectedClipIDs.formUnion(invertedInView)
+        selectionAnchorID = clips.last?.id
     }
 }

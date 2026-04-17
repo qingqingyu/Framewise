@@ -46,4 +46,16 @@ final class PreviewAndImportViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.totalFilesCount, 0)
         XCTAssertEqual(viewModel.statusMessage, "")
     }
+
+    func testVideoClipTimecodeStrings_useSourceFrameRate() {
+        let clip = VideoClip(
+            sourceFileURL: URL(fileURLWithPath: "/tmp/test.mov"),
+            sourceFrameRate: 30,
+            timecodeStart: CMTime(value: 45, timescale: 30),
+            timecodeEnd: CMTime(value: 75, timescale: 30)
+        )
+
+        XCTAssertEqual(clip.timecodeStartString, "00:00:01:15")
+        XCTAssertEqual(clip.timecodeEndString, "00:00:02:15")
+    }
 }

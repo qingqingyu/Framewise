@@ -124,4 +124,21 @@ final class ClipGridViewModelTagTests: XCTestCase {
 
         XCTAssertEqual(refreshed.map(\.id), [clip2.id])
     }
+
+    // MARK: - Selection behavior
+
+    func testHandleSelection_shiftSelectsVisibleRangeFromAnchor() {
+        let appState = AppState()
+        appState.importSession = ImportSession()
+
+        let clip1 = makeClip(name: "a.mov")
+        let clip2 = makeClip(name: "b.mov")
+        let clip3 = makeClip(name: "c.mov")
+        let visibleClipIDs = [clip1.id, clip2.id, clip3.id]
+
+        vm.handleSelection(clip1.id, visibleClipIDs: visibleClipIDs, in: appState, extendRangeSelection: false)
+        vm.handleSelection(clip3.id, visibleClipIDs: visibleClipIDs, in: appState, extendRangeSelection: true)
+
+        XCTAssertEqual(appState.selectedClipIDs, Set(visibleClipIDs))
+    }
 }

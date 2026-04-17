@@ -184,6 +184,9 @@ struct ClipCellView: View {
             .onChange(of: clip.id) { _, _ in
                 loadThumbnails()
             }
+            .onChange(of: size) { _, _ in
+                loadThumbnails()
+            }
         }
     }
 

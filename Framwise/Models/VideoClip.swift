@@ -60,6 +60,7 @@ struct VideoClip: Identifiable, Hashable {
     let id: UUID
     let sourceFileURL: URL
     let sourceFileName: String
+    let sourceFrameRate: Double
     let timecodeStart: CMTime          // 入点
     let timecodeEnd: CMTime            // 出点
     let thumbnailTimes: [CMTime]       // 缩略图时间点
@@ -71,6 +72,7 @@ struct VideoClip: Identifiable, Hashable {
     init(
         id: UUID = UUID(),
         sourceFileURL: URL,
+        sourceFrameRate: Double = 24,
         timecodeStart: CMTime,
         timecodeEnd: CMTime,
         thumbnailTimes: [CMTime] = [],
@@ -79,6 +81,7 @@ struct VideoClip: Identifiable, Hashable {
         self.id = id
         self.sourceFileURL = sourceFileURL
         self.sourceFileName = sourceFileURL.lastPathComponent
+        self.sourceFrameRate = sourceFrameRate > 0 ? sourceFrameRate : 24
         self.timecodeStart = timecodeStart
         self.timecodeEnd = timecodeEnd
         self.wasteType = wasteType
@@ -107,11 +110,11 @@ struct VideoClip: Identifiable, Hashable {
 
     /// Timecode string for display (HH:MM:SS:FF)
     var timecodeStartString: String {
-        TimecodeUtils.formatTimecode(timecodeStart)
+        TimecodeUtils.formatTimecode(timecodeStart, frameRate: sourceFrameRate)
     }
 
     var timecodeEndString: String {
-        TimecodeUtils.formatTimecode(timecodeEnd)
+        TimecodeUtils.formatTimecode(timecodeEnd, frameRate: sourceFrameRate)
     }
 
     /// Determine thumbnail count based on clip duration
@@ -152,7 +155,7 @@ struct VideoClip: Identifiable, Hashable {
 
 extension VideoClip: Codable {
     enum CodingKeys: String, CodingKey {
-        case id, sourceFileURL, timecodeStart, timecodeEnd
+        case id, sourceFileURL, sourceFrameRate, timecodeStart, timecodeEnd
         case wasteType, tagIDs
     }
 
@@ -160,6 +163,7 @@ extension VideoClip: Codable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = try c.decode(UUID.self, forKey: .id)
         sourceFileURL = try c.decode(URL.self, forKey: .sourceFileURL)
+        sourceFrameRate = try c.decodeIfPresent(Double.self, forKey: .sourceFrameRate) ?? 24
         timecodeStart = try c.decode(CMTime.self, forKey: .timecodeStart)
         timecodeEnd = try c.decode(CMTime.self, forKey: .timecodeEnd)
         wasteType = try c.decodeIfPresent(WasteType.self, forKey: .wasteType) ?? .none
@@ -178,6 +182,7 @@ extension VideoClip: Codable {
         var c = encoder.container(keyedBy: CodingKeys.self)
         try c.encode(id, forKey: .id)
         try c.encode(sourceFileURL, forKey: .sourceFileURL)
+        try c.encode(sourceFrameRate, forKey: .sourceFrameRate)
         try c.encode(timecodeStart, forKey: .timecodeStart)
         try c.encode(timecodeEnd, forKey: .timecodeEnd)
         if wasteType != .none {
@@ -193,12 +198,14 @@ extension VideoClip: Codable {
 
 struct ClipSegment {
     let sourceURL: URL
+    let sourceFrameRate: Double
     let startTime: CMTime
     let endTime: CMTime
 
     func toVideoClip() -> VideoClip {
         VideoClip(
             sourceFileURL: sourceURL,
+            sourceFrameRate: sourceFrameRate,
             timecodeStart: startTime,
             timecodeEnd: endTime
         )
