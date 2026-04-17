@@ -15,4 +15,16 @@ final class ThumbnailGeneratorTests: XCTestCase {
 
         XCTAssertNotEqual(fileNameA, fileNameB)
     }
+
+    func testLegacyRoundedTimeStamp_requiresExactMillisecondAlignment() async {
+        let generator = ThumbnailGenerator()
+        let exactTime = CMTime(seconds: 1.2340, preferredTimescale: 10_000)
+        let inexactTime = CMTime(seconds: 1.2344, preferredTimescale: 10_000)
+
+        let exactStamp = await generator.legacyRoundedTimeStamp(for: exactTime)
+        let inexactStamp = await generator.legacyRoundedTimeStamp(for: inexactTime)
+
+        XCTAssertEqual(exactStamp, "1.234")
+        XCTAssertNil(inexactStamp)
+    }
 }

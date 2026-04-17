@@ -89,12 +89,19 @@ class VideoImportViewModel: ObservableObject {
         return min(value, range.upperBound)
     }
 
+    private func uniqueImportURLs(_ urls: [URL]) -> [URL] {
+        var seen = Set<URL>()
+        return urls.filter { seen.insert($0).inserted }
+    }
+
     // MARK: - Streaming Import (Parallel)
 
     /// Start a streaming parallel import. This method is synchronous — it spawns
     /// an internal Task stored in `importTask` so that `cancelImport()` can cancel it.
     func importVideosStreaming(from urls: [URL], into session: ImportSession) {
         guard !isImporting else { return }
+        let uniqueURLs = uniqueImportURLs(urls)
+        guard !uniqueURLs.isEmpty else { return }
 
         // Cancel any previously running import Task
         importTask?.cancel()
@@ -109,7 +116,7 @@ class VideoImportViewModel: ObservableObject {
         statusMessage = "Importing videos..."
         currentVideoName = ""
         clipsFoundCount = 0
-        totalFilesCount = urls.count
+        totalFilesCount = uniqueURLs.count
 
         importTask = Task {
             defer {
@@ -124,7 +131,7 @@ class VideoImportViewModel: ObservableObject {
             }
 
             // Pre-validate all files first (fail fast, no partial state)
-            for url in urls {
+            for url in uniqueURLs {
                 guard !Task.isCancelled else { return }
                 do {
                     try validateVideoFile(url)
@@ -135,7 +142,7 @@ class VideoImportViewModel: ObservableObject {
                 }
             }
             var insertedSourceURLs = Set<URL>()
-            for url in urls {
+            for url in uniqueURLs {
                 if session.addSourceFile(url) {
                     insertedSourceURLs.insert(url)
                 }
@@ -155,7 +162,7 @@ class VideoImportViewModel: ObservableObject {
             var firstError: Error?
 
             await withTaskGroup(of: (URL, Result<VideoImportResult, Error>).self) { group in
-                for url in urls {
+                for url in uniqueURLs {
                     group.addTask {
                         do {
                             let result = try await analyzer(url, sceneDetector, wasteDetector, targetCount)
@@ -171,9 +178,9 @@ class VideoImportViewModel: ObservableObject {
                 for await (url, groupResult) in group {
                     guard importGeneration == myGeneration, !Task.isCancelled else { break }
                     completedCount += 1
-                    importProgress = Double(completedCount) / Double(urls.count)
+                    importProgress = Double(completedCount) / Double(uniqueURLs.count)
                     analyzingProgress = importProgress
-                    currentVideoName = "Processing \(completedCount)/\(urls.count) videos..."
+                    currentVideoName = "Processing \(completedCount)/\(uniqueURLs.count) videos..."
 
                     switch groupResult {
                     case .success(let result):

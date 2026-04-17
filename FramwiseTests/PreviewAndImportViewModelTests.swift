@@ -2,6 +2,18 @@ import XCTest
 @testable import Framwise
 import AVFoundation
 
+actor ImportInvocationCounter {
+    private var count = 0
+
+    func increment() {
+        count += 1
+    }
+
+    func value() -> Int {
+        count
+    }
+}
+
 @MainActor
 final class PreviewAndImportViewModelTests: XCTestCase {
     private var temporaryDirectories: [URL] = []
@@ -129,5 +141,29 @@ final class PreviewAndImportViewModelTests: XCTestCase {
         XCTAssertEqual(session.sourceFiles, [successfulURL])
         XCTAssertEqual(session.allClips.map(\.sourceFileURL), [successfulURL])
         XCTAssertTrue(viewModel.statusMessage.contains("skipped"))
+    }
+
+    func testImportVideosStreaming_deduplicatesRepeatedSourceURLs() async throws {
+        let viewModel = VideoImportViewModel()
+        let session = ImportSession()
+        let duplicateURL = try makeTemporaryVideoURL(named: "same.mov")
+        let counter = ImportInvocationCounter()
+
+        viewModel.singleVideoAnalyzer = { url, _, _, _ in
+            await counter.increment()
+            let clip = VideoClip(
+                sourceFileURL: url,
+                timecodeStart: .zero,
+                timecodeEnd: CMTime(seconds: 1, preferredTimescale: 600)
+            )
+            return VideoImportResult(sourceURL: url, clips: [clip], wasteTypes: [:])
+        }
+
+        viewModel.importVideosStreaming(from: [duplicateURL, duplicateURL], into: session)
+        try await waitForImportToFinish(viewModel)
+
+        XCTAssertEqual(await counter.value(), 1)
+        XCTAssertEqual(session.sourceFiles, [duplicateURL])
+        XCTAssertEqual(session.allClips.count, 1)
     }
 }

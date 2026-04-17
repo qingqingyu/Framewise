@@ -73,6 +73,14 @@ actor ThumbnailGenerator {
         return "frame_\(token)_\(width)x\(height).png"
     }
 
+    func legacyRoundedTimeStamp(for time: CMTime) -> String? {
+        let seconds = CMTimeGetSeconds(time)
+        let milliseconds = seconds * 1000
+        let roundedMilliseconds = milliseconds.rounded()
+        guard abs(milliseconds - roundedMilliseconds) < 0.0001 else { return nil }
+        return String(format: "%.3f", roundedMilliseconds / 1000)
+    }
+
     /// Generate a thumbnail image at the specified time
     func generateThumbnail(
         for url: URL,
@@ -338,7 +346,6 @@ actor ThumbnailGenerator {
             return nil
         }
 
-        let timeSeconds = CMTimeGetSeconds(time)
         let width = Int(targetSize.width.rounded())
         let height = Int(targetSize.height.rounded())
         let fileName = diskCacheFileName(for: time, targetSize: targetSize)
@@ -350,15 +357,13 @@ actor ThumbnailGenerator {
             return image
         }
 
-        let roundedURL = dir.appendingPathComponent("frame_\(String(format: "%.3f", timeSeconds))_\(width)x\(height).png")
-        if let image = loadDiskImage(at: roundedURL) {
-            try? fm.setAttributes([.modificationDate: Date()], ofItemAtPath: dir.path)
-            return image
-        }
-
         // Compatibility path: reuse a legacy cache file only when its dimensions
         // already match the requested size, otherwise we'd reintroduce size collisions.
-        let legacyURL = dir.appendingPathComponent("frame_\(String(format: "%.3f", timeSeconds)).png")
+        guard let legacyTimeStamp = legacyRoundedTimeStamp(for: time) else {
+            return nil
+        }
+
+        let legacyURL = dir.appendingPathComponent("frame_\(legacyTimeStamp).png")
         guard let legacyImage = loadDiskImage(at: legacyURL),
               legacyImage.width == width,
               legacyImage.height == height else {
