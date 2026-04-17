@@ -129,6 +129,7 @@ struct ContentView: View {
 
     private func clearSession() {
         importViewModel.cancelImport()
+        gridViewModel.resetTransientUIState()
         appState.clearSession()
     }
 }

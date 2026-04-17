@@ -224,4 +224,11 @@ class ClipGridViewModel: ObservableObject {
         appState.selectedClipIDs.formUnion(invertedInView)
         selectionAnchorID = clips.last?.id
     }
+
+    func resetTransientUIState() {
+        searchText = ""
+        sortOrder = .original
+        viewMode = .all
+        selectionAnchorID = nil
+    }
 }

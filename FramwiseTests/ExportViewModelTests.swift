@@ -292,6 +292,22 @@ final class ExportViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.warning, "Could not read metadata for: b.mov. Affected clips will be skipped. 1 clip(s) skipped due to inaccessible source files.")
     }
 
+    func testFCPXML_PartiallyInaccessibleSources_SequenceDurationMatchesExportedClipsOnly() async throws {
+        let clip1 = makeClip(sourceName: "a.mov", startSeconds: 0, endSeconds: 10)
+        let clip2 = makeClip(sourceName: "b.mov", startSeconds: 10, endSeconds: 15)
+        viewModel.videoInfoLoader = { url in
+            if url.lastPathComponent == "a.mov" {
+                return ExportViewModel.SourceVideoInfo(url: url, duration: 60, frameRate: 24, width: 1920, height: 1080)
+            }
+            throw CocoaError(.fileReadNoSuchFile)
+        }
+
+        let xml = try await viewModel.generateFCPXML(from: [clip1, clip2])
+
+        XCTAssertTrue(xml.contains("duration=\"10/1s\""), "Sequence duration should only reflect clips that actually made it into the spine")
+        XCTAssertFalse(xml.contains("duration=\"15/1s\""), "Skipped clips must not inflate the declared sequence duration")
+    }
+
     // MARK: - D. File Naming
 
     func testFileName_SingleSource_UsesSourceName() {

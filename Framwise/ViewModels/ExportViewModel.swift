@@ -295,12 +295,12 @@ class ExportViewModel: ObservableObject {
     }
 
     func buildFCPXMLString(clips: [VideoClip], videoInfos: [SourceVideoInfo], frameRate: Double, width: Int, height: Int) -> String {
-        let totalDuration = clips.reduce(0.0) { $0 + $1.duration }
-
         // Build URL → assetId mapping (stable, ordered)
         let assetIdMap: [URL: String] = Dictionary(uniqueKeysWithValues: videoInfos.enumerated().map { (i, info) in
             (info.url, "r\(i + 1)")
         })
+        let exportableClips = clips.filter { assetIdMap[$0.sourceFileURL] != nil }
+        let totalDuration = exportableClips.reduce(0.0) { $0 + $1.duration }
 
         // Compute format attributes from actual video properties
         let formatName = "FFVideoFormat\(height)p\(Int(round(frameRate)))"
@@ -371,13 +371,10 @@ class ExportViewModel: ObservableObject {
 
         // Add clips to timeline
         var currentOffset: Double = 0
-        var skippedClipCount = 0
+        let skippedClipCount = clips.count - exportableClips.count
 
-        for clip in clips {
-            guard let assetId = assetIdMap[clip.sourceFileURL] else {
-                skippedClipCount += 1
-                continue
-            }
+        for clip in exportableClips {
+            let assetId = assetIdMap[clip.sourceFileURL] ?? "r_unknown"
 
             let startTime = CMTimeGetSeconds(clip.timecodeStart)
             let duration = clip.duration

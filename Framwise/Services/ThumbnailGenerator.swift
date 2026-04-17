@@ -56,10 +56,21 @@ actor ThumbnailGenerator {
 
     /// Stable cache key for a video frame, avoiding floating-point precision issues
     private func cacheKey(for url: URL, time: CMTime, targetSize: CGSize) -> NSString {
-        let seconds = CMTimeGetSeconds(time)
+        let token = timeCacheToken(for: time)
         let width = Int(targetSize.width.rounded())
         let height = Int(targetSize.height.rounded())
-        return "\(url.path)_\(String(format: "%.4f", seconds))_\(width)x\(height)" as NSString
+        return "\(url.path)_\(token)_\(width)x\(height)" as NSString
+    }
+
+    func timeCacheToken(for time: CMTime) -> String {
+        "\(time.value)_\(time.timescale)_\(time.epoch)"
+    }
+
+    func diskCacheFileName(for time: CMTime, targetSize: CGSize) -> String {
+        let token = timeCacheToken(for: time)
+        let width = Int(targetSize.width.rounded())
+        let height = Int(targetSize.height.rounded())
+        return "frame_\(token)_\(width)x\(height).png"
     }
 
     /// Generate a thumbnail image at the specified time
@@ -173,8 +184,9 @@ actor ThumbnailGenerator {
 
         // Batch extract uncached frames via AVFoundation's native batch API
         // Build a lookup from requested CMTime → array index for out-of-order callback matching
-        let timeToIndex: [(time: CMTime, index: Int)] = uncachedIndices.map { entry in
-            (time: entry.time.timeValue, index: entry.index)
+        var requestedIndicesByToken: [String: [Int]] = [:]
+        for entry in uncachedIndices {
+            requestedIndicesByToken[timeCacheToken(for: entry.time.timeValue), default: []].append(entry.index)
         }
 
         let batchImages: [Int: CGImage] = try await withCheckedThrowingContinuation {
@@ -193,10 +205,11 @@ actor ThumbnailGenerator {
 
                 if let image = image {
                     // Match by requestedTime — AVFoundation does not guarantee callback order
-                    if let match = timeToIndex.first(where: {
-                        CMTimeCompare($0.time, requestedTime) == 0
-                    }) {
-                        collected[match.index] = image
+                    let token = self.timeCacheToken(for: requestedTime)
+                    if var indices = requestedIndicesByToken[token], let matchIndex = indices.first {
+                        collected[matchIndex] = image
+                        indices.removeFirst()
+                        requestedIndicesByToken[token] = indices
                     }
                 } else {
                     if firstError == nil {
@@ -234,9 +247,11 @@ actor ThumbnailGenerator {
             }
         }
 
-        // Return images in original time order, filling gaps with available images
-        let ordered = times.indices.compactMap { results[$0] }
-        return ordered
+        guard results.count == times.count else {
+            throw ThumbnailError.frameExtractionFailed
+        }
+
+        return times.indices.compactMap { results[$0] }
     }
 
     // MARK: - Image Processing
@@ -282,10 +297,7 @@ actor ThumbnailGenerator {
             writeMetadata(for: url, to: dir)
         }
 
-        let timeSeconds = CMTimeGetSeconds(time)
-        let width = Int(targetSize.width.rounded())
-        let height = Int(targetSize.height.rounded())
-        let fileName = "frame_\(String(format: "%.3f", timeSeconds))_\(width)x\(height).png"
+        let fileName = diskCacheFileName(for: time, targetSize: targetSize)
         let fileURL = dir.appendingPathComponent(fileName)
 
         // Skip if already on disk
@@ -329,11 +341,17 @@ actor ThumbnailGenerator {
         let timeSeconds = CMTimeGetSeconds(time)
         let width = Int(targetSize.width.rounded())
         let height = Int(targetSize.height.rounded())
-        let fileName = "frame_\(String(format: "%.3f", timeSeconds))_\(width)x\(height).png"
+        let fileName = diskCacheFileName(for: time, targetSize: targetSize)
         let fileURL = dir.appendingPathComponent(fileName)
 
         if let image = loadDiskImage(at: fileURL) {
             // Touch directory mtime for LRU
+            try? fm.setAttributes([.modificationDate: Date()], ofItemAtPath: dir.path)
+            return image
+        }
+
+        let roundedURL = dir.appendingPathComponent("frame_\(String(format: "%.3f", timeSeconds))_\(width)x\(height).png")
+        if let image = loadDiskImage(at: roundedURL) {
             try? fm.setAttributes([.modificationDate: Date()], ofItemAtPath: dir.path)
             return image
         }

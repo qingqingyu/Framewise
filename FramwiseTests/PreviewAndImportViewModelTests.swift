@@ -4,6 +4,33 @@ import AVFoundation
 
 @MainActor
 final class PreviewAndImportViewModelTests: XCTestCase {
+    private var temporaryDirectories: [URL] = []
+
+    override func tearDown() {
+        for url in temporaryDirectories {
+            try? FileManager.default.removeItem(at: url)
+        }
+        temporaryDirectories.removeAll()
+    }
+
+    private func makeTemporaryVideoURL(named name: String) throws -> URL {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        temporaryDirectories.append(directory)
+        let url = directory.appendingPathComponent(name)
+        FileManager.default.createFile(atPath: url.path, contents: Data("placeholder".utf8))
+        return url
+    }
+
+    private func waitForImportToFinish(_ viewModel: VideoImportViewModel) async throws {
+        for _ in 0..<100 {
+            if !viewModel.isImporting {
+                return
+            }
+            try await Task.sleep(nanoseconds: 20_000_000)
+        }
+        XCTFail("Timed out waiting for import to finish")
+    }
 
     func testPreviewPlay_rewindsWhenPlaybackIsAtClipEnd() {
         let viewModel = PreviewViewModel()
@@ -22,6 +49,25 @@ final class PreviewAndImportViewModelTests: XCTestCase {
 
         XCTAssertTrue(viewModel.isPlaying)
         XCTAssertEqual(viewModel.currentTime, 0, accuracy: 0.001)
+    }
+
+    func testPreviewPlayIfCurrent_ignoresStalePlayer() {
+        let viewModel = PreviewViewModel()
+        let currentPlayer = AVPlayer()
+        let stalePlayer = AVPlayer()
+        let clip = VideoClip(
+            sourceFileURL: URL(fileURLWithPath: "/tmp/test.mov"),
+            timecodeStart: .zero,
+            timecodeEnd: CMTime(seconds: 5, preferredTimescale: 600)
+        )
+
+        viewModel.player = currentPlayer
+        viewModel.currentClip = clip
+        viewModel.duration = 5
+
+        viewModel.playIfCurrent(stalePlayer)
+
+        XCTAssertFalse(viewModel.isPlaying)
     }
 
     func testCancelImport_clearsDisplayedImportState() {
@@ -57,5 +103,31 @@ final class PreviewAndImportViewModelTests: XCTestCase {
 
         XCTAssertEqual(clip.timecodeStartString, "00:00:01:15")
         XCTAssertEqual(clip.timecodeEndString, "00:00:02:15")
+    }
+
+    func testImportVideosStreaming_removesFailedSourceFilesFromSession() async throws {
+        let viewModel = VideoImportViewModel()
+        let session = ImportSession()
+        let successfulURL = try makeTemporaryVideoURL(named: "good.mov")
+        let failingURL = try makeTemporaryVideoURL(named: "bad.mov")
+
+        viewModel.singleVideoAnalyzer = { url, _, _, _ in
+            if url == successfulURL {
+                let clip = VideoClip(
+                    sourceFileURL: url,
+                    timecodeStart: .zero,
+                    timecodeEnd: CMTime(seconds: 1, preferredTimescale: 600)
+                )
+                return VideoImportResult(sourceURL: url, clips: [clip], wasteTypes: [:])
+            }
+            throw ImportError.analysisFailed("boom")
+        }
+
+        viewModel.importVideosStreaming(from: [successfulURL, failingURL], into: session)
+        try await waitForImportToFinish(viewModel)
+
+        XCTAssertEqual(session.sourceFiles, [successfulURL])
+        XCTAssertEqual(session.allClips.map(\.sourceFileURL), [successfulURL])
+        XCTAssertTrue(viewModel.statusMessage.contains("skipped"))
     }
 }

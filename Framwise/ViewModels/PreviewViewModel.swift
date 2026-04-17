@@ -39,8 +39,9 @@ class PreviewViewModel: ObservableObject {
         let endTime = clip.timecodeEnd
 
         // Seek to start, then begin playback once ready
-        newPlayer.seek(to: startTime, toleranceBefore: CMTime(seconds: 0.1, preferredTimescale: 600), toleranceAfter: CMTime(seconds: 0.1, preferredTimescale: 600)) { [weak self] _ in
-            self?.play()
+        newPlayer.seek(to: startTime, toleranceBefore: CMTime(seconds: 0.1, preferredTimescale: 600), toleranceAfter: CMTime(seconds: 0.1, preferredTimescale: 600)) { [weak self, weak newPlayer] _ in
+            guard let self, let newPlayer else { return }
+            self.playIfCurrent(newPlayer)
         }
 
         duration = CMTimeGetSeconds(endTime) - CMTimeGetSeconds(startTime)
@@ -96,6 +97,11 @@ class PreviewViewModel: ObservableObject {
         }
         player.play()
         isPlaying = true
+    }
+
+    func playIfCurrent(_ candidatePlayer: AVPlayer) {
+        guard let player, player === candidatePlayer else { return }
+        play()
     }
 
     /// Pause playback

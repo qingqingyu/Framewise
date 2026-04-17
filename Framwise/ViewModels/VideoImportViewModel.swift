@@ -12,7 +12,7 @@ import Combine
 // MARK: - Parallel Import Types
 
 /// Result of analyzing a single video (used for parallel processing)
-private struct VideoImportResult {
+struct VideoImportResult {
     let sourceURL: URL
     let clips: [VideoClip]
     let wasteTypes: [UUID: WasteType]  // clipID → wasteType
@@ -34,6 +34,18 @@ class VideoImportViewModel: ObservableObject {
 
     private let sceneDetector = SceneDetector()
     private let wasteDetector = WasteDetector()
+    var singleVideoAnalyzer: (URL, SceneDetector, WasteDetector, Int) async throws -> VideoImportResult
+
+    init() {
+        self.singleVideoAnalyzer = { url, sceneDetector, wasteDetector, targetSegmentCount in
+            try await Self.analyzeSingleVideo(
+            url: url,
+            sceneDetector: sceneDetector,
+            wasteDetector: wasteDetector,
+            targetSegmentCount: targetSegmentCount
+            )
+        }
+    }
 
     /// Monotonic counter to prevent stale TaskGroup completions from overwriting newer import state.
     /// Each import increments this; defer blocks only reset state if their generation is still current.
@@ -122,9 +134,11 @@ class VideoImportViewModel: ObservableObject {
                     return
                 }
             }
-            // All validated — now add source files atomically
+            var insertedSourceURLs = Set<URL>()
             for url in urls {
-                session.addSourceFile(url)
+                if session.addSourceFile(url) {
+                    insertedSourceURLs.insert(url)
+                }
             }
 
             // Apply settings from UserDefaults
@@ -134,31 +148,27 @@ class VideoImportViewModel: ObservableObject {
             let sceneDetector = self.sceneDetector
             let wasteDetector = self.wasteDetector
             let targetCount = self.targetSegmentCount
+            let analyzer = self.singleVideoAnalyzer
 
             var completedCount = 0
             var failedCount = 0
             var firstError: Error?
 
-            await withTaskGroup(of: Result<VideoImportResult, Error>.self) { group in
+            await withTaskGroup(of: (URL, Result<VideoImportResult, Error>).self) { group in
                 for url in urls {
                     group.addTask {
                         do {
-                            let result = try await Self.analyzeSingleVideo(
-                                url: url,
-                                sceneDetector: sceneDetector,
-                                wasteDetector: wasteDetector,
-                                targetSegmentCount: targetCount
-                            )
-                            return .success(result)
+                            let result = try await analyzer(url, sceneDetector, wasteDetector, targetCount)
+                            return (url, .success(result))
                         } catch {
-                            return .failure(error)
+                            return (url, .failure(error))
                         }
                     }
                 }
 
                 // Merge results as each video completes (serial writes to session)
                 // Check cancellation to bail out early when user clears session
-                for await groupResult in group {
+                for await (url, groupResult) in group {
                     guard importGeneration == myGeneration, !Task.isCancelled else { break }
                     completedCount += 1
                     importProgress = Double(completedCount) / Double(urls.count)
@@ -170,6 +180,10 @@ class VideoImportViewModel: ObservableObject {
                         mergeResult(result, into: session)
                     case .failure(let error):
                         failedCount += 1
+                        if insertedSourceURLs.contains(url) {
+                            session.removeSourceFile(url)
+                            insertedSourceURLs.remove(url)
+                        }
                         #if DEBUG
                         print("[VideoImport] Failed to analyze video: \(error.localizedDescription)")
                         #endif

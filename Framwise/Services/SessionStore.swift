@@ -71,11 +71,22 @@ class SessionStore {
 
     private let fileURL: URL
 
-    init() {
+    init(fileURL: URL? = nil) {
+        let resolvedFileURL: URL
+        if let fileURL {
+            resolvedFileURL = fileURL
+        } else {
+            resolvedFileURL = Self.defaultFileURL()
+        }
+        let dir = resolvedFileURL.deletingLastPathComponent()
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        self.fileURL = resolvedFileURL
+    }
+
+    private static func defaultFileURL() -> URL {
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         let dir = appSupport.appendingPathComponent("Framwise", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        fileURL = dir.appendingPathComponent("session.json")
+        return dir.appendingPathComponent("session.json")
     }
 
     func save(session: ImportSession, selectedClipIDs: Set<UUID>) throws {
@@ -158,7 +169,8 @@ class SessionStore {
             userClipOrder: data.userClipOrder,
             tags: data.tags,
             activeTagFilter: data.activeTagFilter,
-            selectedClipIDs: data.selectedClipIDs
+            selectedClipIDs: data.selectedClipIDs,
+            sourceFileMetadata: data.sourceFileMetadata
         )
     }
 }

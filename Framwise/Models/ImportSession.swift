@@ -43,9 +43,20 @@ class ImportSession: ObservableObject {
         }
     }
 
-    func addSourceFile(_ url: URL) {
-        if !sourceFiles.contains(url) {
-            sourceFiles.append(url)
+    @discardableResult
+    func addSourceFile(_ url: URL) -> Bool {
+        guard !sourceFiles.contains(url) else { return false }
+        sourceFiles.append(url)
+        return true
+    }
+
+    func removeSourceFile(_ url: URL) {
+        sourceFiles.removeAll { $0 == url }
+        let removedClipIDs = Set(allClips.filter { $0.sourceFileURL == url }.map(\.id))
+        allClips.removeAll { $0.sourceFileURL == url }
+        if var order = userClipOrder {
+            order.removeAll { removedClipIDs.contains($0) }
+            userClipOrder = order.isEmpty ? nil : order
         }
     }
 
