@@ -92,7 +92,10 @@ class VideoImportViewModel: ObservableObject {
         isImporting = true
         isAnalyzing = true
         error = nil
+        importProgress = 0
+        analyzingProgress = 0
         statusMessage = "Importing videos..."
+        currentVideoName = ""
         clipsFoundCount = 0
         totalFilesCount = urls.count
 

@@ -90,6 +90,10 @@ class PreviewViewModel: ObservableObject {
     /// Start playback
     func play() {
         guard let player = player else { return }
+        if let clip = currentClip, duration > 0, currentTime >= max(duration - 0.05, 0) {
+            currentTime = 0
+            player.seek(to: clip.timecodeStart, toleranceBefore: .zero, toleranceAfter: .zero)
+        }
         player.play()
         isPlaying = true
     }

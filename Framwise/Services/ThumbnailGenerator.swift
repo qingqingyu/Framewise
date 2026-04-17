@@ -332,16 +332,32 @@ actor ThumbnailGenerator {
         let fileName = "frame_\(String(format: "%.3f", timeSeconds))_\(width)x\(height).png"
         let fileURL = dir.appendingPathComponent(fileName)
 
-        guard fm.fileExists(atPath: fileURL.path),
+        if let image = loadDiskImage(at: fileURL) {
+            // Touch directory mtime for LRU
+            try? fm.setAttributes([.modificationDate: Date()], ofItemAtPath: dir.path)
+            return image
+        }
+
+        // Compatibility path: reuse a legacy cache file only when its dimensions
+        // already match the requested size, otherwise we'd reintroduce size collisions.
+        let legacyURL = dir.appendingPathComponent("frame_\(String(format: "%.3f", timeSeconds)).png")
+        guard let legacyImage = loadDiskImage(at: legacyURL),
+              legacyImage.width == width,
+              legacyImage.height == height else {
+            return nil
+        }
+
+        try? fm.setAttributes([.modificationDate: Date()], ofItemAtPath: dir.path)
+        return legacyImage
+    }
+
+    private func loadDiskImage(at fileURL: URL) -> CGImage? {
+        guard FileManager.default.fileExists(atPath: fileURL.path),
               let data = try? Data(contentsOf: fileURL),
               let nsImage = NSImage(data: data),
               let cgImage = nsImage.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
             return nil
         }
-
-        // Touch directory mtime for LRU
-        try? fm.setAttributes([.modificationDate: Date()], ofItemAtPath: dir.path)
-
         return cgImage
     }
 
