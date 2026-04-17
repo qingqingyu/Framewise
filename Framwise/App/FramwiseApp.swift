@@ -51,7 +51,10 @@ struct FramwiseApp: App {
 @MainActor
 class AppState: ObservableObject {
     @Published var importSession: ImportSession? {
-        didSet { subscribeToSessionChanges() }
+        didSet {
+            normalizeStateForCurrentSession()
+            subscribeToSessionChanges()
+        }
     }
     @Published var selectedClipIDs: Set<UUID> = []
     @Published var isProcessing = false
@@ -103,6 +106,8 @@ class AppState: ObservableObject {
     func clearSession() {
         importSession = nil
         selectedClipIDs = []
+        selectedSourceURL = nil
+        previewClip = nil
         store.delete()
     }
 
@@ -129,6 +134,22 @@ class AppState: ObservableObject {
                 self?.saveToDisk()
             }
             .store(in: &cancellables)
+    }
+
+    private func normalizeStateForCurrentSession() {
+        guard let session = importSession else {
+            selectedSourceURL = nil
+            previewClip = nil
+            return
+        }
+
+        if let selectedSourceURL, !session.sourceFiles.contains(selectedSourceURL) {
+            self.selectedSourceURL = nil
+        }
+
+        if let previewClip, !session.allClips.contains(where: { $0.id == previewClip.id }) {
+            self.previewClip = nil
+        }
     }
 
     private func saveToDisk() {

@@ -58,11 +58,12 @@ class PreviewViewModel: ObservableObject {
             // Already on main queue — no Task needed
             self.currentTime = currentSeconds - startSeconds
 
-            // Loop back to start when reaching end
-            if currentSeconds >= endSeconds {
+            // Stop cleanly at the end of the clip and reset to the start frame.
+            if self.isPlaying && currentSeconds >= endSeconds {
+                player.pause()
+                self.isPlaying = false
                 player.seek(to: clipStartTime, toleranceBefore: .zero, toleranceAfter: .zero)
                 self.currentTime = 0
-                // Continue playing for seamless loop
             }
         }
 

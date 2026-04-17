@@ -55,9 +55,11 @@ actor ThumbnailGenerator {
     // MARK: - Thumbnail Generation
 
     /// Stable cache key for a video frame, avoiding floating-point precision issues
-    private func cacheKey(for url: URL, time: CMTime) -> NSString {
+    private func cacheKey(for url: URL, time: CMTime, targetSize: CGSize) -> NSString {
         let seconds = CMTimeGetSeconds(time)
-        return "\(url.path)_\(String(format: "%.4f", seconds))" as NSString
+        let width = Int(targetSize.width.rounded())
+        let height = Int(targetSize.height.rounded())
+        return "\(url.path)_\(String(format: "%.4f", seconds))_\(width)x\(height)" as NSString
     }
 
     /// Generate a thumbnail image at the specified time
@@ -66,7 +68,7 @@ actor ThumbnailGenerator {
         at time: CMTime,
         targetSize: CGSize = CGSize(width: 200, height: 150)
     ) async throws -> CGImage {
-        let key = cacheKey(for: url, time: time)
+        let key = cacheKey(for: url, time: time, targetSize: targetSize)
 
         // Layer 1: Memory cache
         if let cached = cache.object(forKey: key) {
@@ -74,7 +76,7 @@ actor ThumbnailGenerator {
         }
 
         // Layer 2: Disk cache
-        if let diskImage = readFromDisk(url: url, time: time) {
+        if let diskImage = readFromDisk(url: url, time: time, targetSize: targetSize) {
             cache.setObject(diskImage, forKey: key)
             return diskImage
         }
@@ -87,7 +89,7 @@ actor ThumbnailGenerator {
 
         // Save to both caches
         cache.setObject(scaledImage, forKey: key)
-        saveToDisk(scaledImage, url: url, time: time)
+        saveToDisk(scaledImage, url: url, time: time, targetSize: targetSize)
 
         return scaledImage
     }
@@ -154,10 +156,10 @@ actor ThumbnailGenerator {
         var uncachedIndices: [(index: Int, time: NSValue)] = []
 
         for (i, time) in times.enumerated() {
-            let key = cacheKey(for: url, time: time)
+            let key = cacheKey(for: url, time: time, targetSize: targetSize)
             if let cached = cache.object(forKey: key) {
                 results[i] = cached
-            } else if let diskImage = readFromDisk(url: url, time: time) {
+            } else if let diskImage = readFromDisk(url: url, time: time, targetSize: targetSize) {
                 cache.setObject(diskImage, forKey: key)
                 results[i] = diskImage
             } else {
@@ -223,9 +225,9 @@ actor ThumbnailGenerator {
             do {
                 let scaled = try scaleImage(rawImage, to: targetSize)
                 let time = times[index]
-                let key = cacheKey(for: url, time: time)
+                let key = cacheKey(for: url, time: time, targetSize: targetSize)
                 cache.setObject(scaled, forKey: key)
-                saveToDisk(scaled, url: url, time: time)
+                saveToDisk(scaled, url: url, time: time, targetSize: targetSize)
                 results[index] = scaled
             } catch {
                 // Skip frames that fail to scale
@@ -269,7 +271,7 @@ actor ThumbnailGenerator {
 
     // MARK: - Disk Cache: Write
 
-    private func saveToDisk(_ image: CGImage, url: URL, time: CMTime) {
+    private func saveToDisk(_ image: CGImage, url: URL, time: CMTime, targetSize: CGSize) {
         let dir = diskCacheDirectory(for: url)
         let fm = FileManager.default
 
@@ -281,7 +283,9 @@ actor ThumbnailGenerator {
         }
 
         let timeSeconds = CMTimeGetSeconds(time)
-        let fileName = "frame_\(String(format: "%.3f", timeSeconds)).png"
+        let width = Int(targetSize.width.rounded())
+        let height = Int(targetSize.height.rounded())
+        let fileName = "frame_\(String(format: "%.3f", timeSeconds))_\(width)x\(height).png"
         let fileURL = dir.appendingPathComponent(fileName)
 
         // Skip if already on disk
@@ -309,7 +313,7 @@ actor ThumbnailGenerator {
 
     // MARK: - Disk Cache: Read
 
-    private func readFromDisk(url: URL, time: CMTime) -> CGImage? {
+    private func readFromDisk(url: URL, time: CMTime, targetSize: CGSize) -> CGImage? {
         let dir = diskCacheDirectory(for: url)
         let fm = FileManager.default
 
@@ -323,7 +327,9 @@ actor ThumbnailGenerator {
         }
 
         let timeSeconds = CMTimeGetSeconds(time)
-        let fileName = "frame_\(String(format: "%.3f", timeSeconds)).png"
+        let width = Int(targetSize.width.rounded())
+        let height = Int(targetSize.height.rounded())
+        let fileName = "frame_\(String(format: "%.3f", timeSeconds))_\(width)x\(height).png"
         let fileURL = dir.appendingPathComponent(fileName)
 
         guard fm.fileExists(atPath: fileURL.path),

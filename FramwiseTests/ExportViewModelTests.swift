@@ -14,6 +14,15 @@ final class ExportViewModelTests: XCTestCase {
 
     override func setUp() {
         viewModel = ExportViewModel()
+        viewModel.videoInfoLoader = { url in
+            ExportViewModel.SourceVideoInfo(
+                url: url,
+                duration: 120,
+                frameRate: 24,
+                width: 1920,
+                height: 1080
+            )
+        }
     }
 
     override func tearDown() {
@@ -206,7 +215,7 @@ final class ExportViewModelTests: XCTestCase {
         let xml = viewModel.buildFCPXMLString(clips: clips, videoInfos: infos, frameRate: 24, width: 1920, height: 1080)
 
         // Total duration = 10 + 10 = 20
-        XCTAssertTrue(xml.contains("duration=\"20.0s\""), "Sequence duration should equal sum of clip durations")
+        XCTAssertTrue(xml.contains("duration=\"20/1s\""), "Sequence duration should equal sum of clip durations")
     }
 
     func testFCPXML_TcStartIsZero() {
@@ -228,9 +237,9 @@ final class ExportViewModelTests: XCTestCase {
         let xml = viewModel.buildFCPXMLString(clips: clips, videoInfos: infos, frameRate: 24, width: 1920, height: 1080)
 
         // Offsets should be 0s, 10s, 15s (10+5)
-        XCTAssertTrue(xml.contains("offset=\"0.0s\""), "First clip offset should be 0s")
-        XCTAssertTrue(xml.contains("offset=\"10.0s\""), "Second clip offset should be 10s")
-        XCTAssertTrue(xml.contains("offset=\"15.0s\""), "Third clip offset should be 15s")
+        XCTAssertTrue(xml.contains("offset=\"0/1s\""), "First clip offset should be 0s")
+        XCTAssertTrue(xml.contains("offset=\"10/1s\""), "Second clip offset should be 10s")
+        XCTAssertTrue(xml.contains("offset=\"15/1s\""), "Third clip offset should be 15s")
     }
 
     func testFCPXML_TcFormatDropFrame() {

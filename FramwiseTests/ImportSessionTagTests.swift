@@ -7,6 +7,7 @@ import XCTest
 @testable import Framwise
 import AVFoundation
 
+@MainActor
 final class ImportSessionTagTests: XCTestCase {
 
     var session: ImportSession!

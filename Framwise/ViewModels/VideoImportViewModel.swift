@@ -55,10 +55,14 @@ class VideoImportViewModel: ObservableObject {
     func cancelImport() {
         importTask?.cancel()
         importTask = nil
+        importGeneration += 1
         isImporting = false
         isAnalyzing = false
         importProgress = 0
         analyzingProgress = 0
+        currentVideoName = ""
+        clipsFoundCount = 0
+        totalFilesCount = 0
         statusMessage = ""
         error = nil
     }
@@ -96,6 +100,7 @@ class VideoImportViewModel: ObservableObject {
             defer {
                 // Only reset state if no newer import has started
                 if importGeneration == myGeneration {
+                    importTask = nil
                     isImporting = false
                     isAnalyzing = false
                     importProgress = 1.0
