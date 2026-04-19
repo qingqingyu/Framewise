@@ -14,65 +14,84 @@ struct ClipPreviewView: View {
     @EnvironmentObject var appState: AppState
 
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: 14) {
             if let clip = viewModel.currentClip {
-                // Video player
                 videoPlayerView
-
-                Divider()
-
-                // Controls
                 controlsView(clip: clip)
-
-                Divider()
-
-                // Clip info
                 clipInfoView(clip: clip)
             } else {
                 emptyStateView
             }
         }
-        .background(Color(NSColor.windowBackgroundColor))
+        .padding(16)
+        .background(FramwiseTheme.appGradient)
     }
-
-    // MARK: - Video Player View
 
     private var videoPlayerView: some View {
         ZStack {
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(Color.black)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .stroke(FramwiseTheme.line.opacity(0.85), lineWidth: 1)
+                )
+
             if let player = viewModel.player {
                 VideoPlayerView(player: player)
                     .aspectRatio(16/9, contentMode: .fit)
-                    .background(Color.black)
+                    .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
             } else {
-                Rectangle()
-                    .fill(Color.black)
-                    .overlay(
-                        ProgressView()
-                            .progressViewStyle(.circular)
-                            .tint(.white)
-                    )
+                FramwiseLoadingIndicator(tint: FramwiseTheme.warm, diameter: 26)
             }
         }
+        .aspectRatio(16/9, contentMode: .fit)
     }
 
-    // MARK: - Controls View
-
     private func controlsView(clip: VideoClip) -> some View {
-        VStack(spacing: 8) {
-            // Progress bar
+        VStack(spacing: 12) {
+            HStack(spacing: 12) {
+                Button(action: { viewModel.togglePlayPause() }) {
+                    Image(systemName: viewModel.isPlaying ? "pause.fill" : "play.fill")
+                        .font(.system(size: 16, weight: .semibold))
+                        .frame(width: 38, height: 38)
+                }
+                .buttonStyle(FramwiseGhostButtonStyle(
+                    fill: FramwiseTheme.accentSoft,
+                    border: FramwiseTheme.accent.opacity(0.35),
+                    foreground: FramwiseTheme.textPrimary
+                ))
+                .help("Play/Pause (Space)")
+
+                Text("\(formatTime(viewModel.currentTime)) / \(formatTime(viewModel.duration))")
+                    .font(.framwiseMono(11))
+                    .foregroundStyle(FramwiseTheme.textMuted)
+
+                Spacer()
+
+                Button(action: { viewModel.seek(to: 0) }) {
+                    Image(systemName: "backward.end.fill")
+                        .font(.system(size: 14, weight: .semibold))
+                        .frame(width: 36, height: 36)
+                }
+                .buttonStyle(FramwiseGhostButtonStyle())
+                .help("Restart clip")
+            }
+
             GeometryReader { geometry in
                 ZStack(alignment: .leading) {
-                    // Background track
-                    Rectangle()
-                        .fill(Color.secondary.opacity(0.3))
-                        .frame(height: 4)
-                        .cornerRadius(2)
+                    Capsule(style: .continuous)
+                        .fill(FramwiseTheme.surfaceRaised)
+                        .frame(height: 6)
 
-                    // Progress
-                    Rectangle()
-                        .fill(Color.accentColor)
-                        .frame(width: max(0, min(geometry.size.width * (viewModel.currentTime / max(viewModel.duration, 1)), geometry.size.width)), height: 4)
-                        .cornerRadius(2)
+                    Capsule(style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [FramwiseTheme.accent, FramwiseTheme.warm.opacity(0.85)],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .frame(width: max(0, min(geometry.size.width * (viewModel.currentTime / max(viewModel.duration, 1)), geometry.size.width)), height: 6)
                 }
                 .gesture(
                     DragGesture(minimumDistance: 0)
@@ -89,107 +108,73 @@ struct ClipPreviewView: View {
                         }
                 )
             }
-            .frame(height: 12)
-
-            // Controls row
-            HStack(spacing: 16) {
-                // Play/Pause button
-                Button(action: { viewModel.togglePlayPause() }) {
-                    Image(systemName: viewModel.isPlaying ? "pause.fill" : "play.fill")
-                        .font(.title2)
-                        .frame(width: 32, height: 32)
-                }
-                .buttonStyle(.plain)
-                .help("Play/Pause (Space)")
-
-                // Time display
-                Text("\(formatTime(viewModel.currentTime)) / \(formatTime(viewModel.duration))")
-                    .font(.system(.caption, design: .monospaced))
-                    .foregroundColor(.secondary)
-
-                Spacer()
-
-                // Restart button
-                Button(action: { viewModel.seek(to: 0) }) {
-                    Image(systemName: "backward.end.fill")
-                        .font(.body)
-                }
-                .buttonStyle(.plain)
-                .help("Restart clip")
-            }
+            .frame(height: 18)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(16)
+        .framwisePanel(background: FramwiseTheme.surface, radius: 20)
     }
 
-    // MARK: - Clip Info View
-
     private func clipInfoView(clip: VideoClip) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            // File name
+        VStack(alignment: .leading, spacing: 12) {
+            Text("CLIP INFO")
+                .font(.framwiseMono(10))
+                .foregroundStyle(FramwiseTheme.warm)
+
             Text(clip.sourceFileName)
-                .font(.headline)
+                .font(.framwiseDisplay(20, weight: .semibold))
+                .foregroundStyle(FramwiseTheme.textPrimary)
                 .lineLimit(1)
                 .truncationMode(.middle)
 
-            // Timecode range
-            HStack {
-                Image(systemName: "clock")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                Text("\(clip.timecodeStartString) - \(clip.timecodeEndString)")
-                    .font(.system(.caption, design: .monospaced))
-                    .foregroundColor(.secondary)
+            HStack(spacing: 12) {
+                FramwiseMetricBadge(title: "IN", value: clip.timecodeStartString, color: FramwiseTheme.textPrimary)
+                FramwiseMetricBadge(title: "OUT", value: clip.timecodeEndString, color: FramwiseTheme.textPrimary)
+                FramwiseMetricBadge(title: "DURATION", value: clip.durationString, color: FramwiseTheme.textPrimary)
             }
 
-            // Duration
-            HStack {
-                Image(systemName: "timer")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                Text("Duration: \(clip.durationString)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-
-            // Selection status
             if appState.selectedClipIDs.contains(clip.id) {
                 HStack {
                     Image(systemName: "checkmark.circle.fill")
-                        .font(.caption)
-                        .foregroundColor(.accentColor)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(FramwiseTheme.accent)
                     Text("Selected")
-                        .font(.caption)
-                        .foregroundColor(.accentColor)
+                        .font(.framwiseUI(12, weight: .medium))
+                        .foregroundStyle(FramwiseTheme.textPrimary)
                 }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(
+                    Capsule(style: .continuous)
+                        .fill(FramwiseTheme.accentSoft)
+                )
+                .overlay(
+                    Capsule(style: .continuous)
+                        .stroke(FramwiseTheme.accent.opacity(0.28), lineWidth: 1)
+                )
             }
         }
-        .padding(12)
+        .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
+        .framwisePanel(background: FramwiseTheme.surface, radius: 20)
     }
-
-    // MARK: - Empty State View
 
     private var emptyStateView: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "play.rectangle")
-                .font(.system(size: 48))
-                .foregroundColor(.secondary.opacity(0.5))
+        VStack(spacing: 14) {
+            Image(systemName: "play.rectangle.fill")
+                .font(.system(size: 42))
+                .foregroundStyle(FramwiseTheme.textMuted.opacity(0.8))
 
             Text("No Clip Selected")
-                .font(.headline)
-                .foregroundColor(.secondary)
+                .font(.framwiseDisplay(24, weight: .semibold))
+                .foregroundStyle(FramwiseTheme.textPrimary)
 
             Text("Select a clip to preview")
-                .font(.caption)
-                .foregroundColor(.secondary.opacity(0.8))
+                .font(.framwiseUI(13))
+                .foregroundStyle(FramwiseTheme.textMuted)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(NSColor.windowBackgroundColor))
+        .framwisePanel(background: FramwiseTheme.surface, radius: 22)
     }
-
-    // MARK: - Helpers
 
     private func formatTime(_ seconds: Double) -> String {
         let totalSeconds = Int(seconds)

@@ -89,10 +89,13 @@ class ImportSession: ObservableObject {
 
     @discardableResult
     func addTag(_ tag: ClipTag) -> Bool {
-        // Skip if a tag with the same name already exists
-        let existingNames = Set(tags.map { $0.name })
-        guard !existingNames.contains(tag.name) else { return false }
-        tags.append(tag)
+        let trimmedName = tag.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else { return false }
+
+        let existingNames = Set(tags.map { normalizeTagName($0.name) })
+        guard !existingNames.contains(normalizeTagName(trimmedName)) else { return false }
+
+        tags.append(ClipTag(id: tag.id, name: trimmedName, color: tag.color))
         return true
     }
 
@@ -109,10 +112,14 @@ class ImportSession: ObservableObject {
 
     @discardableResult
     func renameTag(_ tagID: UUID, to name: String) -> Bool {
-        let existingNames = Set(tags.filter { $0.id != tagID }.map { $0.name })
-        guard !existingNames.contains(name) else { return false }
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else { return false }
+
+        let existingNames = Set(tags.filter { $0.id != tagID }.map { normalizeTagName($0.name) })
+        guard !existingNames.contains(normalizeTagName(trimmedName)) else { return false }
+
         if let index = tags.firstIndex(where: { $0.id == tagID }) {
-            tags[index].name = name
+            tags[index].name = trimmedName
         }
         return true
     }
@@ -168,10 +175,14 @@ class ImportSession: ObservableObject {
 
     func loadWeddingPreset() {
         let preset = Self.weddingPresetTags()
-        let existingNames = Set(tags.map { $0.name })
-        for tag in preset where !existingNames.contains(tag.name) {
+        let existingNames = Set(tags.map { normalizeTagName($0.name) })
+        for tag in preset where !existingNames.contains(normalizeTagName(tag.name)) {
             tags.append(tag)
         }
+    }
+
+    private func normalizeTagName(_ name: String) -> String {
+        name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 
     // MARK: - Restore from persisted data

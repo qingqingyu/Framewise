@@ -20,10 +20,10 @@ struct FramwiseApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(appState)
-                .frame(minWidth: 1000, minHeight: 700)
+                .frame(minWidth: 1120, minHeight: 760)
         }
         .windowStyle(.titleBar)
-        .windowToolbarStyle(.unified(showsTitle: true))
+        .windowToolbarStyle(.unifiedCompact(showsTitle: false))
         .commands {
             CommandGroup(replacing: .newItem) {
                 Button("Import Videos...") {
@@ -41,7 +41,7 @@ struct FramwiseApp: App {
 
         Settings {
             SettingsView()
-                .frame(width: 400, height: 300)
+                .frame(width: 480, height: 360)
         }
     }
 }

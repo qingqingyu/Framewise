@@ -17,7 +17,6 @@ struct ClipGridView: View {
     private let thumbnailGenerator = ThumbnailGenerator.shared
 
     @State private var gridSize: GridSize = .medium
-    @State private var showFilterOptions = false
     @State private var scrollToClipID: UUID?
     @State private var showTimeline = true
     @State private var hoveredClip: VideoClip?
@@ -60,196 +59,197 @@ struct ClipGridView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Toolbar
-            HStack {
-                // Search
-                HStack {
-                    Image(systemName: "magnifyingglass")
-                    TextField("Search clips...", text: $gridViewModel.searchText)
-                        .textFieldStyle(.plain)
-                        .frame(width: 200)
+        VStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 12) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundStyle(FramwiseTheme.textMuted)
+                        TextField("Search clips, vows, reactions...", text: $gridViewModel.searchText)
+                            .textFieldStyle(.plain)
+                            .font(.framwiseUI(13))
+                            .foregroundStyle(FramwiseTheme.textPrimary)
 
-                    if !gridViewModel.searchText.isEmpty {
-                        Button(action: { gridViewModel.searchText = "" }) {
-                            Image(systemName: "xmark.circle.fill")
+                        if !gridViewModel.searchText.isEmpty {
+                            Button(action: { gridViewModel.searchText = "" }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundStyle(FramwiseTheme.textMuted)
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
-                }
-                .padding(6)
-                .background(Color.secondary.opacity(0.1))
-                .cornerRadius(6)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .framwisePanel(background: FramwiseTheme.surfaceRaised, radius: 999)
+                    .frame(minWidth: 260, idealWidth: 320, maxWidth: 380)
 
-                // View mode toggle
-                Picker("", selection: $gridViewModel.viewMode) {
-                    ForEach(ClipGridViewModel.ViewMode.allCases, id: \.self) { mode in
-                        Image(systemName: mode.systemImage).tag(mode)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 70)
-                .help("View: All / Selected clips")
-
-                // Source filter indicator
-                if let sourceURL = appState.selectedSourceURL {
-                    HStack(spacing: 4) {
-                        Image(systemName: "line.3.horizontal.decrease.circle.fill")
-                            .foregroundColor(.accentColor)
-                        Text(sourceURL.lastPathComponent)
-                            .font(.caption)
-                        Button(action: { appState.selectedSourceURL = nil }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(.secondary)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.accentColor.opacity(0.1))
-                    .cornerRadius(4)
-                }
-
-                // Tag filter indicator
-                if let tagFilterID = appState.importSession?.activeTagFilter,
-                   let tag = appState.importSession?.tags.first(where: { $0.id == tagFilterID }) {
-                    HStack(spacing: 4) {
-                        Circle()
-                            .fill(tag.color.systemColor)
-                            .frame(width: 8, height: 8)
-                        Text(tag.name)
-                            .font(.caption)
-                        Button(action: { appState.importSession?.activeTagFilter = nil }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(.secondary)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(tag.color.systemColor.opacity(0.15))
-                    .cornerRadius(4)
-                }
-
-                // Selected count badge
-                if gridViewModel.viewMode == .selected {
-                    Text("\(groupedClips.flatMap { $0.clips }.count) selected")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 2)
-                        .background(Color.accentColor.opacity(0.1))
-                        .cornerRadius(4)
-                }
-
-                // Reset order button (only when custom order is active)
-                if appState.importSession?.userClipOrder != nil {
-                    Button(action: {
-                        appState.importSession?.resetClipOrder()
-                    }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "arrow.counterclockwise")
-                            Text("Reset Order")
-                        }
-                        .font(.caption)
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.accentColor.opacity(0.1))
-                    .cornerRadius(4)
-                }
-
-                // Waste filter
-                let wasteCount = wasteClipCount
-                if wasteCount > 0 {
-                    Button(action: { hideWasteClips.toggle() }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: hideWasteClips ? "eye.slash" : "eye")
-                            if hideWasteClips {
-                                Text("\(wasteCount) hidden")
+                    HStack(spacing: 6) {
+                        ForEach(ClipGridViewModel.ViewMode.allCases, id: \.self) { mode in
+                            modeChip(
+                                title: mode.rawValue,
+                                systemImage: mode.systemImage,
+                                isSelected: gridViewModel.viewMode == mode
+                            ) {
+                                gridViewModel.viewMode = mode
                             }
                         }
-                        .font(.caption)
                     }
-                    .buttonStyle(.plain)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(hideWasteClips ? Color.red.opacity(0.15) : Color.secondary.opacity(0.1))
-                    .cornerRadius(4)
-                    .help(hideWasteClips ? "Show waste clips" : "Hide waste clips")
-                }
+                    .padding(4)
+                    .framwisePanel(background: FramwiseTheme.surfaceRaised, radius: 999)
 
-                Spacer()
+                    Spacer()
 
-                // Grid size picker
-                Picker("", selection: $gridSize) {
-                    ForEach(GridSize.allCases, id: \.self) { size in
-                        Image(systemName: size.systemImage).tag(size)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 100)
-                .help("Grid Size: Small / Medium / Large")
-
-                // Selection actions
-                Menu {
-                    Button("Select All") {
-                        let currentClips = groupedClips.flatMap { $0.clips }
-                        if !currentClips.isEmpty {
-                            gridViewModel.selectAll(currentClips, in: appState)
+                    HStack(spacing: 6) {
+                        ForEach(GridSize.allCases, id: \.self) { size in
+                            modeChip(
+                                title: size.rawValue,
+                                systemImage: size.systemImage,
+                                isSelected: gridSize == size
+                            ) {
+                                gridSize = size
+                            }
                         }
                     }
-                    Button("Deselect All") {
-                        gridViewModel.deselectAll(in: appState)
+                    .padding(4)
+                    .framwisePanel(background: FramwiseTheme.surfaceRaised, radius: 999)
+
+                    Menu {
+                        Button("Select All") {
+                            let currentClips = groupedClips.flatMap { $0.clips }
+                            if !currentClips.isEmpty {
+                                gridViewModel.selectAll(currentClips, in: appState)
+                            }
+                        }
+                        Button("Deselect All") {
+                            gridViewModel.deselectAll(in: appState)
+                        }
+                        Button("Invert Selection") {
+                            let currentClips = groupedClips.flatMap { $0.clips }
+                            if !currentClips.isEmpty {
+                                gridViewModel.invertSelection(currentClips, in: appState)
+                            }
+                        }
+                    } label: {
+                        Label("Selection", systemImage: "checkmark.circle")
                     }
-                    Button("Invert Selection") {
-                        // 反选基于当前显示的片段，而不是全部片段
-                        let currentClips = groupedClips.flatMap { $0.clips }
-                        if !currentClips.isEmpty {
-                            gridViewModel.invertSelection(currentClips, in: appState)
+                    .menuStyle(.borderlessButton)
+                    .buttonStyle(FramwiseGhostButtonStyle())
+
+                    Button(action: { showTimeline.toggle() }) {
+                        Label(showTimeline ? "Timeline On" : "Timeline Off", systemImage: "timeline.view")
+                    }
+                    .buttonStyle(FramwiseGhostButtonStyle(
+                        fill: showTimeline ? FramwiseTheme.accentSoft : FramwiseTheme.surfaceRaised,
+                        border: showTimeline ? FramwiseTheme.accent.opacity(0.35) : FramwiseTheme.line.opacity(0.8),
+                        foreground: showTimeline ? FramwiseTheme.textPrimary : FramwiseTheme.textMuted
+                    ))
+                }
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        if let sourceURL = appState.selectedSourceURL {
+                            filterChip(
+                                title: sourceURL.lastPathComponent,
+                                systemImage: "line.3.horizontal.decrease.circle.fill",
+                                fill: FramwiseTheme.accentSoft,
+                                border: FramwiseTheme.accent.opacity(0.28),
+                                foreground: FramwiseTheme.textPrimary
+                            ) {
+                                appState.selectedSourceURL = nil
+                            }
+                        }
+
+                        if let tagFilterID = appState.importSession?.activeTagFilter,
+                           let tag = appState.importSession?.tags.first(where: { $0.id == tagFilterID }) {
+                            filterChip(
+                                title: tag.name,
+                                dotColor: tag.color.systemColor,
+                                fill: tag.color.systemColor.opacity(0.16),
+                                border: tag.color.systemColor.opacity(0.28),
+                                foreground: FramwiseTheme.textPrimary
+                            ) {
+                                appState.importSession?.activeTagFilter = nil
+                            }
+                        }
+
+                        if gridViewModel.viewMode == .selected {
+                            passiveChip(title: "\(groupedClips.flatMap { $0.clips }.count) in selection", systemImage: "checkmark.circle.fill")
+                        }
+
+                        if appState.importSession?.userClipOrder != nil {
+                            Button(action: {
+                                appState.importSession?.resetClipOrder()
+                            }) {
+                                Label("Reset Order", systemImage: "arrow.counterclockwise")
+                            }
+                            .buttonStyle(FramwiseGhostButtonStyle(
+                                fill: FramwiseTheme.surfaceRaised,
+                                border: FramwiseTheme.accent.opacity(0.28),
+                                foreground: FramwiseTheme.textPrimary
+                            ))
+                        }
+
+                        if wasteClipCount > 0 {
+                            Button(action: { hideWasteClips.toggle() }) {
+                                Label(
+                                    hideWasteClips ? "\(wasteClipCount) hidden" : "Hide waste",
+                                    systemImage: hideWasteClips ? "eye.slash.fill" : "eye.fill"
+                                )
+                            }
+                            .buttonStyle(FramwiseGhostButtonStyle(
+                                fill: hideWasteClips ? FramwiseTheme.danger.opacity(0.14) : FramwiseTheme.surfaceRaised,
+                                border: hideWasteClips ? FramwiseTheme.danger.opacity(0.28) : FramwiseTheme.line.opacity(0.8),
+                                foreground: hideWasteClips ? FramwiseTheme.textPrimary : FramwiseTheme.textMuted
+                            ))
                         }
                     }
-                } label: {
-                    Image(systemName: "checkmark.circle")
                 }
-                .menuStyle(.borderlessButton)
-
-                // Timeline toggle
-                Button(action: { showTimeline.toggle() }) {
-                    Image(systemName: "timeline.view")
-                        .opacity(showTimeline ? 1.0 : 0.5)
-                }
-                .buttonStyle(.plain)
-                .help(showTimeline ? "Hide Timeline" : "Show Timeline")
             }
-            .padding()
-            .background(Color(NSColor.windowBackgroundColor))
+            .padding(16)
+            .framwisePanel(background: FramwiseTheme.surface, radius: 22)
 
-            Divider()
-
-            // Mini Timeline Navigation
             if showTimeline && !groupedClips.isEmpty {
-                CollapsedTimelineView(
-                    groups: groupedClips,
-                    selectedClipIDs: appState.selectedClipIDs,
-                    onClipTap: { clip in
-                        scrollToClipID = clip.id
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("SEQUENCE MAP")
+                                .font(.framwiseMono(10))
+                                .foregroundStyle(FramwiseTheme.warm)
+                            Text(groupsSummary)
+                                .font(.framwiseUI(13, weight: .medium))
+                                .foregroundStyle(FramwiseTheme.textPrimary)
+                        }
+                        Spacer()
+                        passiveChip(
+                            title: groupedClips.count > 1 ? "\(groupedClips.count) sources" : "1 source",
+                            systemImage: "timeline.selection"
+                        )
                     }
-                )
-                Divider()
+
+                    CollapsedTimelineView(
+                        groups: groupedClips,
+                        selectedClipIDs: appState.selectedClipIDs,
+                        onClipTap: { clip in
+                            scrollToClipID = clip.id
+                        }
+                    )
+                }
+                .padding(16)
+                .framwisePanel(background: FramwiseTheme.surface, radius: 20)
             }
 
-            // Grid
             GeometryReader { gridGeometry in
-                let availableWidth = gridGeometry.size.width - 24 // padding
+                let availableWidth = gridGeometry.size.width - 24
                 let columnCount = max(1, Int(availableWidth / (gridSize.cellSize.width + 12)))
                 let columns = Array(repeating: GridItem(.fixed(gridSize.cellSize.width), spacing: 12), count: columnCount)
 
                 ScrollViewReader { proxy in
                     ScrollView {
-                        if appState.importSession?.userClipOrder != nil {
-                            // Flat grid (custom order)
+                        if visibleClipsInDisplayOrder.isEmpty {
+                            emptyResultsView
+                                .padding(28)
+                                .frame(maxWidth: .infinity, minHeight: 360)
+                        } else if appState.importSession?.userClipOrder != nil {
                             LazyVGrid(columns: columns, spacing: 12) {
                                 ForEach(orderedFlatClips) { clip in
                                     clipCell(clip)
@@ -257,32 +257,42 @@ struct ClipGridView: View {
                             }
                             .padding()
                         } else {
-                            // Grouped grid (default)
                             LazyVStack(alignment: .leading, spacing: 24) {
                                 ForEach(groupedClips, id: \.sourceURL) { group in
-                                    VStack(alignment: .leading, spacing: 8) {
-                                        // Section header
+                                    VStack(alignment: .leading, spacing: 12) {
                                         HStack {
-                                            Image(systemName: "video.fill")
-                                                .foregroundColor(.accentColor)
-                                            Text(group.sourceURL.lastPathComponent)
-                                                .font(.headline)
-                                            Text("\(group.clips.count) clips")
-                                                .font(.caption)
-                                                .foregroundColor(.secondary)
+                                            VStack(alignment: .leading, spacing: 4) {
+                                                Text(group.sourceURL.lastPathComponent)
+                                                    .font(.framwiseDisplay(18, weight: .semibold))
+                                                    .foregroundStyle(FramwiseTheme.textPrimary)
+                                                Text("\(group.clips.count) clips")
+                                                    .font(.framwiseMono(11))
+                                                    .foregroundStyle(FramwiseTheme.textMuted)
+                                            }
+
                                             Spacer()
+
+                                            Text(group.sourceURL.deletingPathExtension().lastPathComponent.uppercased())
+                                                .font(.framwiseMono(10))
+                                                .foregroundStyle(FramwiseTheme.textMuted.opacity(0.75))
+                                                .lineLimit(1)
+                                                .frame(maxWidth: 200, alignment: .trailing)
+
                                             if let firstClip = group.clips.first {
-                                                Button("Select All") {
+                                                Button(action: {
                                                     selectAllFromSameFile(as: firstClip)
+                                                }) {
+                                                    Label("Select All", systemImage: "checkmark.circle.fill")
                                                 }
-                                                .buttonStyle(.plain)
-                                                .foregroundColor(.accentColor)
-                                                .font(.caption)
+                                                .buttonStyle(FramwiseGhostButtonStyle(
+                                                    fill: FramwiseTheme.surfaceRaised,
+                                                    border: FramwiseTheme.line.opacity(0.8),
+                                                    foreground: FramwiseTheme.textPrimary
+                                                ))
                                             }
                                         }
-                                        .padding(.horizontal)
+                                        .padding(.horizontal, 2)
 
-                                        // Clips grid
                                         LazyVGrid(columns: columns, spacing: 12) {
                                             ForEach(group.clips) { clip in
                                                 clipCell(clip)
@@ -295,6 +305,7 @@ struct ClipGridView: View {
                             .padding(.vertical)
                         }
                     }
+                    .background(Color.clear)
                     .onChange(of: scrollToClipID) { _, newID in
                         if let clipID = newID {
                             withAnimation(.easeInOut(duration: 0.3)) {
@@ -305,7 +316,10 @@ struct ClipGridView: View {
                     }
                 }
             }
+            .framwisePanel(background: FramwiseTheme.surface, radius: 22)
         }
+        .padding(16)
+        .background(FramwiseTheme.appGradient)
         .focusable()
         .onKeyPress(.space) {
             if let clip = hoveredClip {
@@ -316,7 +330,6 @@ struct ClipGridView: View {
             return .ignored
         }
         .onAppear {
-            // 预加载缩略图
             Task {
                 if let session = appState.importSession {
                     await thumbnailGenerator.preloadThumbnails(
@@ -332,10 +345,131 @@ struct ClipGridView: View {
             }
         }
         .sheet(isPresented: $showCreateTag) {
-            TagCreateView { tag in
-                _ = appState.importSession?.addTag(tag)
+            TagCreateView(
+                existingNames: Set(appState.importSession?.tags.map(\.name) ?? [])
+            ) { tag in
+                appState.importSession?.addTag(tag) ?? false
             }
         }
+    }
+
+    @ViewBuilder
+    private func filterChip(
+        title: String,
+        systemImage: String? = nil,
+        dotColor: Color? = nil,
+        fill: Color,
+        border: Color,
+        foreground: Color,
+        onRemove: @escaping () -> Void
+    ) -> some View {
+        HStack(spacing: 8) {
+            if let systemImage {
+                Image(systemName: systemImage)
+                    .font(.system(size: 11, weight: .semibold))
+            }
+            if let dotColor {
+                Circle()
+                    .fill(dotColor)
+                    .frame(width: 8, height: 8)
+            }
+            Text(title)
+                .lineLimit(1)
+            Button(action: onRemove) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 11, weight: .medium))
+            }
+            .buttonStyle(.plain)
+        }
+        .font(.framwiseUI(12, weight: .medium))
+        .foregroundStyle(foreground)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(
+            Capsule(style: .continuous)
+                .fill(fill)
+        )
+        .overlay(
+            Capsule(style: .continuous)
+                .stroke(border, lineWidth: 1)
+        )
+    }
+
+    @ViewBuilder
+    private func passiveChip(title: String, systemImage: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: systemImage)
+                .font(.system(size: 11, weight: .semibold))
+            Text(title)
+        }
+        .font(.framwiseUI(12, weight: .medium))
+        .foregroundStyle(FramwiseTheme.textMuted)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(
+            Capsule(style: .continuous)
+                .fill(FramwiseTheme.surfaceRaised)
+        )
+        .overlay(
+            Capsule(style: .continuous)
+                .stroke(FramwiseTheme.line.opacity(0.8), lineWidth: 1)
+        )
+    }
+
+    @ViewBuilder
+    private func modeChip(title: String, systemImage: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 11, weight: .semibold))
+                Text(title)
+            }
+            .font(.framwiseUI(12, weight: .medium))
+            .foregroundStyle(isSelected ? FramwiseTheme.textPrimary : FramwiseTheme.textMuted)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(isSelected ? FramwiseTheme.accentSoft : Color.clear)
+            )
+            .overlay(
+                Capsule(style: .continuous)
+                    .stroke(isSelected ? FramwiseTheme.accent.opacity(0.35) : Color.clear, lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var emptyResultsView: some View {
+        VStack(spacing: 14) {
+            Image(systemName: hasActiveFilters ? "line.3.horizontal.decrease.circle" : "film.stack")
+                .font(.system(size: 34, weight: .light))
+                .foregroundStyle(FramwiseTheme.textMuted.opacity(0.85))
+
+            Text(hasActiveFilters ? "No Clips Match Current Filters" : "No Clips In View")
+                .font(.framwiseDisplay(24, weight: .semibold))
+                .foregroundStyle(FramwiseTheme.textPrimary)
+
+            Text(emptyResultsExplanation)
+                .font(.framwiseUI(13))
+                .foregroundStyle(FramwiseTheme.textMuted)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 420)
+
+            if hasActiveFilters {
+                Button("Clear Filters") {
+                    gridViewModel.searchText = ""
+                    appState.selectedSourceURL = nil
+                    appState.importSession?.activeTagFilter = nil
+                    hideWasteClips = false
+                    gridViewModel.viewMode = .all
+                }
+                .buttonStyle(FramwisePrimaryButtonStyle())
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 48)
+        .framwisePanel(background: FramwiseTheme.surface, radius: 24)
     }
 
     private var filteredClips: [VideoClip] {
@@ -351,6 +485,32 @@ struct ClipGridView: View {
     private var wasteClipCount: Int {
         guard let session = appState.importSession else { return 0 }
         return session.allClips.filter { $0.wasteType != .none }.count
+    }
+
+    private var hasActiveFilters: Bool {
+        !gridViewModel.searchText.isEmpty ||
+        appState.selectedSourceURL != nil ||
+        appState.importSession?.activeTagFilter != nil ||
+        hideWasteClips ||
+        gridViewModel.viewMode != .all
+    }
+
+    private var emptyResultsExplanation: String {
+        if !gridViewModel.searchText.isEmpty {
+            return "Try loosening the search phrase or clearing the active chips to bring clips back into the light table."
+        }
+        if hasActiveFilters {
+            return "Current source, tag, selection, or waste filters are hiding every clip in this workspace."
+        }
+        return "This view does not have any clips to show yet."
+    }
+
+    private var groupsSummary: String {
+        let clipCount = groupedClips.flatMap(\.clips).count
+        if groupedClips.count > 1 {
+            return "\(clipCount) clips across active sources"
+        }
+        return "\(clipCount) clips on current reel"
     }
 
     private var visibleClipsInDisplayOrder: [VideoClip] {
@@ -396,7 +556,8 @@ struct ClipGridView: View {
         ))
         .overlay(
             dropTargetID == clip.id ?
-            RoundedRectangle(cornerRadius: 8).stroke(Color.accentColor, lineWidth: 3) : nil
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(FramwiseTheme.accent, lineWidth: 3) : nil
         )
         .opacity(draggedClipID == clip.id ? 0.3 : 1.0)
         .onHover { isHovering in
@@ -546,8 +707,18 @@ struct CollapsedTimelineView: View {
 
     private var fileColorMap: [URL: Color] {
         let colors: [Color] = [
-            .blue, .green, .orange, .purple, .pink, .cyan, .indigo, .mint,
-            .red, .yellow, .teal, .brown
+            FramwiseTheme.info,
+            FramwiseTheme.success,
+            FramwiseTheme.warning,
+            FramwiseTheme.accent,
+            Color(hex: "E58ACF"),
+            Color(hex: "58C7D1"),
+            Color(hex: "8EA6FF"),
+            Color(hex: "7DDDB8"),
+            FramwiseTheme.danger,
+            FramwiseTheme.warm,
+            Color(hex: "4FA89B"),
+            Color(hex: "A77A5B")
         ]
         return Dictionary(uniqueKeysWithValues:
             groups.enumerated().map { ($0.element.sourceURL, colors[$0.offset % colors.count]) }
@@ -586,8 +757,8 @@ struct CollapsedTimelineView: View {
         )
         .frame(height: 24)
         .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .background(Color(NSColor.controlBackgroundColor))
+        .padding(.vertical, 10)
+        .background(Color.clear)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Timeline navigation with \(allClips.count) clips")
     }
@@ -595,16 +766,25 @@ struct CollapsedTimelineView: View {
     // MARK: - Multi Track (per-source)
 
     private var multiTrackContent: some View {
-        VStack(spacing: 2) {
+        VStack(spacing: 8) {
             ForEach(groups, id: \.sourceURL) { group in
                 let groupMaxTime = max(group.clips.map { CMTimeGetSeconds($0.timecodeEnd) }.max() ?? 1, 0.001)
-                HStack(spacing: 4) {
-                    // Source label
-                    Text(group.sourceURL.deletingPathExtension().lastPathComponent)
-                        .font(.system(size: 8, design: .monospaced))
-                        .foregroundColor(.secondary)
+                HStack(spacing: 10) {
+                    Text(group.sourceURL.deletingPathExtension().lastPathComponent.uppercased())
+                        .font(.framwiseMono(9))
+                        .foregroundStyle(FramwiseTheme.textMuted)
                         .lineLimit(1)
-                        .frame(width: 60, alignment: .leading)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .frame(width: 120, alignment: .leading)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(FramwiseTheme.surfaceRaised)
+                        )
+                        .overlay(
+                            Capsule(style: .continuous)
+                                .stroke(FramwiseTheme.line.opacity(0.7), lineWidth: 1)
+                        )
 
                     TimelineGeometryReader(
                         allClips: group.clips,
@@ -617,13 +797,13 @@ struct CollapsedTimelineView: View {
                             hoveredClipID = hovering ? clipID : nil
                         }
                     )
-                    .frame(height: 16)
+                    .frame(height: 18)
                 }
             }
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 4)
-        .background(Color(NSColor.controlBackgroundColor))
+        .padding(.vertical, 10)
+        .background(Color.clear)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Timeline navigation with \(allClips.count) clips from \(groups.count) sources")
     }
@@ -670,11 +850,13 @@ struct TimelineContent: View {
 
     var body: some View {
         ZStack(alignment: .leading) {
-            // Background track
-            RoundedRectangle(cornerRadius: 3)
-                .fill(Color.secondary.opacity(0.15))
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(FramwiseTheme.surfaceRaised)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .stroke(FramwiseTheme.line.opacity(0.55), lineWidth: 1)
+                )
 
-            // Clip blocks
             Group {
                 ForEach(allClips) { clip in
                     ClipBlockView(
@@ -692,7 +874,6 @@ struct TimelineContent: View {
                 }
             }
 
-            // Time markers
             TimeMarkersView(totalDuration: maxTime, width: width)
         }
     }
@@ -728,7 +909,7 @@ struct ClipBlockView: View {
 
     private var fillColor: Color {
         if isSelected {
-            return .accentColor
+            return FramwiseTheme.accent
         } else if isHovered {
             return color.opacity(0.9)
         } else {
@@ -737,12 +918,12 @@ struct ClipBlockView: View {
     }
 
     var body: some View {
-        RoundedRectangle(cornerRadius: 2)
+        RoundedRectangle(cornerRadius: 4, style: .continuous)
             .fill(fillColor)
             .frame(width: blockWidth, height: 20)
             .overlay(
-                RoundedRectangle(cornerRadius: 2)
-                    .stroke(isSelected ? Color.white.opacity(0.5) : Color.clear, lineWidth: 1)
+                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                    .stroke(isSelected ? FramwiseTheme.warm.opacity(0.7) : Color.clear, lineWidth: 1)
             )
             .offset(x: xOffset)
             .onHover { hovering in
@@ -804,10 +985,10 @@ struct TimeMarkerView: View {
     var body: some View {
         VStack(spacing: 2) {
             Text(timeText)
-                .font(.system(size: 8, design: .monospaced))
-                .foregroundColor(.secondary.opacity(0.7))
+                .font(.framwiseMono(8))
+                .foregroundStyle(FramwiseTheme.textMuted.opacity(0.75))
             Rectangle()
-                .fill(Color.secondary.opacity(0.3))
+                .fill(FramwiseTheme.line.opacity(0.8))
                 .frame(width: 1, height: 4)
         }
         .offset(x: xPos)
@@ -817,129 +998,224 @@ struct TimeMarkerView: View {
 // MARK: - Clip Preview Modal
 
 struct ClipPreviewModal: View {
+    @EnvironmentObject var appState: AppState
     let clip: VideoClip
     @Binding var isPresented: Bool
 
     @StateObject private var viewModel = PreviewViewModel()
 
+    private var liveClip: VideoClip {
+        appState.importSession?.allClips.first(where: { $0.id == clip.id }) ?? clip
+    }
+
+    private var clipTags: [ClipTag] {
+        (appState.importSession?.tags ?? []).filter { liveClip.tagIDs.contains($0.id) }
+    }
+
+    private var isSelected: Bool {
+        appState.selectedClipIDs.contains(clip.id)
+    }
+
     var body: some View {
-        VStack(spacing: 0) {
-            // Header
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("PREVIEW MONITOR")
+                        .font(.framwiseMono(10))
+                        .foregroundStyle(FramwiseTheme.warm)
                     Text(clip.sourceFileName)
-                        .font(.headline)
+                        .font(.framwiseDisplay(24, weight: .semibold))
+                        .foregroundStyle(FramwiseTheme.textPrimary)
                         .lineLimit(1)
                     Text("\(clip.timecodeStartString) - \(clip.timecodeEndString)")
-                        .font(.system(.caption, design: .monospaced))
-                        .foregroundColor(.secondary)
+                        .font(.framwiseMono(11))
+                        .foregroundStyle(FramwiseTheme.textMuted)
                 }
                 Spacer()
                 Button(action: {
                     viewModel.cleanupPlayer()
                     isPresented = false
                 }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.title2)
-                        .foregroundColor(.secondary)
+                    Image(systemName: "xmark")
+                        .font(.system(size: 13, weight: .bold))
+                        .frame(width: 32, height: 32)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(FramwiseGhostButtonStyle(
+                    fill: FramwiseTheme.surfaceRaised,
+                    border: FramwiseTheme.line.opacity(0.8),
+                    foreground: FramwiseTheme.textMuted
+                ))
                 .keyboardShortcut(.escape, modifiers: [])
             }
-            .padding()
-            .background(Color(NSColor.windowBackgroundColor))
 
-            Divider()
-
-            // Video player
             ZStack {
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .fill(Color.black)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 22, style: .continuous)
+                            .stroke(FramwiseTheme.line.opacity(0.8), lineWidth: 1)
+                    )
+
                 if let error = viewModel.error {
-                    Rectangle()
-                        .fill(Color.black)
-                        .aspectRatio(16/9, contentMode: .fit)
-                        .overlay(
-                            VStack(spacing: 8) {
-                                Image(systemName: "exclamationmark.triangle")
-                                    .font(.title)
-                                    .foregroundColor(.secondary)
-                                Text(error.localizedDescription)
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                    .multilineTextAlignment(.center)
-                                    .padding(.horizontal, 24)
-                            }
-                        )
+                    VStack(spacing: 10) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.title2)
+                            .foregroundStyle(FramwiseTheme.warning)
+                        Text(error.localizedDescription)
+                            .font(.framwiseUI(13))
+                            .foregroundStyle(FramwiseTheme.textMuted)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 24)
+                    }
                 } else if let player = viewModel.player {
                     VideoPlayerView(player: player)
-                        .aspectRatio(16/9, contentMode: .fit)
-                        .background(Color.black)
+                        .aspectRatio(16 / 9, contentMode: .fit)
+                        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
                 } else {
-                    Rectangle()
-                        .fill(Color.black)
-                        .aspectRatio(16/9, contentMode: .fit)
-                        .overlay(
-                            ProgressView()
-                                .progressViewStyle(.circular)
-                                .tint(.white)
-                        )
+                    FramwiseLoadingIndicator(tint: FramwiseTheme.warm, diameter: 28)
                 }
             }
             .frame(maxWidth: .infinity)
 
-            Divider()
-
-            // Controls
-            HStack(spacing: 16) {
-                Button(action: { viewModel.togglePlayPause() }) {
-                    Image(systemName: viewModel.isPlaying ? "pause.fill" : "play.fill")
-                        .font(.title2)
-                        .frame(width: 32, height: 32)
-                }
-                .buttonStyle(.plain)
-
-                // Progress bar
-                GeometryReader { geometry in
-                    ZStack(alignment: .leading) {
-                        Rectangle()
-                            .fill(Color.secondary.opacity(0.3))
-                            .frame(height: 4)
-                            .cornerRadius(2)
-
-                        Rectangle()
-                            .fill(Color.accentColor)
-                            .frame(width: max(0, min(geometry.size.width * (viewModel.currentTime / max(viewModel.duration, 1)), geometry.size.width)), height: 4)
-                            .cornerRadius(2)
+            VStack(spacing: 12) {
+                HStack(spacing: 12) {
+                    Button(action: { viewModel.togglePlayPause() }) {
+                        Image(systemName: viewModel.isPlaying ? "pause.fill" : "play.fill")
+                            .font(.system(size: 16, weight: .semibold))
+                            .frame(width: 38, height: 38)
                     }
-                    .gesture(
-                        DragGesture(minimumDistance: 0)
-                            .onChanged { value in
-                                let progress = max(0, min(1, value.location.x / geometry.size.width))
-                                let targetTime = progress * viewModel.duration
-                                viewModel.currentTime = targetTime
-                                viewModel.seek(to: targetTime)
-                            }
-                            .onEnded { value in
-                                let progress = max(0, min(1, value.location.x / geometry.size.width))
-                                viewModel.seek(to: progress * viewModel.duration)
-                            }
-                    )
-                }
-                .frame(height: 20)
+                    .buttonStyle(FramwiseGhostButtonStyle(
+                        fill: FramwiseTheme.accentSoft,
+                        border: FramwiseTheme.accent.opacity(0.35),
+                        foreground: FramwiseTheme.textPrimary
+                    ))
 
-                Text("\(formatTime(viewModel.currentTime)) / \(formatTime(viewModel.duration))")
-                    .font(.system(.caption, design: .monospaced))
-                    .foregroundColor(.secondary)
-                    .frame(width: 100)
+                    GeometryReader { geometry in
+                        ZStack(alignment: .leading) {
+                            Capsule(style: .continuous)
+                                .fill(FramwiseTheme.surfaceRaised)
+                                .frame(height: 6)
 
-                Button(action: { viewModel.seek(to: 0) }) {
-                    Image(systemName: "backward.end.fill")
+                            Capsule(style: .continuous)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [FramwiseTheme.accent, FramwiseTheme.warm.opacity(0.85)],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                                .frame(width: max(0, min(geometry.size.width * (viewModel.currentTime / max(viewModel.duration, 1)), geometry.size.width)), height: 6)
+                        }
+                        .gesture(
+                            DragGesture(minimumDistance: 0)
+                                .onChanged { value in
+                                    let progress = max(0, min(1, value.location.x / geometry.size.width))
+                                    let targetTime = progress * viewModel.duration
+                                    viewModel.currentTime = targetTime
+                                    viewModel.seek(to: targetTime)
+                                }
+                                .onEnded { value in
+                                    let progress = max(0, min(1, value.location.x / geometry.size.width))
+                                    viewModel.seek(to: progress * viewModel.duration)
+                                }
+                        )
+                    }
+                    .frame(height: 20)
+
+                    Text("\(formatTime(viewModel.currentTime)) / \(formatTime(viewModel.duration))")
+                        .font(.framwiseMono(11))
+                        .foregroundStyle(FramwiseTheme.textMuted)
+                        .frame(width: 110, alignment: .trailing)
+
+                    Button(action: { viewModel.seek(to: 0) }) {
+                        Image(systemName: "backward.end.fill")
+                            .font(.system(size: 14, weight: .semibold))
+                            .frame(width: 36, height: 36)
+                    }
+                    .buttonStyle(FramwiseGhostButtonStyle())
                 }
-                .buttonStyle(.plain)
+
+                HStack(spacing: 12) {
+                    FramwiseMetricBadge(title: "IN", value: clip.timecodeStartString, color: FramwiseTheme.textPrimary)
+                    FramwiseMetricBadge(title: "OUT", value: clip.timecodeEndString, color: FramwiseTheme.textPrimary)
+                    FramwiseMetricBadge(title: "DURATION", value: clip.durationString, color: FramwiseTheme.textPrimary)
+                }
+
+                HStack(spacing: 10) {
+                    Button(action: toggleSelection) {
+                        Label(
+                            isSelected ? "Selected" : "Add to Selection",
+                            systemImage: isSelected ? "checkmark.circle.fill" : "plus.circle"
+                        )
+                    }
+                    .buttonStyle(FramwiseGhostButtonStyle(
+                        fill: isSelected ? FramwiseTheme.accentSoft : FramwiseTheme.surfaceRaised,
+                        border: isSelected ? FramwiseTheme.accent.opacity(0.35) : FramwiseTheme.line.opacity(0.8),
+                        foreground: isSelected ? FramwiseTheme.textPrimary : FramwiseTheme.textMuted
+                    ))
+
+                    if liveClip.wasteType != .none {
+                        HStack(spacing: 8) {
+                            Circle()
+                                .fill(FramwiseTheme.danger)
+                                .frame(width: 8, height: 8)
+                            Text(liveClip.wasteType.rawValue.uppercased())
+                                .font(.framwiseMono(10))
+                                .foregroundStyle(FramwiseTheme.textPrimary)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(FramwiseTheme.danger.opacity(0.12))
+                        )
+                        .overlay(
+                            Capsule(style: .continuous)
+                                .stroke(FramwiseTheme.danger.opacity(0.28), lineWidth: 1)
+                        )
+                    }
+
+                    Spacer()
+
+                    Text("SPACE play/pause  ·  ESC close")
+                        .font(.framwiseMono(10))
+                        .foregroundStyle(FramwiseTheme.textMuted)
+                }
+
+                if !clipTags.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(clipTags) { tag in
+                                HStack(spacing: 8) {
+                                    Circle()
+                                        .fill(tag.color.systemColor)
+                                        .frame(width: 8, height: 8)
+                                    Text(tag.name)
+                                        .lineLimit(1)
+                                }
+                                .font(.framwiseUI(12, weight: .medium))
+                                .foregroundStyle(FramwiseTheme.textPrimary)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(
+                                    Capsule(style: .continuous)
+                                        .fill(tag.color.systemColor.opacity(0.14))
+                                )
+                                .overlay(
+                                    Capsule(style: .continuous)
+                                        .stroke(tag.color.systemColor.opacity(0.28), lineWidth: 1)
+                                )
+                            }
+                        }
+                    }
+                }
             }
-            .padding()
-            .background(Color(NSColor.windowBackgroundColor))
+            .padding(16)
+            .framwisePanel(background: FramwiseTheme.surface, radius: 20)
         }
-        .frame(width: 640, height: 480)
+        .padding(20)
+        .frame(width: 760, height: 560)
+        .background(FramwiseTheme.background)
         .focusable()
         .onKeyPress(.space) {
             viewModel.togglePlayPause()
@@ -958,6 +1234,15 @@ struct ClipPreviewModal: View {
         let minutes = totalSeconds / 60
         let secs = totalSeconds % 60
         return String(format: "%02d:%02d", minutes, secs)
+    }
+
+    private func toggleSelection() {
+        if isSelected {
+            appState.selectedClipIDs.remove(clip.id)
+        } else {
+            appState.selectedClipIDs.insert(clip.id)
+        }
+        appState.updatePreviewFromSelection()
     }
 }
 

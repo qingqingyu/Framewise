@@ -24,149 +24,146 @@ struct ClipCellView: View {
     @State private var loadTask: Task<Void, Never>?
 
     private var isWaste: Bool { clip.wasteType != .none }
+    private var displayTags: [ClipTag] { Array(tags.filter { clip.tagIDs.contains($0.id) }.prefix(4)) }
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 0.15)) { context in
             ZStack(alignment: .bottomLeading) {
-                // Thumbnail
                 Group {
                     if let currentThumbnail = thumbnails[safe: currentThumbnailIndex] {
                         Image(nsImage: currentThumbnail.nsImage)
                             .resizable()
                             .aspectRatio(contentMode: .fill)
                     } else if isLoading {
-                        // Loading placeholder
                         Rectangle()
-                            .fill(Color.secondary.opacity(0.2))
+                            .fill(FramwiseTheme.surfaceRaised)
                             .overlay(
-                                ProgressView()
-                                    .scaleEffect(0.5)
+                                FramwiseLoadingIndicator(tint: FramwiseTheme.accent, diameter: 18)
                             )
                     } else {
-                        // Fallback
                         Rectangle()
-                            .fill(Color.secondary.opacity(0.1))
+                            .fill(FramwiseTheme.surfaceRaised)
                             .overlay(
                                 Image(systemName: "film")
                                     .font(.largeTitle)
-                                    .foregroundColor(.secondary)
+                                    .foregroundStyle(FramwiseTheme.textMuted)
                             )
                     }
                 }
                 .frame(width: size.width, height: size.height)
                 .clipped()
-                .cornerRadius(8)
+                .overlay(FramwiseTheme.monitorGradient)
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 
-                // Selection indicator
                 if isSelected {
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.accentColor, lineWidth: 3)
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(FramwiseTheme.accent, lineWidth: 2)
                         .frame(width: size.width, height: size.height)
 
                     VStack {
                         HStack {
+                            statusBadge(
+                                text: "SELECTED",
+                                systemImage: "checkmark.circle.fill",
+                                color: FramwiseTheme.accent
+                            )
+                            .padding(10)
                             Spacer()
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.title2)
-                                .foregroundColor(.accentColor)
-                                .padding(6)
-                                .background(Color.white.opacity(0.8))
-                                .clipShape(Circle())
-                                .padding(6)
                         }
                         Spacer()
                     }
                 }
 
-                // Hover effect
                 if isHovering && !isSelected {
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.white.opacity(0.5), lineWidth: 2)
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(FramwiseTheme.warm.opacity(0.45), lineWidth: 1)
                         .frame(width: size.width, height: size.height)
                 }
 
-                // Waste overlay
                 if isWaste {
-                    // Red tint overlay
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.red.opacity(0.4))
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    FramwiseTheme.danger.opacity(0.1),
+                                    FramwiseTheme.danger.opacity(0.36)
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
                         .frame(width: size.width, height: size.height)
 
-                    // Waste badge
                     VStack {
                         HStack {
-                            HStack(spacing: 3) {
-                                Image(systemName: "trash")
-                                    .font(.system(size: 9))
-                                Text(wasteLabel)
-                                    .font(.system(size: 9, weight: .semibold))
-                            }
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 3)
-                            .background(Color.red.opacity(0.85))
-                            .cornerRadius(4)
-                            .padding(6)
+                            statusBadge(text: wasteLabel.uppercased(), systemImage: "trash.fill", color: FramwiseTheme.danger)
+                                .padding(10)
                             Spacer()
                         }
                         Spacer()
                     }
                 }
 
-                // Info overlay
                 VStack {
                     Spacer()
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            // Tag dots (sorted by tag order in session, not UUID)
-                            if !clip.tagIDs.isEmpty {
-                                HStack(spacing: 3) {
-                                    ForEach(Array(tags.filter { clip.tagIDs.contains($0.id) }.prefix(4))) { tag in
-                                        Circle()
-                                            .fill(tag.color.systemColor)
-                                            .frame(width: 6, height: 6)
-                                    }
-                                    if clip.tagIDs.count > 4 {
-                                        Text("+\(clip.tagIDs.count - 4)")
-                                            .font(.system(size: 8))
-                                            .foregroundColor(.white)
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack(alignment: .top) {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(clip.durationString.uppercased())
+                                    .font(.framwiseMono(10))
+                                    .foregroundStyle(FramwiseTheme.warm)
+
+                                Text(clip.timecodeStartString)
+                                    .font(.framwiseMono(11))
+                                    .foregroundStyle(.white)
+
+                                if !displayTags.isEmpty {
+                                    HStack(spacing: 5) {
+                                        ForEach(displayTags) { tag in
+                                            Circle()
+                                                .fill(tag.color.systemColor)
+                                                .frame(width: 7, height: 7)
+                                        }
+                                        if clip.tagIDs.count > 4 {
+                                            Text("+\(clip.tagIDs.count - 4)")
+                                                .font(.framwiseMono(10))
+                                                .foregroundStyle(.white.opacity(0.9))
+                                        }
                                     }
                                 }
                             }
 
-                            Text(clip.durationString)
-                                .font(.caption)
-                                .fontWeight(.semibold)
+                            Spacer(minLength: 8)
 
-                            Text(clip.timecodeStartString)
-                                .font(.system(size: 9))
+                            VStack(alignment: .trailing, spacing: 6) {
+                                Image(systemName: "video.fill")
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundStyle(.white.opacity(0.82))
+                                Text(shortSourceName)
+                                    .font(.framwiseMono(10))
+                                    .foregroundStyle(.white.opacity(0.7))
+                                    .lineLimit(1)
+                            }
                         }
-                        .foregroundColor(.white)
-
-                        Spacer()
-
-                        // Source indicator
-                        Image(systemName: "video.fill")
-                            .font(.caption)
-                            .foregroundColor(.white.opacity(0.8))
                     }
-                    .padding(8)
+                    .padding(12)
                     .background(
                         LinearGradient(
-                            colors: [Color.black.opacity(0.7), Color.clear],
+                            colors: [Color.black.opacity(0.84), Color.black.opacity(0.0)],
                             startPoint: .bottom,
                             endPoint: .top
                         )
                     )
-                    .cornerRadius(8, corners: [.bottomLeft, .bottomRight])
+                    .cornerRadius(14, corners: [.bottomLeft, .bottomRight])
                 }
                 .frame(width: size.width, height: size.height)
             }
+            .shadow(color: .black.opacity(isHovering ? 0.34 : 0.24), radius: isHovering ? 18 : 12, y: isHovering ? 10 : 6)
+            .scaleEffect(isHovering ? 1.01 : 1)
             .onHover { hovering in
                 isHovering = hovering
             }
             .onChange(of: context.date) {
-                // Advance thumbnail animation on each timeline tick
                 guard isAnimating && isVisible && thumbnails.count > 1 else { return }
                 withAnimation(.easeInOut(duration: 0.1)) {
                     currentThumbnailIndex = (currentThumbnailIndex + 1) % thumbnails.count
@@ -190,6 +187,10 @@ struct ClipCellView: View {
         }
     }
 
+    private var shortSourceName: String {
+        clip.sourceFileURL.deletingPathExtension().lastPathComponent.prefix(8).uppercased()
+    }
+
     private var wasteLabel: String {
         switch clip.wasteType {
         case .blackout: return "Blackout"
@@ -199,8 +200,24 @@ struct ClipCellView: View {
         }
     }
 
+    @ViewBuilder
+    private func statusBadge(text: String, systemImage: String, color: Color) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: systemImage)
+                .font(.system(size: 9, weight: .bold))
+            Text(text)
+                .font(.framwiseMono(10))
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .background(
+            Capsule(style: .continuous)
+                .fill(color.opacity(0.88))
+        )
+    }
+
     private func loadThumbnails() {
-        // Cancel any in-flight load
         loadTask?.cancel()
         isLoading = true
         thumbnails = []

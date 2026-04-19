@@ -16,38 +16,75 @@ struct DropZoneView: View {
     @State private var showFileImporter = false
 
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 28) {
             Spacer()
 
-            // Drop zone
-            ZStack {
-                RoundedRectangle(cornerRadius: 20)
-                    .strokeBorder(
-                        style: StrokeStyle(lineWidth: 3, dash: [12, 6])
-                    )
-                    .foregroundColor(isTargeted ? .accentColor : .secondary.opacity(0.5))
-                    .background(
-                        RoundedRectangle(cornerRadius: 20)
-                            .fill(isTargeted ? Color.accentColor.opacity(0.1) : Color.clear)
-                    )
-                    .frame(width: 400, height: 250)
+            VStack(spacing: 20) {
+                Text("DIGITAL LIGHT TABLE")
+                    .font(.framwiseMono(11))
+                    .foregroundStyle(FramwiseTheme.warm)
 
-                VStack(spacing: 16) {
-                    Image(systemName: "film.stack")
-                        .font(.system(size: 60))
-                        .foregroundColor(isTargeted ? .accentColor : .secondary)
+                VStack(spacing: 12) {
+                    Text("Import footage, then\nstart making judgments.")
+                        .font(.framwiseDisplay(42, weight: .semibold))
+                        .foregroundStyle(FramwiseTheme.textPrimary)
+                        .multilineTextAlignment(.center)
 
-                    Text("Drag & Drop Video Files")
-                        .font(.title2)
-                        .foregroundColor(isTargeted ? .accentColor : .primary)
+                    Text("Framwise is built for the fast pass before the real edit: ingest, split, scan, reject, tag, and hand off only the clips worth touching.")
+                        .font(.framwiseUI(15))
+                        .foregroundStyle(FramwiseTheme.textMuted)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: 620)
+                }
 
-                    Text("or")
-                        .foregroundColor(.secondary)
+                ZStack {
+                    RoundedRectangle(cornerRadius: 28, style: .continuous)
+                        .fill(FramwiseTheme.surface.opacity(0.88))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                                .fill(FramwiseTheme.subtleHighlight.opacity(0.55))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                                .strokeBorder(
+                                    style: StrokeStyle(lineWidth: 1.6, dash: [12, 8])
+                                )
+                                .foregroundStyle(isTargeted ? FramwiseTheme.accent : FramwiseTheme.line)
+                        )
+                        .frame(width: 580, height: 320)
 
-                    Button("Choose Files") {
-                        showFileImporter = true
+                    VStack(spacing: 18) {
+                        ZStack {
+                            Circle()
+                                .fill(isTargeted ? FramwiseTheme.accentSoft : FramwiseTheme.surfaceRaised)
+                            Image(systemName: "film.stack.fill")
+                                .font(.system(size: 30, weight: .semibold))
+                                .foregroundStyle(isTargeted ? FramwiseTheme.accent : FramwiseTheme.warm)
+                        }
+                        .frame(width: 74, height: 74)
+
+                        VStack(spacing: 8) {
+                            Text(isTargeted ? "Release to Import" : "Drop Video Files")
+                                .font(.framwiseDisplay(26, weight: .semibold))
+                                .foregroundStyle(FramwiseTheme.textPrimary)
+
+                            Text("Supports MOV, MP4, MPEG4, and QuickTime footage. Multiple reels are fine.")
+                                .font(.framwiseUI(13))
+                                .foregroundStyle(FramwiseTheme.textMuted)
+                                .multilineTextAlignment(.center)
+                        }
+
+                        HStack(spacing: 10) {
+                            Button(action: { showFileImporter = true }) {
+                                Label("Choose Files", systemImage: "plus")
+                            }
+                            .buttonStyle(FramwisePrimaryButtonStyle())
+
+                            Text("or drag them straight into the bay")
+                                .font(.framwiseUI(13))
+                                .foregroundStyle(FramwiseTheme.textMuted)
+                        }
                     }
-                    .buttonStyle(.borderedProminent)
                 }
             }
             .onDrop(of: [.fileURL], isTargeted: $isTargeted) { providers in
@@ -55,99 +92,100 @@ struct DropZoneView: View {
                 return true
             }
 
-            // Supported formats
-            VStack(spacing: 8) {
-                Text("Supported Formats")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-
-                HStack(spacing: 12) {
-                    ForEach(["MP4", "MOV", "MXF", "AVI", "MKV"], id: \.self) { format in
-                        Text(format)
-                            .font(.caption)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Color.secondary.opacity(0.1))
-                            .cornerRadius(4)
-                    }
+            HStack(spacing: 12) {
+                ForEach(["MOV", "MP4", "MPEG4", "QuickTime"], id: \.self) { format in
+                    Text(format)
+                        .font(.framwiseMono(11))
+                        .foregroundStyle(FramwiseTheme.textMuted)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(FramwiseTheme.surfaceRaised)
+                        )
+                        .overlay(
+                            Capsule(style: .continuous)
+                                .stroke(FramwiseTheme.line.opacity(0.7), lineWidth: 1)
+                        )
                 }
             }
 
-            Spacer()
-
-            // Import progress
             if importViewModel.isImporting {
-                VStack(spacing: 12) {
-                    // File progress (only show when multiple files)
+                VStack(spacing: 14) {
                     if importViewModel.totalFilesCount > 1 {
-                        VStack(spacing: 4) {
+                        VStack(spacing: 6) {
                             HStack {
                                 Text("Files")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                                    .font(.framwiseUI(12))
+                                    .foregroundStyle(FramwiseTheme.textMuted)
                                 Spacer()
                                 Text("\(Int(importViewModel.importProgress * 100))%")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                                    .font(.framwiseMono(11))
+                                    .foregroundStyle(FramwiseTheme.textMuted)
                             }
-                            ProgressView(value: importViewModel.importProgress)
+                            FramwiseLinearProgress(value: importViewModel.importProgress, tint: FramwiseTheme.accent)
                         }
-                        .frame(width: 300)
+                        .frame(width: 360)
                     }
 
-                    // Analysis progress (if analyzing)
                     if importViewModel.isAnalyzing {
-                        VStack(spacing: 4) {
+                        VStack(spacing: 6) {
                             HStack {
                                 Text("Analyzing \(importViewModel.currentVideoName)")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                                    .font(.framwiseUI(12))
+                                    .foregroundStyle(FramwiseTheme.textMuted)
                                     .lineLimit(1)
                                 Spacer()
                                 Text("\(Int(importViewModel.analyzingProgress * 100))%")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                                    .font(.framwiseMono(11))
+                                    .foregroundStyle(FramwiseTheme.textMuted)
                             }
-                            ProgressView(value: importViewModel.analyzingProgress)
-                                .tint(.orange)
+                            FramwiseLinearProgress(value: importViewModel.analyzingProgress, tint: FramwiseTheme.warning)
                         }
-                        .frame(width: 300)
+                        .frame(width: 360)
 
-                        // Clips found count
-                        HStack {
-                            Image(systemName: "film")
-                                .foregroundColor(.accentColor)
+                        HStack(spacing: 8) {
+                            Image(systemName: "film.fill")
+                                .foregroundStyle(FramwiseTheme.accent)
                             if let session = appState.importSession, session.clipCount > importViewModel.clipsFoundCount {
-                                Text("\(importViewModel.clipsFoundCount) new (\(session.clipCount) total)")
-                                    .font(.headline)
+                                Text("\(importViewModel.clipsFoundCount) new / \(session.clipCount) total clips")
+                                    .font(.framwiseUI(14, weight: .medium))
+                                    .foregroundStyle(FramwiseTheme.textPrimary)
                             } else {
                                 Text("\(importViewModel.clipsFoundCount) clips found")
-                                    .font(.headline)
+                                    .font(.framwiseUI(14, weight: .medium))
+                                    .foregroundStyle(FramwiseTheme.textPrimary)
                             }
                         }
-                        .padding(.top, 4)
                     }
                 }
-                .padding()
-                .background(Color.secondary.opacity(0.1))
-                .cornerRadius(8)
+                .padding(18)
+                .framwisePanel(background: FramwiseTheme.surface, radius: 20)
             }
 
-            // Error display
             if let error = importViewModel.error {
                 HStack {
                     Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundColor(.red)
+                        .foregroundStyle(FramwiseTheme.danger)
                     Text(error.localizedDescription)
-                        .font(.caption)
-                        .foregroundColor(.red)
+                        .font(.framwiseUI(12))
+                        .foregroundStyle(FramwiseTheme.textPrimary)
                 }
-                .padding()
-                .background(Color.red.opacity(0.1))
-                .cornerRadius(8)
+                .padding(14)
+                .background(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(FramwiseTheme.danger.opacity(0.08))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .stroke(FramwiseTheme.danger.opacity(0.22), lineWidth: 1)
+                )
             }
+
+            Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(FramwiseTheme.appGradient)
         .fileImporter(
             isPresented: $showFileImporter,
             allowedContentTypes: [.movie, .video, .mpeg4Movie, .quickTimeMovie],

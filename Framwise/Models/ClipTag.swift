@@ -23,14 +23,14 @@ struct ClipTag: Identifiable, Hashable, Codable {
 
         var systemColor: Color {
             switch self {
-            case .red: return .red
-            case .orange: return .orange
-            case .yellow: return .yellow
-            case .green: return .green
-            case .blue: return .blue
-            case .purple: return .purple
-            case .pink: return .pink
-            case .gray: return .gray
+            case .red: return FramwiseTheme.danger
+            case .orange: return FramwiseTheme.warning
+            case .yellow: return FramwiseTheme.warm
+            case .green: return FramwiseTheme.success
+            case .blue: return FramwiseTheme.info
+            case .purple: return FramwiseTheme.accent
+            case .pink: return Color(hex: "E58ACF")
+            case .gray: return Color(hex: "6E778A")
             }
         }
 
