@@ -29,8 +29,8 @@ struct ClipTag: Identifiable, Hashable, Codable {
             case .green: return FramwiseTheme.success
             case .blue: return FramwiseTheme.info
             case .purple: return FramwiseTheme.accent
-            case .pink: return Color(hex: "E58ACF")
-            case .gray: return Color(hex: "6E778A")
+            case .pink: return FramwiseTheme.tagPink
+            case .gray: return FramwiseTheme.tagGray
             }
         }
 

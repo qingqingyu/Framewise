@@ -29,6 +29,7 @@
 - **Loading strategy:**
   - 首选：如果项目可合法使用商业字体，优先 `Söhne` + `Berkeley Mono`。
   - 默认可落地方案：`Instrument Sans` + `Source Han Sans SC` + `IBM Plex Mono`。
+  - **当前实际实现**：使用 macOS 系统字体（`.system` + `.monospaced` design），无打包自定义字体。待获取字体授权并打入 bundle 后再切换到自定义字体方案。
   - 未明确获得授权前，不要把商业字体当作唯一线上依赖。
 - **Scale:**
   - `display-xl`: 56px / 0.96

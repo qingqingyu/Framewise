@@ -118,9 +118,8 @@ class ImportSession: ObservableObject {
         let existingNames = Set(tags.filter { $0.id != tagID }.map { normalizeTagName($0.name) })
         guard !existingNames.contains(normalizeTagName(trimmedName)) else { return false }
 
-        if let index = tags.firstIndex(where: { $0.id == tagID }) {
-            tags[index].name = trimmedName
-        }
+        guard let index = tags.firstIndex(where: { $0.id == tagID }) else { return false }
+        tags[index].name = trimmedName
         return true
     }
 

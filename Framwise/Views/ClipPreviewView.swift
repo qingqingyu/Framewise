@@ -68,6 +68,18 @@ struct ClipPreviewView: View {
 
                 Spacer()
 
+                Button(action: { viewModel.cyclePlaybackRate() }) {
+                    Text(formatRate(viewModel.playbackRate))
+                        .font(.framwiseMono(11))
+                        .frame(minWidth: 36, minHeight: 36)
+                }
+                .buttonStyle(FramwiseGhostButtonStyle(
+                    fill: FramwiseTheme.surfaceRaised,
+                    border: FramwiseTheme.warning.opacity(0.35),
+                    foreground: FramwiseTheme.warning
+                ))
+                .help("Playback speed (click to cycle)")
+
                 Button(action: { viewModel.seek(to: 0) }) {
                     Image(systemName: "backward.end.fill")
                         .font(.system(size: 14, weight: .semibold))
@@ -181,6 +193,12 @@ struct ClipPreviewView: View {
         let minutes = totalSeconds / 60
         let secs = totalSeconds % 60
         return String(format: "%02d:%02d", minutes, secs)
+    }
+
+    private func formatRate(_ rate: Float) -> String {
+        rate.truncatingRemainder(dividingBy: 1) == 0
+            ? String(format: "%.0fx", rate)
+            : String(format: "%.1fx", rate)
     }
 }
 

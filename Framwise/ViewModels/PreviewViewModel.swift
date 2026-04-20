@@ -17,6 +17,9 @@ class PreviewViewModel: ObservableObject {
     @Published var duration: Double = 0
     @Published var currentClip: VideoClip?
     @Published var error: Error?
+    @Published var playbackRate: Float = 2.0
+
+    static let availableRates: [Float] = [1.0, 1.5, 2.0, 3.0, 4.0]
 
     private var timeObserver: Any?
     private var cancellables = Set<AnyCancellable>()
@@ -88,15 +91,26 @@ class PreviewViewModel: ObservableObject {
             .store(in: &cancellables)
     }
 
-    /// Start playback
+    /// Start playback at the configured rate
     func play() {
         guard let player = player else { return }
         if let clip = currentClip, duration > 0, currentTime >= max(duration - 0.05, 0) {
             currentTime = 0
             player.seek(to: clip.timecodeStart, toleranceBefore: .zero, toleranceAfter: .zero)
         }
-        player.play()
+        player.rate = playbackRate
         isPlaying = true
+    }
+
+    func cyclePlaybackRate() {
+        guard let idx = Self.availableRates.firstIndex(of: playbackRate) else {
+            playbackRate = 2.0
+            return
+        }
+        playbackRate = Self.availableRates[(idx + 1) % Self.availableRates.count]
+        if isPlaying {
+            player?.rate = playbackRate
+        }
     }
 
     func playIfCurrent(_ candidatePlayer: AVPlayer) {
