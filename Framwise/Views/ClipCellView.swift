@@ -196,6 +196,7 @@ struct ClipCellView: View {
         case .blackout: return "Blackout"
         case .dark: return "Dark"
         case .solid: return "Solid"
+        case .blurry: return "Blurry"
         case .none: return ""
         }
     }

@@ -34,6 +34,7 @@
 		'A2000001' = {isa = PBXBuildFile; fileRef = B2000001; };
 		AFC046459BDAB56479818668 /* ClipTag.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE0A4EDE9A1EA5BB62085D5B /* ClipTag.swift */; };
 		E6BF493CAE38242E3396B0CE /* TagCreateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 506A4184A4530FAFF2D72E23 /* TagCreateView.swift */; };
+		FD1A2B3C4D5E6F7890AB0002 /* FramwiseDesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD1A2B3C4D5E6F7890AB0001 /* FramwiseDesignSystem.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -75,6 +76,7 @@
 		555E5510F850440AB11DC2AE /* ImportSessionTagTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportSessionTagTests.swift; sourceTree = "<group>"; };
 		4A595C1BF4904D87A1866767 /* ClipGridViewModelTagTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipGridViewModelTagTests.swift; sourceTree = "<group>"; };
 		CE0A4EDE9A1EA5BB62085D5B /* ClipTag.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ClipTag.swift; path = Framwise/Models/ClipTag.swift; sourceTree = SOURCE_ROOT; };
+		FD1A2B3C4D5E6F7890AB0001 /* FramwiseDesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FramwiseDesignSystem.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -114,6 +116,7 @@
 				D1000007,
 				D1000008,
 				D1000009,
+				FD1A2B3C4D5E6F7890AB0003,
 				B1000015,
 			);
 			path = Framwise;
@@ -196,6 +199,14 @@
 				B1000014,
 			);
 			path = Resources;
+			sourceTree = "<group>";
+		};
+		FD1A2B3C4D5E6F7890AB0003 = {
+			isa = PBXGroup;
+			children = (
+				FD1A2B3C4D5E6F7890AB0001 /* FramwiseDesignSystem.swift */,
+			);
+			path = Theme;
 			sourceTree = "<group>";
 		};
 		'D2000000' = {
@@ -328,6 +339,7 @@
 				A1000019,
 				AFC046459BDAB56479818668 /* ClipTag.swift in Sources */,
 				E6BF493CAE38242E3396B0CE /* TagCreateView.swift in Sources */,
+				FD1A2B3C4D5E6F7890AB0002 /* FramwiseDesignSystem.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

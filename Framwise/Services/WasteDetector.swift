@@ -2,7 +2,7 @@
 //  WasteDetector.swift
 //  Framwise
 //
-//  Detects waste clips (blackout, dark, solid) by sampling frames
+//  Detects waste clips (blackout, dark, solid, blurry) by sampling frames
 //
 
 import Foundation
@@ -14,6 +14,7 @@ import CoreGraphics
 private struct FrameAnalysis {
     let meanBrightness: Double
     let brightnessStdDev: Double
+    let laplacianVariance: Double
 }
 
 actor WasteDetector {
@@ -26,6 +27,9 @@ actor WasteDetector {
     private let darkThreshold: Double = 25.0
     /// Solid: brightness std dev < 5/255
     private let solidThreshold: Double = 5.0
+    /// Blurry: Laplacian variance below this value indicates out-of-focus content.
+    /// Scale is 0–65025 (255^2) for 8-bit grayscale; sharp frames typically >200.
+    private let blurryThreshold: Double = 100.0
     /// Minimum votes (out of 3 samples) to mark as waste
     private let requiredVotes: Int = 2
 
@@ -104,22 +108,21 @@ actor WasteDetector {
             space: colorSpace,
             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
         ) else {
-            return FrameAnalysis(meanBrightness: 128, brightnessStdDev: 50)
+            return FrameAnalysis(meanBrightness: 128, brightnessStdDev: 50, laplacianVariance: 500)
         }
 
         context.draw(cgImage, in: CGRect(x: 0, y: 0, width: size, height: size))
 
         guard let pixelData = context.data else {
-            return FrameAnalysis(meanBrightness: 128, brightnessStdDev: 50)
+            return FrameAnalysis(meanBrightness: 128, brightnessStdDev: 50, laplacianVariance: 500)
         }
 
         let pixels = pixelData.assumingMemoryBound(to: UInt8.self)
         let pixelCount = size * size
 
-        // First pass: compute mean brightness
+        // Build grayscale buffer and compute brightness stats in one pass
         var sum: Double = 0
-        var brightnesses: [Double] = []
-        brightnesses.reserveCapacity(pixelCount)
+        var grays = [Double](repeating: 0, count: pixelCount)
 
         for y in 0..<size {
             for x in 0..<size {
@@ -128,27 +131,59 @@ actor WasteDetector {
                            + Double(pixels[offset + 1]) * 0.587
                            + Double(pixels[offset + 2]) * 0.114
                 sum += gray
-                brightnesses.append(gray)
+                grays[y * size + x] = gray
             }
         }
 
         let mean = sum / Double(pixelCount)
 
-        // Second pass: compute standard deviation
         var varianceSum: Double = 0
-        for b in brightnesses {
-            let diff = b - mean
+        for g in grays {
+            let diff = g - mean
             varianceSum += diff * diff
         }
         let stdDev = sqrt(varianceSum / Double(pixelCount))
 
-        return FrameAnalysis(meanBrightness: mean, brightnessStdDev: stdDev)
+        // Laplacian variance for blur detection.
+        // 3x3 kernel: [0,1,0; 1,-4,1; 0,1,0] applied to interior pixels.
+        let laplacianVariance = computeLaplacianVariance(grays: grays, size: size)
+
+        return FrameAnalysis(meanBrightness: mean, brightnessStdDev: stdDev, laplacianVariance: laplacianVariance)
+    }
+
+    /// Convolve with Laplacian kernel and return variance of the response.
+    /// High variance = sharp edges present; low variance = blurry / out-of-focus.
+    private func computeLaplacianVariance(grays: [Double], size: Int) -> Double {
+        let interiorCount = (size - 2) * (size - 2)
+        guard interiorCount > 0 else { return 500 }
+
+        var lapSum: Double = 0
+        var lapSqSum: Double = 0
+
+        for y in 1..<(size - 1) {
+            for x in 1..<(size - 1) {
+                let center = grays[y * size + x]
+                let top    = grays[(y - 1) * size + x]
+                let bottom = grays[(y + 1) * size + x]
+                let left   = grays[y * size + (x - 1)]
+                let right  = grays[y * size + (x + 1)]
+
+                let lap = top + bottom + left + right - 4.0 * center
+                lapSum += lap
+                lapSqSum += lap * lap
+            }
+        }
+
+        let lapMean = lapSum / Double(interiorCount)
+        return (lapSqSum / Double(interiorCount)) - (lapMean * lapMean)
     }
 
     // MARK: - Classification
 
     private func classifyFrame(_ frame: FrameAnalysis) -> WasteType {
-        // Check in priority order: blackout > dark > solid
+        // Priority: blackout > dark > solid > blurry
+        // Blur check is last because black/dark/solid frames naturally
+        // have low Laplacian variance and should not be double-classified.
         if frame.meanBrightness < blackoutThreshold {
             return .blackout
         }
@@ -157,6 +192,9 @@ actor WasteDetector {
         }
         if frame.brightnessStdDev < solidThreshold {
             return .solid
+        }
+        if frame.laplacianVariance < blurryThreshold {
+            return .blurry
         }
         return .none
     }

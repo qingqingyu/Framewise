@@ -54,6 +54,7 @@ enum WasteType: String, CaseIterable, Codable {
     case blackout = "Blackout"     // 黑屏
     case dark = "Dark"             // 极暗
     case solid = "Solid"           // 纯色/地面
+    case blurry = "Blurry"         // 模糊/失焦
 }
 
 struct VideoClip: Identifiable, Hashable {
