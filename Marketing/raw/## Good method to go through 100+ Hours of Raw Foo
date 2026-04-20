@@ -1,0 +1,1063 @@
+## Good method to go through 100+ Hours of Raw Footage?
+
+- **作者**: [u/TheStonimus](https://www.reddit.com/user/TheStonimus)
+- **版块**: r/VideoEditing
+- **发布日期**: 2025-01-15
+- **评分**: 11 | **评论数**: 12
+- **原帖**: https://www.reddit.com/r/VideoEditing/comments/1i1vldf/good_method_to_go_through_100_hours_of_raw_footage/
+
+### 正文
+
+Hi!  
+I recorded my whole process of a 3D art Project. I want to create a 10-15min yt vid and create shorts.
+
+the thing is that my raw footage is 100+ Hours. What would you recommend on how effectively go through the footage. I want to make a mix of timelapse, show important steps and combine it with a scripted recorded commentary.
+
+I will use DaVinci Resolve to edit the video.
+
+If you have tips, guidance, or tutorials, I would be super grateful for any help.
+
+Thanks in advance and have a wonderful day
+
+### 热门评论 (前 10 条)
+
+**1. [u/samsuh](https://www.reddit.com/user/samsuh)** (13 分)
+
+you have to organize your content first. you should have an idea of what you even have to work with. organize and categorize your 100 hours into something more useful than "my raw video". break them up into maybe locations or scenes or something useful to you. in organizing, you can block off a rough storyline for your 10-15 mins. give it some chapters or a rough story arc. "intro self and point of video, start of project, some event that happened during project, peak storypoint of project, winding down, conclusion" 
+
+then start to mark useful scenes to the various story plot points. "oh there was that time that we had that issue with the thing. we should find some clips of that" then go get the clips of that and put them together in a bucket. 
+
+once you have some marks, you can do a rough cut to piece together stuff. just clip chunks into like a 30 minute rough storyline. you can start to think about other stuff like music and sound effects and voiceovers. 
+
+then refine your chunks into more usable edits. 
+
+then refine it so it makes sense. 
+
+then check it again and polish it up. have someone else watch it and give feedback, do a final edit. publish.
+
+> **[u/SpotTheOrk](https://www.reddit.com/user/SpotTheOrk)** (1 分): I was going to leave my own comment but really man you said it exactly right. Write down the main ideas that you need to show in order to tell the story, pull those clips in roughly to make a first draft, refine that to just the parts that you like the most, cut that up to just the parts that best fit your talking points, if you have any gaps put in similar footage to be your B roll or add in some mistakes you did to add character. I would say the most important thing tho is to have a clear story you want to tell before you start moving and cutting footage. Unless you are making a to the point tutorial make sure to add something in the script to surprise or add stakes to your video. Also since you are using Davinci I would make sure to split up different parts or drafts of the video into different timelines. Do NOT try and do that whole thing in one timeline it will really make things so much harder, also used stacked timelines. GL man
+
+**2. [u/EvilDaystar](https://www.reddit.com/user/EvilDaystar)** (6 分)
+
+If you have access to auto transcription in either Davinci or Premiere use that to get a quick overview of the moments you speak and see what you werew saying.
+
+Cut's you having to watch the moments where you were entirely silent focused on your work or the moments where you were just talking nonsense. :)
+
+**3. [u/Kn1ghto](https://www.reddit.com/user/Kn1ghto)** (3 分)
+
+max I've tackled was 12hrs but generally if there's audio I like to look at the audio spikes first across the whole timeline otherwise 100+ is new to me
+
+**4. [u/techcycle_yt](https://www.reddit.com/user/techcycle_yt)** (3 分)
+
+Use cut page.
+
+In that way footage will be played back like full length tape.
+
+
+Next scrub through them, add in and out point - and drag it to timeline. 
+
+
+Leave important part as such, for others, increase their speed.
+
+Then repeat.
+
+
+Also, cut unwanted parts and repeated things. Leave that and don't include it in the video.
+
+For timelapse, when you increase footage speed, some may look good for others it will too much at that time, cut out unwanted parts.
+
+
+It will take time, but streamlining the process will make it easier.
+
+**5. [u/Mashic](https://www.reddit.com/user/Mashic)** (2 分)
+
+I'd assume the initial process included a lot of brainstorming, trial and error to figure how to do things out. Now that you know exactly the end result and how to achieve it, I'll do the project again from scratch with audio commentary. And then speed it up with music.
+
+**6. [u/TabascoWolverine](https://www.reddit.com/user/TabascoWolverine)** (2 分)
+
+Generally speaking footage will take 1.5-2.0x the length of the footage to do a first pass of (where you isolate the best 5-10%). So you have a lot of work ahead of you. 
+
+To speed things up a bit, isolate the files you plan on using for a time lapse, and as others have mentioned, use your audio waveform to visually identify certain moments of the footage. 
+
+The challenge you've created is you over-filmed if your end goal is a 15 minute video and some vertical reels. Editing and file management is a challenge when you have 6000 minutes of footage and are trying to get that down to 0.25%.
+
+**7. [u/mutantmeatball](https://www.reddit.com/user/mutantmeatball)** (2 分)
+
+Go trough them at 3x speed to get an idea of whats there. 
+
+Make an overview with post-it notes on your wall or notebook to easily have an overwiew of the story and switch around scenes. 
+
+  
+I make sure to label things like
+
+01\_store\_cart // 01\_store\_picking // 01\_store\_paying or 01\_MAIN
+
+Use subclips and labeling! I continue on my subclips like sub\_01\_angry (or some other main charactheristic/spokenline that you remember the clip by). Use the subclips in the timeline!!! If you need to find the main clip (and exakt position) for the subclip just right click and choose "show in project". 
+
+Labeling with colors is useful as well. You can customize them trough premiere pro --&gt; settings --&gt; labels. I sometime use colors for not only scenes but where i am in the process: can be removed/not sure, needs editing/color correcting/completly done. 
+
+  
+Good luck! 
+
+[https://www.youtube.com/watch?v=r0Yz9Bnlb0o&amp;list=PLSehhhGZ5CHGUJcc3av65CQN9Qaa6qS7s&amp;index=5](https://www.youtube.com/watch?v=r0Yz9Bnlb0o&amp;list=PLSehhhGZ5CHGUJcc3av65CQN9Qaa6qS7s&amp;index=5) 
+
+[https://www.youtube.com/watch?v=cmLgzjlFzJM&amp;list=PLSehhhGZ5CHGUJcc3av65CQN9Qaa6qS7s&amp;index=6](https://www.youtube.com/watch?v=cmLgzjlFzJM&amp;list=PLSehhhGZ5CHGUJcc3av65CQN9Qaa6qS7s&amp;index=6)
+
+**8. [u/crtlZDee](https://www.reddit.com/user/crtlZDee)** (2 分)
+
+Mmm I'm not sure what I'm building could help you with your problem but I was very frustrated with sorting through my ridiculous amount of vlogging footage so I decided to code something to help with it.
+
+So far I'm mostly focusing on footage with scenes (think outdoor, or documentary, or events) so not sure if it would apply to Art Projects per say.
+
+Anyways, it's super early stage right now haha I'm just playing around with AI model and computer vision to try to intelligently sort/and group footage so we can all save time going through hours of footage, and more time editing 🤔🤔
+
+**9. [u/[deleted]](https://www.reddit.com/user/[deleted])** (1 分)
+
+[removed]
+
+**10. [u/Even-Engineer8561](https://www.reddit.com/user/Even-Engineer8561)** (1 分)
+
+Look for someone on YouTube who has done something similar and I'm sure they also made a hundred hours of content and reduced it in a few minutes....look for inspiration
+
+
+
+---
+
+## Client requesting raw footage so THEY can choose the "best" clips for the final video
+
+- **作者**: [u/[deleted]](https://www.reddit.com/user/[deleted])
+- **版块**: r/videography
+- **发布日期**: 2025-02-10
+- **评分**: 57 | **评论数**: 88
+- **原帖**: https://www.reddit.com/r/videography/comments/1im51sy/client_requesting_raw_footage_so_they_can_choose/
+
+### 正文
+
+I take small commission work on the side. I consider myself to charge very low considering the quality I deliver, mainly because I'm an amateur, a student and my clients are almost always students too.
+
+I got a commission for a teaser around 1 minute long. Their concept changed around a week before the filming date. To make a long story short, on the shoot day, we were pressed for time and barely anyone from their group was there to consult with, give guidance, or help direct to align with their concept. At some point, it was only me and the actress there. 
+
+Now, after delivering the final video, they asked for the raw footage. I told them I never give the raw footage. (There was a time I gave the raw footage, but that was only when my client was willing to pay me more. They also just wanted it because they wanted to keep it, not to re-edit) After this, they clarified that they wanted to see the raw footage because they want to make sure the clips used are the best for the video. 
+
+Maybe it's because I'm in the heat of the moment, but I frankly feel a little insulted by it. Clients rarely, if ever, ask for raw footage. But to ask for it because they want to pick and choose what to include in the video is kinda crazy to me. To me, it shows that they don't trust me, my judgement, or my style, which they should've taken into consideration in the first place. Not to mention that they shouldn't have left me and the actress alone without guidance during the shoot day. 
+
+Could anyone give me some advice? Maybe I'm the crazy one and I should just let them choose. I need your thoughts or a reality check. Thanks, any help will do
+
+Edit: Got the advice I needed, thanks everyone!
+
+I understand and agree there's a need for professional agreements or contracts for jobs when money is involved. I definitely agree with that. However, please do understand that some things that are more technical and legal may not be applicable to this situation because of its nature. Don't know how else to explain it other than: we are just students and it's simply not applicable to the situation at hand. I still do appreciate everyone giving their time to give their thoughts. Thanks!
+
+### 热门评论 (前 20 条)
+
+**1. [u/[deleted]](https://www.reddit.com/user/[deleted])** (129 分)
+
+Upload low res / watermarked rushes and let them choose. Just get paid. Any raw footage for them to keep is a paid extra.
+
+> **[u/CMDR_Satsuma](https://www.reddit.com/user/CMDR_Satsuma)** (35 分): And charge them for the extra time it takes you to go back and forth with them on this, too. They're effectively breaking up your editing timeline. It's like that joke sign some auto mechanics have for their rates:   $100 an hour   $150 if you watch   $250 if you help
+
+> **[u/[deleted]](https://www.reddit.com/user/[deleted])** (5 分): Yeah, just want to get paid but I'm still on the fence based off the principle of it. I might be overreacting. But they seem like the type to not be willing to pay more to see raw footage.
+
+> **[u/boringstein](https://www.reddit.com/user/boringstein)** (1 分): 100% correct answer here
+
+**2. [u/ianim8er](https://www.reddit.com/user/ianim8er)** (29 分)
+
+You have to establish the rules before you commit. If you don’t then client always thinks it’s their property. I’ve fought that a few times and won but it still costs you in the long run.
+
+> **[u/[deleted]](https://www.reddit.com/user/[deleted])** (3 分): I guess that's something I'll need to consider in the future. We live and we learn. It's jusr that it only happened to me once before (with high paying, professional clients) so I never thought I'd experience it again, especially with just student clients on a student budget?  Do you think I should fight it? Or just let them have it? I don't think they'd be willing to pay more to see it.
+
+> **[u/Effet_Ralgan](https://www.reddit.com/user/Effet_Ralgan)** (2 分): I do this : rushs are mine, you get the final édit and if you want the raw files be prepared to pay a lot of money because I dont like that.
+
+**3. [u/MotorBet234](https://www.reddit.com/user/MotorBet234)** (20 分)
+
+I’m on the client side these days, but worked freelance and agency for years before that. Traditionally, in my experience with corporate work, clients expect to own the footage. If I hire out a crew, whether shoot-only or including post, I’d expect to walk away with all of the footage on a drive. I’d also expect to give detailed edit notes even based on raw stringouts, via something like frame.io or similar. 
+
+If I’m on the freelance side, I’d expect to give the client a drive with all the raw footage and would actually factor the physical drive into my project quote. For interview projects, I’d also supply transcripts of each interview to help the client select soundbites as a paper cut.
+
+> **[u/[deleted]](https://www.reddit.com/user/[deleted])** (1 分): I appreciate the perspective but I'm just a hobbyist student working for other students on a student budget. Like, I honestly don't think they'd be willing to pay more for the raw footage. Should I still provide it for "their choosing" despite not being paid extra?  I mentioned this in another comment too, and maybe I'm just overreacting, but I'm just hung up on the principle of it all
+
+**4. [u/[deleted]](https://www.reddit.com/user/[deleted])** (6 分)
+
+[deleted]
+
+> **[u/[deleted]](https://www.reddit.com/user/[deleted])** (3 分): 1. Nope, they only paid the down-payment. We had an agreement that they'd pay the rest once the final video is delivered. 2. Been getting that advice a lot for this, and thats what I'll probably do, but I also replied to others saying that they're not the type to pay additional for it. They're working on a student budget
+
+**5. [u/Joker_Cat_](https://www.reddit.com/user/Joker_Cat_)** (5 分)
+
+Honestly I don’t quite understand the reluctance with most videographers to hand over raw footage. I’ve done it so many times and nothing bad has ever happened. If they want to edit it then great! Saves me a job. If they then can’t edit how they want and want me to do it, great! Another job and more money. As long as you’ve been paid for your work then let them have the raws.
+
+Also, when I’ve had a client come back with “can I see the other shots” I always oblige. This is their project, their brand, their image, not mine. No harm in letting them browse through and select clips they feel fit with their idea. They are literally doing the selection process for you (one less job). If in my opinion and experience I think their selections are bad I will discuss it with them. 
+
+Ultimately your goal should be to make the client happy. Take your ego out of it (I don’t mean that to say you’re being egotistical btw, because you’re not. You’re just protective of your work, but that is the ego talking). Also, if you feel they aren’t paying enough to have that opinion or request to see the raws then that’s on you. Just because you’re cheap doesn’t mean the client isn’t allowed to try and make the video into something they are happy with.
+
+I’d like to hear others perspectives but I don’t see any harm in it.
+
+> **[u/DPforlife](https://www.reddit.com/user/DPforlife)** (3 分): Unless I'm work for hire, my footage is my work product - the deliverables are whatever I've been contracted to produce. You hire me to produce a 3min video, you get a 3min video. The footage is mine. If you want it, i.e., if you want to license it from me, you need to pay me.
+
+> **[u/[deleted]](https://www.reddit.com/user/[deleted])** (3 分): Appreciate your perspective on it! I don't think there's a harm in it, just my personal preference. Maybe it's ego too, I might be protective and overreacting. I mean, it also takes up storage space, so it's just inconvenient at the least.  Other people may have other opinions though, like not wanting the client to re-edit it, but I've never experienced that before so I haven't formed an opinion on it.
+
+> **[u/GrafDracul](https://www.reddit.com/user/GrafDracul)** (2 分): Outside of work-for-hire type of deals, I used to be like that, never giving away the footage, only if they ever paid extra.  Since around 2 years, when they were asking for a discount, I offered to give the raw footage for free. They were always happy and to be honest, I don't actually care what happens with the footage. 99% of the time, you film for them, edit, they post it and then the footage is never needed again.  When they needed a re-edit or a shorter video, I was the one they called, even if they had the raw footage. I have friends that are very strict about the raw footage, I stopped caring. Even if they re-edit stuff and badly grade it, nobody knows I shot that video because no corporation will add your name in the description/credits. The video I shot is on my website and that's what my future customers see.
+
+**6. [u/tedwilliamsmcneil](https://www.reddit.com/user/tedwilliamsmcneil)** (6 分)
+
+I want to fourth this: Burn in the time code, upload the footage, and bill for the footage. 
+
+This is a for-hire job - they are paying for it let them enjoy their time pretending to be a video producer. 
+
+In my experience, half the time, they give up after being bored and/or overwhelmed by the amount of work.
+
+> **[u/[deleted]](https://www.reddit.com/user/[deleted])** (2 分): Appreciate this! Yeah, will most likely be doing this too. Thanks!
+
+**7. [u/SpockAndRoll](https://www.reddit.com/user/SpockAndRoll)** (4 分)
+
+From my experience, there's 10 types of clients. I can't name what each of the 10 types are, but it seems like you want the type who trusts the process, trusts your artistic vision, and has no revisions. The type you've got is one who maybe doesn't know what they want, or can't fully see the vision, or just wants to impress their boss, or whatever. 
+
+There will always be clients that are a little trickier to work with. If you want to make money doing this type of work, and keep your sanity, you gotta take the ego out of it. Be confident in your abilities, yes, and a little self-promotion is absolutely helpful, but to call yourself an amateur while also saying "I never give raw footage" feels a little silly to me.
+
+I also feel like a lot of this can be avoided if some expectations are properly set with the client from the start. This is something that you'll learn over time, and I'm still not great at it. Get a clear vision of what they want, and then communicate with them what they need to do to make that happen. This won't solve 100% of potential issues, but it will help. 
+
+Lastly, if somebody else wants to take the time to scrub through potentially an hour or two of raw b-roll, I'm all for it. I tend to lump all of the footage onto a single timeline, slap time code baked in, and export to send it at a little bit rate. They'll either send back detailed notes, which gets you closer to being done with the project, or they'll realize that they don't want to scrub through 2 hours of footage, and will leave it up to you.
+
+If you keep working in this field, you might have one or two seemingly great clients who end up being a real pain to work with. At that point, you willingly hand them all the raw footage so that they can take their problems elsewhere, and they're not stuck with you.
+
+> **[u/[deleted]](https://www.reddit.com/user/[deleted])** (2 分): Thanks for the advice! I get what you mean.  But surely the first kind of client is a dream client for anybody, but I don't expect it! I've already provided them 2 drafts and 1 revised video at this point. Only now have they asked for the clips. No complaints, it's just the asking for the clips that got me worked up. But I'll swallow my ego and just let them have it
+
+**8. [u/wannabefilms](https://www.reddit.com/user/wannabefilms)** (5 分)
+
+All the responses here point to how much the industry has changed. It wasn’t all that long ago that clients expected to sit down in an edit suite with you and scrutinize everything as the edit happened.
+
+Man, I hated supervised edits.
+
+**9. [u/Miserable-Package306](https://www.reddit.com/user/Miserable-Package306)** (3 分)
+
+If you want to keep them as client and just don’t want to supply them with all the raw footage, send them downsized and decently compressed clips with burned-in data like timecode and clip name. You can argue that the burned-in data makes it easier to identify clips and portions of it. Downsized and compressed because they probably don’t want to pay for a hard drive that you ship to them. Also, make sure the footage is ungraded. When they realize they have to watch tons of log footage that jus5 doesn’t look nice, they might quickly find themselves liking your edit better anyway. If they do want you to use other clips in your edit after all, make sure to charge them for the new edit.
+
+If you don’t value them as clients anyway: just refuse. Say you don’t provide raw footage for free (or at all).
+
+> **[u/[deleted]](https://www.reddit.com/user/[deleted])** (2 分): "Want" to keep them is a strong word haha. They pay my minimum rate, like every single other client I've had, but sure, I want to keep all my clients in general Is there a faster way to burn in a timecode and clip name than doing it manually?
+
+**10. [u/SM3V_Mcr](https://www.reddit.com/user/SM3V_Mcr)** (2 分)
+
+Watermark, timecode, export or Frame.IO it to them so they can see it and provide feedback, charge a half day for the process. 
+
+ Chances are they won't know what to do with the material....but doing this shows willing. 
+
+I very often send interview materials and transcripts to marketing  managers for them to clarify messaging before I get in too deep with an edit.
+
+ Don't take it personally, at this stage, see yourself as an extension of their internal team who gets paid a better rate as a freelancer. Nobody wants to make the work worse, everyone is aiming for the same outcome. But if you haven't quite hit brief because of a shortfall on their end, once the project is complete and they hire you again, attempt to put some practices in place that make sure the issues faced on the last shoot don't happen again.
+
+> **[u/[deleted]](https://www.reddit.com/user/[deleted])** (3 分): This is really great advice. Thank you!
+
+> **[u/Dks0507](https://www.reddit.com/user/Dks0507)** (3 分): I also send the full interviews and tell my clients to choose the soundbites. I get the soundbite picture locked and approved before I build the story out on my end. This approach saves you so much headache with the re-editing new drafts.
+
+**11. [u/wedding_shagger](https://www.reddit.com/user/wedding_shagger)** (2 分)
+
+From the "other side" of the spectrum, I only work with people who are willing to provide me all of the footage.  
+
+Why would I hire a videographer to film an event and then not receive all of the footage they shot?  Footage can be utilised, repurposed, and edited in all kinds of various ways.
+
+> **[u/[deleted]](https://www.reddit.com/user/[deleted])** (1 分): I mean that's fine. Just pay for it.  I bet you're not asking the photographer to send you the ARW, CR2, or NEF files to "edit in all kinds of various ways."
+
+**12. [u/Dks0507](https://www.reddit.com/user/Dks0507)** (1 分)
+
+I sometimes create a BRoll library of all the clips. I personally don’t have an issue with my clients being involved with the editing process. Once you get established, if you want to be in business with a well paying customer (with a brand identity)… they’ll likely be very involved at times.
+
+**13. [u/Dick_Lazer](https://www.reddit.com/user/Dick_Lazer)** (1 分)
+
+If you they wanna choose selects I usually throw together a reel of all the footage with a timecode overlay.
+
+**14. [u/The_Queer_Editor](https://www.reddit.com/user/The_Queer_Editor)** (1 分)
+
+Toss everything on one timeline, burn in timecode, send it in lowres.
+
+That way they can never use it, and they either get bored cause it's very tedious. Or if not, you get a nice clean list of timecodes you can easily cut out of earlier made sequence. Don't have to do the treasure hunt to filenames etc.
+
+It's how I always do it and it's a win-win.
+
+**15. [u/TyBoogie](https://www.reddit.com/user/TyBoogie)** (1 分)
+
+On big projects where I know there will be a collaboration on the final, I share all “usable” footage with the client on Frame.io. The link I share doesn’t allow them to download but to only view and leave comments/notes. 
+
+This has saved me so much headache on projects. Even if we’re not collaborating and if they ask for the RAW footage, I’ll still send a non downloadable  link and if they want it, they will have to pay for time for me to clean it up, color correct, and grade
+
+**16. [u/[deleted]](https://www.reddit.com/user/[deleted])** (1 分)
+
+I will add the burned time code. As others said, should be watermarked and low-resolution, probably 720 p.
+
+**17. [u/kabobkebabkabob](https://www.reddit.com/user/kabobkebabkabob)** (1 分)
+
+Idk. In motion design world, project files are often 50-100% of the original quote
+
+**18. [u/DirectorJRC](https://www.reddit.com/user/DirectorJRC)** (1 分)
+
+Send them a final invoice with a fee for delivering anything beyond the original bid (ie the raw footage). Tell them you’ve completed what you agreed to. Say in writing that you will deliver the requested footage once you’ve been paid. Then walk away.
+
+**19. [u/NeighborhoodHil](https://www.reddit.com/user/NeighborhoodHil)** (1 分)
+
+You're paid to provide a service. The raw footage is not apart of that service unless expressly mentioned. If I hire you to make a teaser video, I am paying you for the 1 or so min of the final deliverable and your expertise in making it. The tools you use to make it are yours.
+
+Someone mentioned corporate clients get the raw footage, but failed to mention that most corporate clients pay appropriately enough to warrant receiving the raw footage. They will also express interest upfront usually if they want the files. In most scenarios, the rights of the original footage belong to the person who shot the footage. 
+
+Another reason that a lot of videographers don't provided raw footage without a nominal fee is because once you give up the raw footage, you give up your ability to make money off the future use of the footage. The Final reason is, especially is you shoot log, no matter what happens to the footage you will get credit for it. If the butcher the footage, it was xyz videography. If the footage looks great, it could be xyz videography but they also might take credit for the edits. Most professionals want the work released to be an accurate reflection of their service so providing raw footage is not the norm.
+
+**20. [u/OverCategory6046](https://www.reddit.com/user/OverCategory6046)** (1 分)
+
+Just give them the raw footage (as long as they've paid you upfront and pay you for your time sending it over)
+
+I don't understand how precious everyone is with their footage. You're a videographer, not a production company. Since you haven't signed anything, as far as they know, it's their footage (and fair enough)
+
+\&gt;But to ask for it because they want to pick and choose what to include in the video is kinda crazy to me. To me, it shows that they don't trust me, my judgement, or my style, which they should've taken into consideration in the first place. Not to mention that they shouldn't have left me and the actress alone without guidance during the shoot day.
+
+Yes it sucks, but end of the day, they're paying you for a product. You can only suggest changes, but they're the boss at the end of the day.
+
+> **[u/NeighborhoodHil](https://www.reddit.com/user/NeighborhoodHil)** (1 分): Even as a freelancer or solo videographer, one shouldn't do work without paperwork on the project. Helps you avoid so many potential headaches (Not all). For the reasons mentioned above by commenter, that is why it's also important to vet your client before agreeing to do work. If you compare a videographer to a more traditional artist, their policies on raw footage would make more sense. If you commission a painter to make a mural or portrait, they wouldn't be expected to give you their paint. Nor would they be willing to give incomplete work for their client to finish because their work is an extension of them. Once it's out in the world, it could very well be a potential clients first impression of you. So considering that, most creatives do want to control their image/brand within reason. I hope this helps you and the OG poster.
+
+
+
+---
+
+## Managing giant raw footage deliveries to editors
+
+- **作者**: [u/Dismal-Fox3121](https://www.reddit.com/user/Dismal-Fox3121)
+- **版块**: r/postproduction
+- **发布日期**: 2025-10-24
+- **评分**: 7 | **评论数**: 18
+- **原帖**: https://www.reddit.com/r/postproduction/comments/1oeo0z2/managing_giant_raw_footage_deliveries_to_editors/
+
+### 正文
+
+I’ve been running into a recurring problem with sending large raw footage files to editors. Some shoots end up being hundreds of gigabytes, and the usual cloud storage services just can’t handle it reliably. Uploads fail, download speeds are slow, and splitting footage into multiple parts is a mess.
+
+I’m trying to find a workflow that’s simple for everyone especially collaborators who aren’t tech savvy and reliable. Bonus points if there’s a way to keep files temporary so old footage doesn’t stick around indefinitely.
+
+Recently, I started testing a platform called FileFlap, which is built for transferring really big files without subscriptions or logins. What stood out to me is that it handles up to 1TB per file and auto deletes files after a set period, so nothing lingers online forever. It’s also nice that recipients don’t have to create accounts to download. So far, it seems to remove a lot of the friction I’ve been dealing with.
+
+It’s frustrating how many projects get delayed just because of file delivery issues. Curious to hear how you all deal with massive footage transfers. Any tools, methods, or real world tricks that make sending large projects smoother would be super helpful.
+
+### 热门评论 (前 13 条)
+
+**1. [u/[deleted]](https://www.reddit.com/user/[deleted])** (9 分)
+
+Massive footage... I know of no secure way to do it except couriers carrying suitcases of hard drives. If you're shooting **terabytes** of footage more than 1000 miles away, then a plane ticket and a warm body will be cheaper and faster than 12 hours of extremely high-speed upload/download.
+
+**2. [u/AnonBaca21](https://www.reddit.com/user/AnonBaca21)** (4 分)
+
+Why are you delivering raw footage to your editors?  They should be cutting proxies or transcodes.
+
+> **[u/driesser](https://www.reddit.com/user/driesser)** (1 分): This was my question too. Also “hundreds of GBs” isn’t “giant.” I already responded to this exact same post a week ago.  https://www.reddit.com/r/postproduction/s/PeVlsRKEdo
+
+**3. [u/CondeBK](https://www.reddit.com/user/CondeBK)** (3 分)
+
+Media Shuttle.    We use it to deliver raw to post and proxies to editors.  Works pretty well.
+
+> **[u/VE3VNA](https://www.reddit.com/user/VE3VNA)** (1 分): I second this, we use it too. If you want to roll your own and spend a bit of time we also use Synametrics SynaMan for an onsite discount service.
+
+**4. [u/driesser](https://www.reddit.com/user/driesser)** (1 分)
+
+Someone else posted this exact same post a week or so ago. 
+
+https://www.reddit.com/r/postproduction/s/PeVlsRKEdo
+
+**5. [u/NoIdeaWhatImDoing808](https://www.reddit.com/user/NoIdeaWhatImDoing808)** (1 分)
+
+Like others have said, proxies is your answer. Then ship a drive with raws for editors to relink. 
+
+If you have quick turnarounds, say for social distro, then make transcodes to something more manageable than raws, but higher quality than proxies. Kyno is a good program, but I’m sure there’s others.
+
+**6. [u/siggywithit](https://www.reddit.com/user/siggywithit)** (1 分)
+
+Use media shuttle. Battle tested
+
+**7. [u/mdmoon2101](https://www.reddit.com/user/mdmoon2101)** (1 分)
+
+[masv.io](http://masv.io) works very, very well. 25 center per GB.
+
+**8. [u/happytodrinkmore](https://www.reddit.com/user/happytodrinkmore)** (1 分)
+
+Hightail.com
+
+**9. [u/Feisty-Mark-4410](https://www.reddit.com/user/Feisty-Mark-4410)** (1 分)
+
+you could use Shade or LucidLink or SuiteStudio to create a cloud filespace that (mostly) acts like a local drive. Then just use permissions to keep your users separated as needed.
+
+**10. [u/theproject19](https://www.reddit.com/user/theproject19)** (1 分)
+
+Editors should be just editing on proxies, unless they're also exporting the final. In that case shipping drives is the cheapest way.
+
+**11. [u/Lomotograph](https://www.reddit.com/user/Lomotograph)** (1 分)
+
+The answer is a proxy workflow or mailing shuttle drives to the editors. 
+
+I work in commercials. Our shoots are easily 2-3TB of data per shoot day. We don't fuck around with uploading that to some cloud storage service. We use shuttles and proxies.
+
+**12. [u/peterlalonde](https://www.reddit.com/user/peterlalonde)** (1 分)
+
+Try MediaLab.co - it’s easy, fast, secure.
+
+**13. [u/ff_luciferase](https://www.reddit.com/user/ff_luciferase)** (1 分)
+
+Proxy workflow, use Resolve to conform &amp; trim out raw &amp; send only that to your editors for online (they conform to those trimmed raw). Only Resolve can truly trim, Premiere will copy raw shots (not as efficient but still much less than sending All RAW).
+
+
+
+---
+
+## How to manually sort hundreds of videos easily?
+
+- **作者**: [u/raaz9658](https://www.reddit.com/user/raaz9658)
+- **版块**: r/DataHoarder
+- **发布日期**: 2025-11-06
+- **评分**: 2 | **评论数**: 5
+- **原帖**: https://www.reddit.com/r/DataHoarder/comments/1opr900/how_to_manually_sort_hundreds_of_videos_easily/
+
+### 正文
+
+I've been using Photosift for some days now and it's awesome. I was wondering if any such software exists to sort hundreds of videos easily. 
+
+### 热门评论 (前 3 条)
+
+**1. [u/Jotschi](https://www.reddit.com/user/Jotschi)** (1 分)
+
+I use feh to sort preview images I generate via vcsi. This way I can quickly sort videos into categories by using custom hotkey actions.
+
+**2. [u/reddit_throwaway_142](https://www.reddit.com/user/reddit_throwaway_142)** (1 分)
+
+There was a fork of photosift someone made that added media support
+
+https://github.com/yfdyh000/PhotoSift
+
+> **[u/raaz9658](https://www.reddit.com/user/raaz9658)** (1 分): Thank you
+
+**3. [u/FatDog69](https://www.reddit.com/user/FatDog69)** (1 分)
+
+Look for a program called "Fast Image and Video Sorter".  This was a 1 person project but I have not found anything that seems to work as well.
+
+Setup up to 10 folders. Fire up "Fast" and define hot keys to point to each folder. Then 'Browse' to your raw/download folder of video files. It will play the first one, you hit a hot key or "N" for next. The hot key will move the video file to that folder and auto play the next.
+
+
+
+---
+
+## How do youtubers/editors get specific clips from shows/movies/etc for specific topics they’re talking about?
+
+- **作者**: [u/alrennia](https://www.reddit.com/user/alrennia)
+- **版块**: r/VideoEditing
+- **发布日期**: 2024-07-05
+- **评分**: 38 | **评论数**: 16
+- **原帖**: https://www.reddit.com/r/VideoEditing/comments/1dvqql1/how_do_youtuberseditors_get_specific_clips_from/
+
+### 正文
+
+Ive been curious for quite some time, when i see people making videos about certain subjects or interests they often clip in short videos of some show thats talking about the subject. How do they even find them, especially when its so often and under such varied topics in one video?
+
+Id like to apply it to my editing but I’m unsure where to even start at finding the resources. 
+
+Hard to word what i mean sorry if it’s confusing, an example of what i mean at [0:47](https://youtu.be/0DpiBeyDCC0?si=tp2SLoH2-sirb8kA)
+
+
+### 热门评论 (前 6 条)
+
+**1. [u/_ENERGYLEGS_](https://www.reddit.com/user/_ENERGYLEGS_)** (14 分)
+
+rather than speak on the mechanics of how to find it, i will add that if you're looking to do this for something that is monetized, you will need to look up and understand where fair use comes into play and where it doesn't. most of the time I'd say it's better to shy away from using things you haven't licensed in anything you or someone you edit for makes money off of, but it's also sometimes just a case of "who is going to bother to report or take down this content?"
+
+**2. [u/gargoyle37](https://www.reddit.com/user/gargoyle37)** (10 分)
+
+You can download subtitles for all the major shows out there. With that in hand, you can build a text search index on all the subtitles. This can be barebones (ripgrip) or more involved (think Elasticsearch). Now, if you want to go dig, you type in some text and the search engine will find you shows talking about the subject. Furthermore, the subtitles have timecode, so you know what area of the show you need to inspect.
+
+If you remember the phrase coming from a specific show, you can narrow your search to that, etc.
+
+**3. [u/FastTracktoFitness](https://www.reddit.com/user/FastTracktoFitness)** (9 分)
+
+I actually just found out how to do this last week
+
+I just YouTubed how to do it it’s not hard lol I would link the sites but I’m on my phone 
+
+There are specific websites where you just need to type in a phrase and it will show you tons of clips throughout media and movies
+
+> **[u/AutonomousAlien](https://www.reddit.com/user/AutonomousAlien)** (3 分): It would be wonderful to get the name of these sites if you would be willing to share when u get back to ur computer 🙏🏼🙏🏼🙏🏼. Or just the name of the site - doesn’t need a link :)
+
+> **[u/alrennia](https://www.reddit.com/user/alrennia)** (4 分): thank you so much!! I was thinking it was something like this but i guess i just wasnt searching up the right wording
+
+**4. [u/liuzhaoqi](https://www.reddit.com/user/liuzhaoqi)** (6 分)
+
+Google video search, YouTube search, internet archive
+
+Most likely, editor or creators personal libraries collection.
+If you see something interesting or funny, clip it and save on a hard-drive or something.
+
+**5. [u/Zestran](https://www.reddit.com/user/Zestran)** (6 分)
+
+They’ll either screen record it somehow, rip a dvd if they have that or just find clips online somewhere and download them
+
+> **[u/pjcbsn](https://www.reddit.com/user/pjcbsn)** (4 分): yeah my guess is you build your own meme library as you go, your find, rip and save for later use.
+
+**6. [u/Haunting_Cupcake007](https://www.reddit.com/user/Haunting_Cupcake007)** (1 分)
+
+Hey not sure if you have found any website, this is good too https://tgdm.ai/
+
+
+
+---
+
+## Best way to sort through long videos and set aside clips from video without putting them on your timeline?
+
+- **作者**: [u/inner_smile](https://www.reddit.com/user/inner_smile)
+- **版块**: r/fcpx
+- **发布日期**: 2021-11-16
+- **评分**: 8 | **评论数**: 6
+- **原帖**: https://www.reddit.com/r/fcpx/comments/qv5l2a/best_way_to_sort_through_long_videos_and_set/
+
+### 正文
+
+I'm making a highlight video and want to know if anyone's figured out a good way to do this. Basically as title suggests...trimming and setting aside parts of a long video and storing in something like an Event for organizational purposes. I can probably figure something out but I wanted to see what ways people have come with for doing this.
+
+I have FCP 10.4.1 running on macOS Mojave 10.14.6
+
+### 热门评论 (前 3 条)
+
+**1. [u/MrNiosy](https://www.reddit.com/user/MrNiosy)** (5 分)
+
+use keyword collections or favorites for sections of your clips. tons of tutorials about that on youtube.
+
+> **[u/inner_smile](https://www.reddit.com/user/inner_smile)** (1 分): Thank you
+
+**2. [u/mehwolfy](https://www.reddit.com/user/mehwolfy)** (3 分)
+
+Set in and out in the browser and tag with keywords. Use list view and you can add notes as well. You can set shortcuts for keywords as well.
+
+> **[u/inner_smile](https://www.reddit.com/user/inner_smile)** (1 分): Thank you!
+
+**3. [u/[deleted]](https://www.reddit.com/user/[deleted])** (3 分)
+
+I use favorites for this.  Just select the range you want to “store” and hit “f”.  Once you’re done, change the view in the browser to “Favorites” and you’ll be presented with all of your selected ranges as individual clips you can use for editing.
+
+> **[u/inner_smile](https://www.reddit.com/user/inner_smile)** (1 分): Thanks
+
+
+
+---
+
+## What's a good way to sort through 1000+ videos
+
+- **作者**: [u/vvinvardhan](https://www.reddit.com/user/vvinvardhan)
+- **版块**: r/VideoEditing
+- **发布日期**: 2021-07-16
+- **评分**: 26 | **评论数**: 47
+- **原帖**: https://www.reddit.com/r/VideoEditing/comments/olg8f2/whats_a_good_way_to_sort_through_1000_videos/
+
+### 正文
+
+I have to do a project, and I have 1000+ files to sort, rename, reorganise. I have been using VLC, but it gets really tedious. I have to close the VLC window to change the name, to delete or do basically any edit. How do you guys manage it?? Is there a good **free software?**
+
+### 热门评论 (前 13 条)
+
+**1. [u/bobocool](https://www.reddit.com/user/bobocool)** (7 分)
+
+I would normally import them to which ever editing software you are using. View and rename them in your media pool/bin. It won't change the name of the source file but if you plan to edit all these clips down to one piece then that shouldn't matter.
+
+> **[u/vvinvardhan](https://www.reddit.com/user/vvinvardhan)** (1 分): noo, I need to rename them and sort them. they are b-roll clips
+
+**2. [u/NemEuNemVoce](https://www.reddit.com/user/NemEuNemVoce)** (5 分)
+
+There's the adobe library thing, i think you can use it for free, there's this weird thing too http://www.dropitproject.com/
+
+> **[u/vvinvardhan](https://www.reddit.com/user/vvinvardhan)** (3 分): found it, its called Bridge, I will let you know if it is any good!
+
+> **[u/vvinvardhan](https://www.reddit.com/user/vvinvardhan)** (-1 分): I can't find the adobe thinggg. uhh, I know I have heard of itt ... ahhhh
+
+**3. [u/MikhailTheFail](https://www.reddit.com/user/MikhailTheFail)** (5 分)
+
+A good tip with mass amount of footage is to look towards the final shot. If there are 6 takes of the same B-roll, just assume they stopped when they got it and work with the last one.
+
+If the last one sucks - - - THEN start to work backwards from that.
+
+> **[u/vvinvardhan](https://www.reddit.com/user/vvinvardhan)** (1 分): heyy, thanks that's a good tip
+
+**4. [u/Filmmaking_David](https://www.reddit.com/user/Filmmaking_David)** (3 分)
+
+There are programs for mass-renaming and meta-data alteration (like Adobe Bridge or A Better Finder Rename) **BUT** the rule of thumb with video &amp; audio files, is **you do not change the properties and names of your source files.** This is so that all your back-up files and/or off-site versions (say from a stock-footage site or a database of some sort, or a copy your sound guy or videographer keep) **are all identical –** in the case of a hard drive crash, re-locating and re-linking is then hassle free.
+
+Instead, you do the renaming, logging and sorting in the NLE of your choice (Davinci Resolve, in your case).
+
+The two main exceptions to this is when the camera does not create sufficiently unique file names (a lot of Sony Cameras keep restarting the number series, creating a ton of files called "C0001" without any further delineation, I hate it) or when you are trying to make a database of some sort, which is not project specific but general.
+
+> **[u/bahgheera](https://www.reddit.com/user/bahgheera)** (2 分): Yep, honestly I would create a database app that has tagging and a search function and add the videos to it. OP might not know how to do all that though.
+
+> **[u/vvinvardhan](https://www.reddit.com/user/vvinvardhan)** (1 分): ohhh, okay I will keep that in mind, thanks for sharing!
+
+**5. [u/RobertAHeineken](https://www.reddit.com/user/RobertAHeineken)** (3 分)
+
+Everyone will tell you that it isn't best practice to rename these, and that you should tag them in a database. They're right, but sometimes we work places where we do what we have to do.
+
+1. I'd determine what the most important thing to sort by is. This could be something like shoot location, or maybe a program/series that each clip belongs to.
+2. Then, if it's something I could determine visually, I'd get thumbnail previews working and sort them into folders based on that.
+3. Then, I'd chose the second-most important attribute, like say that shoot date, and NAME the files based on that.
+4. Tags will be best at this point, but hopefully you will have mollified whoever wants these in folders.
+5. If not, you're going to have to do this the hard way and type a description for the file name. I'd recommend separating the words in your description somehow so that when the realize they wants tags in a database a few years later, then maybe someone will be able to parse them out of the file names.
+
+Good luck!
+
+> **[u/vvinvardhan](https://www.reddit.com/user/vvinvardhan)** (2 分): &gt;They're right, but sometimes we work places where we do what we have to do. yep... and thank you for all the steps, if I have to do this manually I will do it this way. The steps are really good!
+
+**6. [u/darrenjames84](https://www.reddit.com/user/darrenjames84)** (3 分)
+
+I just had to do this for a very similar task at work. I use a Mac ...not sure if you use WIndows but I'm sure there must be a similar solution.
+I downloaded a ton of stock footage for usage in videos and needed to create a searchable, organised, updatable library on our work server.
+
+I know it sounds simple but all I did was group them by type into folders (a lot of stock footage from the same supplier/same 'story' is labelled with a similar name or grouping number/code. 
+
+For instance "228_996basketballgame2"
+                       "228_997basketballgame3"
+
+Some do some don't but the grouping part is fairly fast, by using the method another commenter highlighted of using the space bar to quick look at each video clip and then dropping into the relevant folder. 
+
+When you have them in a folder, highlight all, right click, select "rename 18 files" and then use that tool to replace, format, add or number any files. 
+
+I format it so it ends up something like 
+
+66 Basketball 1
+66 Basketball 2 and so on..
+
+That way they're grouped with a code at the start to  build a family of clips, as you may have many different types of basketball footage or whatever the subject is, this way it's also searchable via keyword in the finder. 
+
+It's been very helpful for me and my colleagues have followed suit. 
+I now have a huge library divided into categories, with groupings inside each folder for easy access and finding in the future. 
+
+Hope this helps in some way 👍
+
+> **[u/vvinvardhan](https://www.reddit.com/user/vvinvardhan)** (1 分): &gt;I downloaded a ton of stock footage for usage in videos and needed to create a searchable, organised, updatable library on our work server. almost the same situation.  woahh, these tips are really helpful. I think putting them is relevant folders and then mass renaming is quite smart
+
+**7. [u/lofreqgeek](https://www.reddit.com/user/lofreqgeek)** (2 分)
+
+On a mac I will open a folder of clips, select one, hit spacebar to preview. Once you've seen the content spacebar again to stop preview, then rename, move whatever. Repeat.
+
+> **[u/At_Origami](https://www.reddit.com/user/At_Origami)** (1 分): Do you use FCP?
+
+**8. [u/becausecurious](https://www.reddit.com/user/becausecurious)** (2 分)
+
+u/vvinvardhan, how did you solve this?
+
+> **[u/vvinvardhan](https://www.reddit.com/user/vvinvardhan)** (1 分): adobe bridge, and for smaller projects I just do it manually!
+
+**9. [u/shii093](https://www.reddit.com/user/shii093)** (2 分)
+
+SorterExpress. Open the directory and the app will automatically play the video, and you can rename it in one app. Keyboard shortcut to go to the next video file.
+
+https://github.com/Issung/SorterExpress
+
+> **[u/vvinvardhan](https://www.reddit.com/user/vvinvardhan)** (1 分): Thank you for sharing this with me!
+
+**10. [u/thisMatrix_isReal](https://www.reddit.com/user/thisMatrix_isReal)** (1 分)
+
+try this   
+
+
+https://www.geckoandfly.com/27387/batch-rename-files/
+
+**11. [u/[deleted]](https://www.reddit.com/user/[deleted])** (1 分)
+
+[deleted]
+
+> **[u/vvinvardhan](https://www.reddit.com/user/vvinvardhan)** (1 分): ohh, okay, Ithanks I will check those out!
+
+**12. [u/CaedoGenesis](https://www.reddit.com/user/CaedoGenesis)** (1 分)
+
+I sort/rename mine with VLC as well. Instead of closing VLC, you can just go to the next clip, then rename the one you just watched. It shouldn't prevent renaming so long as you're on a different clip.
+
+> **[u/vvinvardhan](https://www.reddit.com/user/vvinvardhan)** (1 分): yea, but that does lead to error and file not found, when you have them in a playlist
+
+**13. [u/JAGNTOR](https://www.reddit.com/user/JAGNTOR)** (1 分)
+
+For batch renaming you can use 'Advanced renamer' software. Others I don't have an idea.
+
+> **[u/vvinvardhan](https://www.reddit.com/user/vvinvardhan)** (1 分): will check it out, thanks dude!
+
+
+
+---
+
+## I found a site than can help sort comments on a video from oldest to newest.
+
+- **作者**: [u/[deleted]](https://www.reddit.com/user/[deleted])
+- **版块**: r/youtube
+- **发布日期**: 2018-04-26
+- **评分**: 10 | **评论数**: 5
+- **原帖**: https://www.reddit.com/r/youtube/comments/8f2q63/i_found_a_site_than_can_help_sort_comments_on_a/
+
+### 正文
+
+(无正文,可能是链接/图片帖)
+
+### 热门评论 (前 4 条)
+
+**1. [u/Advanced-Brother-741](https://www.reddit.com/user/Advanced-Brother-741)** (2 分)
+
+Thank you.
+
+**2. [u/CannibalDinner](https://www.reddit.com/user/CannibalDinner)** (2 分)
+
+I'm sad I didn't look for this sooner. I have spent an inordinate amount of time loading comments to ctrl+f them to find something.
+
+**3. [u/[deleted]](https://www.reddit.com/user/[deleted])** (2 分)
+
+i know im late but thank you
+
+> **[u/Lionharth08](https://www.reddit.com/user/Lionharth08)** (1 分): Same
+
+**4. [u/master3243](https://www.reddit.com/user/master3243)** (1 分)
+
+Thank you.
+
+
+
+---
+
+## Collecting Clips / Editing Workflow Advice
+
+- **作者**: [u/KometSpaceMan](https://www.reddit.com/user/KometSpaceMan)
+- **版块**: r/Twitch
+- **发布日期**: 2025-09-08
+- **评分**: 1 | **评论数**: 10
+- **原帖**: https://www.reddit.com/r/Twitch/comments/1nbb7dc/collecting_clips_editing_workflow_advice/
+
+### 正文
+
+::EDIT:: Going with the suggestion mentioned by u/[ChipsAhoyMccoy14](https://www.reddit.com/user/ChipsAhoyMccoy14/) below. thanks!  
+OBS Solution: [https://youtu.be/tc0r6nfcw6Q?si=Wuggns9T-8xRsdeV](https://youtu.be/tc0r6nfcw6Q?si=Wuggns9T-8xRsdeV)  
+Note: Markers were not coming up in Kdenlive, had to switch to DaVinci Resolve for this to work.  
+  
+Looking for any tips or ideas for my editing workflow:  
+Games like Starfield or other open world games I tend to pull highlights from the locally recorded VOD for both Shorts and to string together for a highlight video to post to YouTube.
+
+Right now, to identify all clips, I rewatch ALL of the VOD on my video editing software and record those short sections... but even on x2 or x3 speed this can take hours per VOD. I'm trying to identify someway to change that.
+
+\- I have a button on my Stream Deck to make a Twitch Clip, but the timing isn't always perfect, having to download the clip from Twitch doesn't lead to the best quality audio/video for editing, and I'm sometimes not the quickest on the jump to hit the button.
+
+I was hoping someone might know of a way to have a button on my stream deck to manually FLAG a section of the VOD that I can then go back through and browse through. I'm not opposed to giving something like **Overwolf** a try again, it just didn't really wow me at the time.
+
+Thanks everyone for your thoughts.
+
+### 热门评论 (前 6 条)
+
+**1. [u/ChipsAhoyMccoy14](https://www.reddit.com/user/ChipsAhoyMccoy14)** (5 分)
+
+You mean you want something like this: https://youtu.be/tc0r6nfcw6Q?si=Wuggns9T-8xRsdeV
+
+> **[u/KometSpaceMan](https://www.reddit.com/user/KometSpaceMan)** (1 分): That's perfect, thank you! It's going to save me so much time in editing and more time to have fun. Interesting enough... doesn't work with Kdenlive, my video editing software I normally use. I did download the free version of DaVinci and the markers popped up just fine. Guess I'll be learning some new tricks in a new video editing program!
+
+**2. [u/WthdrwlSymptms_TTV](https://www.reddit.com/user/WthdrwlSymptms_TTV)** (3 分)
+
+Twitch has an add Stream marker button in the stream manager .  
+You can add this to obs as a dock and just click it when ever you feel something is clip worthy or rewatchable.
+
+Alternatively.  
+
+You can link your stream deck and your twitch account with "twitch tools by bar raider" available in the stream deck marketplace and add the create stream marker function to the stream deck as a button.
+
+> **[u/Elvis_Lazerbeam](https://www.reddit.com/user/Elvis_Lazerbeam)** (3 分): This is what I do, except I just type /marker.
+
+**3. [u/[deleted]](https://www.reddit.com/user/[deleted])** (2 分)
+
+[removed]
+
+> **[u/Rhadamant5186](https://www.reddit.com/user/Rhadamant5186)** (1 分): Greetings /u/Gam3overUK,
+ 
+ Thank you for posting to /r/Twitch. Your submission has been removed for the following reason(s):
+ 
+ - **Rule 2F**: Don’t post third party advertisements, without permission. 
+ 
+ Please read the subreddit rules before participating again. Thank you. 
+ 
+ You can view the subreddit rules [here](https://reddit.com/r/Twitch/about/rules). If you have any questions or concerns, please contact the subreddit moderators via [modmail](https://www.reddit.com/message/compose?to=%2Fr%2FTwitch). Re-posting the same thing again without express permission, or harassing moderators, may result in a ban.
+
+**4. [u/Mottis86](https://www.reddit.com/user/Mottis86)** (1 分)
+
+Whenever something potentially clip worthy happens, I hit the marker button on my streamdeck.
+
+After the stream, I open the VOD in the Highlighter tool in one tab, and open it normally in another tab.
+
+Then I check the timings of the markers in the Highlighter tool (since that's the only place where you can see them) and navigate to that time in the other tab.
+
+Then I see if it's actually something I wanna clip in the first place. If it is, I clip it.
+
+**5. [u/FerretBomb](https://www.reddit.com/user/FerretBomb)** (1 分)
+
+$10 USB foot pedal, and the obs-infowriter plugin. Set it to write out the current date/time, recording duration, and stream duration.
+
+Tap the pedal any time anything interesting or noteworthy happens. Cool play? Tap. Going AFK? Tap. Back from AFK? Tap.
+
+You end up with a text file 'cut sheet' pointing you at all the best spots of your stream, and where your attention needs to go.
+
+---
+
+Alternately, just make a Clip each time, then go back after the stream to each clip, hit 'watch full video' and it should drop you in at the point the clip was taken. Then delete the clip if it was missing context beyond the 'edit' range.
+
+**6. [u/squeamish_cactus](https://www.reddit.com/user/squeamish_cactus)** (1 分)
+
+I guess most don't know about Studio Obs's built in  "replay buffer"   Start it before going live and you can literally record clips straight to your ssd / hd.  Say you did a cool combo or something, depending how many seconds you set it to rewind back in time (just like any clipping) its instantly saved.  This way you don't need to watch videos, don't need to worry about markers .  Simply keybind or like me use your elgato stream deck and bind a button and bam that easy.
+
+
+
+---
+
+## Getting footage is time consuming
+
+- **作者**: [u/yojimbo_beta](https://www.reddit.com/user/yojimbo_beta)
+- **版块**: r/youtubegaming
+- **发布日期**: 2026-02-24
+- **评分**: 1 | **评论数**: 27
+- **原帖**: https://www.reddit.com/r/youtubegaming/comments/1rdfvli/getting_footage_is_time_consuming/
+
+### 正文
+
+I feel like a huge portion of my time on videos is spent just gathering my A-roll and B-roll
+
+I'm currently doing a long form video on Half Life 2 and I spent 30 minutes today getting footage for which I only used... 17 seconds
+
+I wonder to what extent I'm doing it wrong, to what extent it's just the medium. How much time does it take you?
+
+Getting everything lined up perfectly is hard, and I find most gameplay footage is not as high energy as I want. Maybe I am being perfectionist? At the same time, I want to produce really good material!
+
+This is clamping my productivity. My videos have decent views - the last three were 24k, 124k, 300k respectively. But I have a tough full time job and I just don't have time to spend like 3 hours per minute of content
+
+### 热门评论 (前 20 条)
+
+**1. [u/TheChrisD](https://www.reddit.com/user/TheChrisD)** (22 分)
+
+Welcome to the life of a content creator?
+
+> **[u/yojimbo_beta](https://www.reddit.com/user/yojimbo_beta)** (3 分): It's reassuring to know this is normal 🙂 But it's challenging because I have so many things I want to do. If I didn't have so much overtime at work, I feel I could produce twice as much Hopefully I can build up a library of footage I can gradually build upon. The important thing was checking - was I just doing this so badly, compared to similar folks
+
+> **[u/HereToKillEuronymous](https://www.reddit.com/user/HereToKillEuronymous)** (1 分): Pretty much this.
+
+**2. [u/VeraKorradin](https://www.reddit.com/user/VeraKorradin)** (5 分)
+
+Creating something that people will want to watch is going to take time. Creating content is not the same as streaming, but you can use streaming to record footage for your content. 
+
+**3. [u/ThatSamShow](https://www.reddit.com/user/ThatSamShow)** (7 分)
+
+This is normal. Most creators dislike the editing process. It's laborious. As you can imagine, many prefer the life of a streamer, where you simply fire up a game, play like any normal gamer, and stream the experience to your audience. Compared to creating video content for YouTube, it's a walk in the park.
+
+I'm just letting you know that what you're feeling is normal. If you want good edited content (b-roll and the final edit itself), it takes time and can be a slog. You either accept it as part of the gig, eventually hire someone else, or walk away.
+
+Hopefully it's worth it when the final piece comes together.
+
+**4. [u/Vice_Armani777](https://www.reddit.com/user/Vice_Armani777)** (3 分)
+
+I upload everyday, my video average length is between 8-15 minutes with some outliers being almost 20 minutes. It does get easier as you go. Just keep up the hard work.
+
+**5. [u/OKJMaster44](https://www.reddit.com/user/OKJMaster44)** (3 分)
+
+Honestly if it’s taking you time to get the footage you want you should see that as a **win**.
+
+It shows that the gameplay your video contains is curated with a purpose and not just generic gameplay anyone can get that doesn’t mean anything. Take it as a badge of honor and it’ll make your uploads feel that much more fulfilling and legit.
+
+If anything the fact that it takes all that effort to get those 17 seconds is just further validating. It further shows you have a unique value proposition that not anyone can just copy paste trivially. It took real effort to get those 17 seconds of footage and it will always help set your video apart from the rest on the topic. 
+
+Ultimately this just comes with the process. Some games take serious time to get worthwhile footage for. But if it leads to a sick video that gets views the effort is worth it imo.
+
+**6. [u/buttorsomething](https://www.reddit.com/user/buttorsomething)** (2 分)
+
+Record all your footage and at the time of you think you are going to talk about something just stop the recording there and you will know the end of recording 1 is where XYZ is.
+
+**7. [u/YTStrat](https://www.reddit.com/user/YTStrat)** (2 分)
+
+If you’re getting views like that, you obviously know how to make a solid video. So honestly the only thing that’ll speed up your process is experience. Eventually you’ll probably pick up patterns and just kind of intuitively know what you need and what you don’t for a video
+
+**8. [u/Tetrahedron_Head](https://www.reddit.com/user/Tetrahedron_Head)** (2 分)
+
+i spend 8-10 hours getting footage. longest ive spent is 24 hours 
+
+writing usually takes days 
+
+editing is 8ish hours 
+
+**9. [u/Diviern](https://www.reddit.com/user/Diviern)** (2 分)
+
+Sounds about right. I only do very basic edit-downs of stream vods and it's not uncommon for me to end up with 30 minutes of footage from 6-8 hours of recording time. If I was brutal and only left in the very very best of the footage I'd easily be down below the 10 minute mark.
+
+**10. [u/Ok-Discipline1678](https://www.reddit.com/user/Ok-Discipline1678)** (2 分)
+
+You can get gaming footage from world of long plays .com. They just ask you give credit. 
+
+I have been streaming video games to tiktok rather than YouTube but regardless there are two ways to look at video game content creation:
+
+1. As a money making activity in and of itself. For most people, you are probably more time efficient working a side job for minimum wage. Even if you eventually "take off" it's going to take awhile for you to average better than minimum wage for all the invested time. 
+
+2. Bringing people and some money along for the ride if you were going to play and enjoy the video(s) game anyway.
+
+Number 2 is my reason for tiktok video game streaming as my form of video game content creation. I have made a grand total of 100 dollars so far and I know I would have made more investing that time working at McDonald's. Streaming is funner though.
+
+**11. [u/Nobl1985](https://www.reddit.com/user/Nobl1985)** (2 分)
+
+You can use my free gameplay footage channel if I have the right content :) Royalty free game clips on YouTube. @RoyaltyFreeGameClips
+
+**12. [u/Alzorath](https://www.reddit.com/user/Alzorath)** (2 分)
+
+I've personally switched to taking a "use the whole cow" approach to reviews (could be used for video essays too, but would be a bit less consistent). Had a few catalysts for this (among them - 200+ hours on a game for a video that got 90k views).
+
+Basically worked out pretty good for me though - since it gives me a way to regularly interact with viewers, which makes recording a LOT more fun than just playing (streaming), keeps me on task easier so I don't hop game to game when I hit a boring/rough patch, and while it doesn't even pay minimum wage it does provide some additional trickle income (and backup video archives of gameplay should I need it again on a later project)
+
+**13. [u/Digsumdirt](https://www.reddit.com/user/Digsumdirt)** (2 分)
+
+Have you considered that if your doing a long video, I assume your giving value to your viewers with the info your sharing; for 17 secs of footage is it absolutely essential YOU are the one playing in the footage? Is there stock or other available footage you could use, mibbe free if give attribution in the vid description. If you have a lot of experience in this game which i'm assuming you do then viewers will listen without needing it to be you on screen every time.
+
+Good Luck anyway, good view numbers!
+
+**14. [u/classofliners](https://www.reddit.com/user/classofliners)** (2 分)
+
+I feel you, I’m currently trying to make a video and I’ve got at least 3 hours worth of Minecraft footage, but realistically I’d only use about 17 minutes of it
+
+**15. [u/ReserveNew1863](https://www.reddit.com/user/ReserveNew1863)** (2 分)
+
+Yeah as someone who does commentary, it takes me like 10 hrs just to find/overlay clips for a 15 min video
+
+> **[u/Twrtwins](https://www.reddit.com/user/Twrtwins)** (1 分): How do you handle the people behind the clips? Have you had controversy arise from your commentary or is there a line tat can be implemented to take some sting out?  I've done a few behavioral pieces on animal body language as edu pieces and my audience responds well but I'm wary of the format still. Acutely aware that good can be done but also harm.
+
+**16. [u/kidshibuya](https://www.reddit.com/user/kidshibuya)** (2 分)
+
+Try making the videos I do.  Recently I did a 14 game comparison, with 3 major areas of comparison per game.  Basically this breaks down to around 90 mins spent per game just capturing.   And I wonder why I have gaps of months between vids... 
+
+**17. [u/Delicious_Delay998](https://www.reddit.com/user/Delicious_Delay998)** (1 分)
+
+You could always hire someone to play the game for you lol
+But that seems like kind of a waste since it won’t really be “your journey” and also you might still have to watch through the footage unless they log it correctly and you can go to the non-boring bits
+
+**18. [u/General-Oven-1523](https://www.reddit.com/user/General-Oven-1523)** (1 分)
+
+I fail to understand what kind of videos you are doing? Because shouldn't you be gaming because it's fun and entertaining? Not because you're trying to "get footage". You play games that you enjoy and while playing you record it. Time well spent.
+
+> **[u/ad_noctem_media](https://www.reddit.com/user/ad_noctem_media)** (2 分): There is a whole ecosystem of gaming videos that is not just straight forward gameplay. Things like video essays, critical analysis, etc.  It is common to want to capture footage outside of what would be typical gameplay. Often this is done through console commands, photo modes, and other tools to access specific elements of the game.
+
+> **[u/Excellent-Cow9536](https://www.reddit.com/user/Excellent-Cow9536)** (2 分): My most successful series is a guide and playthrough of a game. I used console commands and did a lot of staging. It was not fun. It was not gaming. It was just work. The series has made me a a couple thousand dollars over the last year, but I started to dred the staged gaming by the end, since it was work and not playing. Now I'm in hobby mode just doing playthroughs with minimal edits and streaming. Realized I'm a gamer first and youtuber second. Not going to ruin my darling hobby by turning it into work anymore. I'm satisfied with sharing my videos of me actually gaming and streaming with my small but slowly growing community. That said, good luck to OP. Sounds like you're killing it. I hope you find a balance where you feel like you're getting good return on effort and don't dred the chore of getting footage and editing so much.
+
+**19. [u/GrapTops](https://www.reddit.com/user/GrapTops)** (1 分)
+
+
+The style has resonated with those view counts, but there's only one way to find out. Think of a nature camera set up to catch something that never ends up happening, you at least do have control.
+
+**20. [u/Suitable_Produce](https://www.reddit.com/user/Suitable_Produce)** (1 分)
+
+Would you mind sharing your channel? Sounds like you make some great content
+
+
+
+---
+
+## How long is “too long” when waiting for a wedding video?
+
+- **作者**: [u/bearablebea](https://www.reddit.com/user/bearablebea)
+- **版块**: r/weddingvideography
+- **发布日期**: 2025-05-26
+- **评分**: 7 | **评论数**: 31
+- **原帖**: https://www.reddit.com/r/weddingvideography/comments/1kvt1xy/how_long_is_too_long_when_waiting_for_a_wedding/
+
+### 正文
+
+Hi! I was an (early) Oct 2024 bride who hired a videographer to shoot our wedding. Contract we signed states “The post-production process typically takes 10-16 weeks from the time all materials are received….. In the event the company fails to deliver all deliverables to the client within the agreed-upon timeframe, the company shall refund 100% of the deposit to the client.” 
+
+We received a teaser video in December which aligns with our original time line. We were happy with it. It was short but it’s a teaser so that’s expected. 
+
+We were expecting our docu style video by end of February. Beginning of March, I reached out for an updated timeline. 2 weeks ish later- Videographer confirms he is behind on production and states we should be receiving our full length video end of March. We appreciated the update and waited. Silence. Mid April I email again requesting an update. Silence. Mid May, I emailed again- STILL kind and polite. Silence still. 
+
+
+I understand production gets backed up. But I’m becoming so frustrated with the lack of communication. I have been hesitant to add ~spice~ to my emails bc he does have our footage and I can NOT afford any chance of him retaliating. 
+
+Any suggestions for next steps? Am I being impatient?? Any insight would be appreciated!
+
+### 热门评论 (前 17 条)
+
+**1. [u/DGCA3](https://www.reddit.com/user/DGCA3)** (21 分)
+
+Keep the emails cordial. Your videographer sounds like they have gotten in over their head and are swamped with editing. I've been in that boat before. Other videographers have as well. The best policy is for them to be honest about when it will be ready, and not give out dates that keep changing.
+
+**2. [u/readitout](https://www.reddit.com/user/readitout)** (7 分)
+
+I’m so behind at the moment with editing and it’s killing me 😢
+
+> **[u/Artistbutnotreally](https://www.reddit.com/user/Artistbutnotreally)** (3 分): Hang in there, just do a little bit a day, if your busy get up at 5am and put in a few hours. Coordinate with your clients most people are understanding.
+
+> **[u/IllRelationship3528](https://www.reddit.com/user/IllRelationship3528)** (2 分): Yup kids will get you behind. We have 2 kids. Spent the last 6 years just being able to do a couple of hours editing here and there and I worked evenings as a delivery driver. They’re both in school/pre school now so i get 9am - 1pm every day to edit. Hang in there. It’ll get easier
+
+> **[u/waimfung](https://www.reddit.com/user/waimfung)** (1 分): Outsource editor is the way. I used to do both shoot and editing but that’s just so exhausting. Specialist editor also do better job = better result for client = you might get more work
+
+**3. [u/PieIsFairlyDelicious](https://www.reddit.com/user/PieIsFairlyDelicious)** (5 分)
+
+You are not being impatient. Being behind is understandable—I know I’ve been there before—but lowkey ghosting you is incredibly unprofessional. 
+
+It might be time to start adding some of that spice to your communication. You can be polite but firm. And I understand your concern with him having the footage, but keep in mind you have some power too. You paid for a product that he has not delivered, which means he has a financial stake in it. 
+
+It’s an uncomfortable situation, but some people need a push. Don’t be afraid to give it.
+
+**4. [u/Immediate-Ad-5878](https://www.reddit.com/user/Immediate-Ad-5878)** (4 分)
+
+Judging by the quite specific number of 1 downvote on all critical comments, I think it’s safe to assume the the filmer in question is part of this sub 😂
+
+**5. [u/iamjapho](https://www.reddit.com/user/iamjapho)** (3 分)
+
+I’m sorry but I have zero sympathy for this type of vendor. A lot of feature films take less time to edit. I would recommend you start communitating a bit more forcefully and consistently. Consider asking for a copy of the raw footage and some monetary compensation. The more time passes, the least likely you will see either. 
+
+If all fails and you are still being ignored, have a friend contact them “for more information on their availability and services”. If they get a reply, have them set up a meeting and show up in their stead.
+
+> **[u/ElCidly](https://www.reddit.com/user/ElCidly)** (3 分): Not sure why you’re being downvoted. It’s their fault for overbooking or just not working as much as they should. If I was months behind I’d be hiring an editor and sending some money back along with major apologies.
+
+**6. [u/One_Resolution_7635](https://www.reddit.com/user/One_Resolution_7635)** (2 分)
+
+I understand being backed up on editing, but three months late is outrageous. Especially with no communication. I agree with others about adding some spice to the emails. 
+
+I will never understand videographers being this late on due dates or not communicating. If you did this with an actual corporate client, you’d be fired and probably sued. 
+
+I hope you get your video soon 🥲
+
+**7. [u/AdventurePhotograper](https://www.reddit.com/user/AdventurePhotograper)** (3 分)
+
+I don't get how anyone can take 4+months to edit a wedding. It is clear that they procrastinate and do things in their own time rather than getting on with it. It's like they want to shoot everything in the summer peak season and wait until winter to start editing
+
+**8. [u/bearablebea](https://www.reddit.com/user/bearablebea)** (2 分)
+
+Thank you everyone. I am drafting an email now. I appreciate all your insight.
+
+**9. [u/Late_Ad516](https://www.reddit.com/user/Late_Ad516)** (2 分)
+
+He is a fool to himself  got  the business then throws the future recommendations away with  useless customer service. I deliver my work in a week but sometimes it is not fast enough because the couple already broken up by then. He needs to hire a editor or get his reputation trashed but sounds like he does not care and this fool should not be in the business.
+
+**10. [u/Spirited_G_33](https://www.reddit.com/user/Spirited_G_33)** (2 分)
+
+I’ve been in this boat, but never 3 months late and never without a lot of clear communication on what’s going on with my editing que/ other life stuff that comes up and slows down the process. 
+
+This is wayyy too long to make you wait for your video and the fact that you are getting ghosted is even worse. 
+
+A spicy email might be warranted at this point, but like a mild leaning into medium heat spice. I wouldn’t go hot or fire spicy just yet.
+
+Also since you bought the raws I would requests to see those asap. That is the easiest thing a videographer can do since the only real editing time goes to exporting.. that should take him no longer than a day.
+
+**11. [u/dOoKxZr](https://www.reddit.com/user/dOoKxZr)** (2 分)
+
+We waited 2 years for ours and had to threaten legal action unfortunately.
+
+**12. [u/fatlandsea](https://www.reddit.com/user/fatlandsea)** (0 分)
+
+The guy is a douche. Way too long. Ask for all the raw footage on a hard drive.
+
+> **[u/spar7ian7](https://www.reddit.com/user/spar7ian7)** (7 分): This is how to make the situation worse
+
+**13. [u/X4dow](https://www.reddit.com/user/X4dow)** (1 分)
+
+Contract shouldn't say "typically" it should say a hard limit.
+
+**14. [u/Schitzengiglz](https://www.reddit.com/user/Schitzengiglz)** (1 分)
+
+No matter how late a videographer is, they should maintain communication.  I find it very unprofessional to ignore a client after they have paid in full (assuming that is the case).  We all get behind at some point, especially during wedding seasons.  It's likely they are behind with several videos and your kindness is being taking advantage of.  Getting upset after 1 or 2 weeks late is over the top.  Almost double the agreed upon time, is justifiable and more than enough reason for concession.  Sorry this is happening to you.
+
+**15. [u/DJ_Di0nysus](https://www.reddit.com/user/DJ_Di0nysus)** (1 分)
+
+I’ve shot and edited dozens of wedding videos maybe even 100 back in the day.  Never took me longer than 5 days or 40 hours to edit and I made made edits set to different songs for bride getting ready, groom getting ready, full ceremony 2 camera edit, photo session edit, reception intro, full 2 camera speeches, 1st+second dance and then dancing.  Total run time was close to an hour (mainly ceremony and speeches being the long parts) but never the less.  One 8 min highlight video should take 3-4 days TOPS!
+
+**16. [u/Friendly-Argument526](https://www.reddit.com/user/Friendly-Argument526)** (1 分)
+
+Sometimes life happens and things get pushed back for whatever reason, but it's absolutely unacceptable to have 0 communication with you.  They should be providing updates at a minimum.  They don't have to get into personal reasons if there are any, but they should be making you feel at ease that your film is going to be completed, and soon hopefully.
+
+**17. [u/megamanfan86](https://www.reddit.com/user/megamanfan86)** (1 分)
+
+Keep being pleasantly persistent. It will pay off
+

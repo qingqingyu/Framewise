@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "skills": {
+    "implement-design": {
+      "source": "figma/mcp-server-guide",
+      "sourceType": "github",
+      "computedHash": "2e87927b93592fbc1cf48a58d6359d2894ad5e7611f7e824233bf4f6bb84db61"
+    },
+    "theme-factory": {
+      "source": "/tmp/anthropics-skills",
+      "sourceType": "local",
+      "computedHash": "93e78aa44f8fa00bb2c0608f400de1e1dcd6494611dd8ea27c867654240c7bcd"
+    }
+  }
+}
