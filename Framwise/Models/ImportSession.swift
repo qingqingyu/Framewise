@@ -235,12 +235,23 @@ class ImportSession: ObservableObject {
             removedAny = true
         }
 
-        // Clean up userClipOrder to remove stale IDs
         if removedAny {
+            let remainingIDs = Set(allClips.map { $0.id })
+
             if var order = userClipOrder {
-                let remainingIDs = Set(allClips.map { $0.id })
                 order.removeAll { !remainingIDs.contains($0) }
                 userClipOrder = order.isEmpty ? nil : order
+            }
+
+            for i in similarityGroups.indices.reversed() {
+                similarityGroups[i].clipIDs.removeAll { !remainingIDs.contains($0) }
+                if similarityGroups[i].clipIDs.count < 2 {
+                    let orphanedGroupID = similarityGroups[i].id
+                    similarityGroups.remove(at: i)
+                    for j in allClips.indices where allClips[j].similarityGroupID == orphanedGroupID {
+                        allClips[j].similarityGroupID = nil
+                    }
+                }
             }
         }
     }
