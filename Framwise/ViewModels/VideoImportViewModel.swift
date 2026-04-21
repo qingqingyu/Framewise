@@ -625,6 +625,38 @@ class VideoImportViewModel: ObservableObject {
 /// Supported video file extensions (single source of truth)
 let supportedVideoExtensions: Set<String> = ["mp4", "mov", "mxf", "avi", "mkv", "m4v"]
 
+/// Resolve a list of URLs (files and/or folders) into flat video file URLs.
+/// Folders are scanned recursively; non-video files are collected as unsupported.
+func resolveVideoURLs(from urls: [URL]) -> (videoURLs: [URL], unsupportedNames: [String]) {
+    let fm = FileManager.default
+    var videoURLs: [URL] = []
+    var unsupported: [String] = []
+
+    for url in urls {
+        var isDir: ObjCBool = false
+        guard fm.fileExists(atPath: url.path, isDirectory: &isDir) else { continue }
+
+        if isDir.boolValue {
+            guard let enumerator = fm.enumerator(
+                at: url,
+                includingPropertiesForKeys: [.isRegularFileKey],
+                options: [.skipsHiddenFiles, .skipsPackageDescendants]
+            ) else { continue }
+
+            for case let fileURL as URL in enumerator {
+                if supportedVideoExtensions.contains(fileURL.pathExtension.lowercased()) {
+                    videoURLs.append(fileURL)
+                }
+            }
+        } else if supportedVideoExtensions.contains(url.pathExtension.lowercased()) {
+            videoURLs.append(url)
+        } else {
+            unsupported.append(url.lastPathComponent)
+        }
+    }
+    return (videoURLs, unsupported)
+}
+
 enum ImportError: LocalizedError {
     case fileNotFound(URL)
     case unsupportedFormat(String)

@@ -48,7 +48,7 @@ struct ContentView: View {
         }
         .fileImporter(
             isPresented: $showFileImporter,
-            allowedContentTypes: [.movie, .video, .mpeg4Movie, .quickTimeMovie],
+            allowedContentTypes: [.movie, .video, .mpeg4Movie, .quickTimeMovie, .folder],
             allowsMultipleSelection: true
         ) { result in
             handleFileImport(result: result)
@@ -174,7 +174,8 @@ struct ContentView: View {
     private func handleFileImport(result: Result<[URL], Error>) {
         switch result {
         case .success(let urls):
-            importFiles(urls: urls)
+            let (videoURLs, _) = resolveVideoURLs(from: urls)
+            importFiles(urls: videoURLs)
         case .failure(let error):
             importViewModel.error = error
         }
@@ -255,7 +256,7 @@ struct SidebarView: View {
                             SidebarMetricRow(label: "Total Duration", value: formatDuration(session.totalDuration))
                             SidebarMetricRow(label: "Selected", value: "\(appState.selectedClipIDs.count)", tone: FramwiseTheme.accent)
                             SidebarMetricRow(label: "Tagged", value: "\(session.allClips.filter { !$0.tagIDs.isEmpty }.count)", tone: FramwiseTheme.success)
-                            SidebarMetricRow(label: "Waste", value: "\(session.allClips.filter { $0.wasteType != .none }.count)", tone: FramwiseTheme.warning)
+                            SidebarMetricRow(label: "Waste", value: "\(session.allClips.filter { $0.effectiveWasteType != .none }.count)", tone: FramwiseTheme.warning)
                         }
                     }
 
@@ -357,7 +358,7 @@ struct SidebarView: View {
                     Text("Ingest Bay")
                         .font(.framwiseDisplay(18, weight: .semibold))
                         .foregroundStyle(FramwiseTheme.textPrimary)
-                    Text(isTargeted ? "Release to import footage into the active workspace." : "Drop reels here or use Import to start a new cut-prep session.")
+                    Text(isTargeted ? "Release to import footage into the active workspace." : "Drop reels or folders here, or use Import to start a new session.")
                         .font(.framwiseUI(13))
                         .foregroundStyle(isTargeted ? FramwiseTheme.textPrimary : FramwiseTheme.textMuted)
                         .fixedSize(horizontal: false, vertical: true)
@@ -426,26 +427,20 @@ struct SidebarView: View {
 
     private func handleDrop(providers: [NSItemProvider]) {
         Task {
-            var urls: [URL] = []
-            var unsupportedNames: [String] = []
+            var droppedURLs: [URL] = []
             for provider in providers {
                 let url: URL? = await withCheckedContinuation { continuation in
                     provider.loadObject(ofClass: URL.self) { url, _ in
                         continuation.resume(returning: url)
                     }
                 }
-                if let url {
-                    if supportedVideoExtensions.contains(url.pathExtension.lowercased()) {
-                        urls.append(url)
-                    } else {
-                        unsupportedNames.append(url.lastPathComponent)
-                    }
-                }
+                if let url { droppedURLs.append(url) }
             }
-            if !urls.isEmpty {
-                importFilesFromURLs(urls)
-            } else if !unsupportedNames.isEmpty {
-                importViewModel.error = ImportError.unsupportedFormat(unsupportedNames.joined(separator: ", "))
+            let (videoURLs, unsupported) = resolveVideoURLs(from: droppedURLs)
+            if !videoURLs.isEmpty {
+                importFilesFromURLs(videoURLs)
+            } else if !unsupported.isEmpty {
+                importViewModel.error = ImportError.unsupportedFormat(unsupported.joined(separator: ", "))
             }
         }
     }
@@ -484,7 +479,7 @@ struct ExportSheetView: View {
     @State private var saveError: String?
 
     private var clipsToExport: [VideoClip] {
-        appState.selectedClips.filter { $0.wasteType == .none }
+        appState.selectedClips.filter { $0.effectiveWasteType == .none }
     }
 
     private var excludedWasteCount: Int {

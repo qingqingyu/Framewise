@@ -24,7 +24,7 @@ struct ClipCellView: View {
     @State private var isVisible = false
     @State private var loadTask: Task<Void, Never>?
 
-    private var isWaste: Bool { clip.wasteType != .none }
+    private var isWaste: Bool { clip.effectiveWasteType != .none }
     private var displayTags: [ClipTag] { Array(tags.filter { clip.tagIDs.contains($0.id) }.prefix(4)) }
 
     var body: some View {
@@ -98,6 +98,17 @@ struct ClipCellView: View {
                     VStack {
                         HStack {
                             statusBadge(text: wasteLabel.uppercased(), systemImage: "trash.fill", color: FramwiseTheme.danger)
+                                .padding(10)
+                            Spacer()
+                        }
+                        Spacer()
+                    }
+                }
+
+                if clip.isWasteOverridden && !isWaste {
+                    VStack {
+                        HStack {
+                            statusBadge(text: "KEPT", systemImage: "hand.thumbsup.fill", color: FramwiseTheme.success)
                                 .padding(10)
                             Spacer()
                         }
@@ -208,7 +219,7 @@ struct ClipCellView: View {
     }
 
     private var wasteLabel: String {
-        switch clip.wasteType {
+        switch clip.effectiveWasteType {
         case .blackout: return "Blackout"
         case .dark: return "Dark"
         case .solid: return "Solid"

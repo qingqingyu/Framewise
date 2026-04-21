@@ -98,6 +98,20 @@ class ImportSession: ObservableObject {
         userClipOrder = nil
     }
 
+    // MARK: - Waste Override
+
+    func setWasteOverride(_ clipID: UUID, override: WasteType?) {
+        if let index = allClips.firstIndex(where: { $0.id == clipID }) {
+            allClips[index].wasteOverride = override
+        }
+    }
+
+    func setWasteOverride(_ clipIDs: Set<UUID>, override: WasteType?) {
+        for i in allClips.indices where clipIDs.contains(allClips[i].id) {
+            allClips[i].wasteOverride = override
+        }
+    }
+
     // MARK: - Tag CRUD
 
     @discardableResult

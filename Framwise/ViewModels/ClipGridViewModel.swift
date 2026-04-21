@@ -43,6 +43,7 @@ class ClipGridViewModel: ObservableObject {
         struct ClipFilterState: Equatable {
             let id: UUID
             let wasteType: WasteType
+            let wasteOverride: WasteType?
             let tagIDs: [UUID]
             let similarityGroupID: UUID?
         }
@@ -70,6 +71,7 @@ class ClipGridViewModel: ObservableObject {
                 FilterInput.ClipFilterState(
                     id: $0.id,
                     wasteType: $0.wasteType,
+                    wasteOverride: $0.wasteOverride,
                     tagIDs: $0.tagIDs.sorted { $0.uuidString < $1.uuidString },
                     similarityGroupID: $0.similarityGroupID
                 )
@@ -116,9 +118,9 @@ class ClipGridViewModel: ObservableObject {
     private func computeFilteredClips(from allClips: [VideoClip], selectedIDs: Set<UUID>, sourceURL: URL?, tagFilter: UUID?, hideWaste: Bool) -> [VideoClip] {
         var result = allClips
 
-        // Waste filter
+        // Waste filter (respects manual overrides)
         if hideWaste {
-            result = result.filter { $0.wasteType == .none }
+            result = result.filter { $0.effectiveWasteType == .none }
         }
 
         // Source file filter

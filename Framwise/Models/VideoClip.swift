@@ -68,8 +68,13 @@ struct VideoClip: Identifiable, Hashable {
 
     var isSelected: Bool = false
     var wasteType: WasteType = .none
+    var wasteOverride: WasteType? = nil
     var tagIDs: Set<UUID> = []
     var similarityGroupID: UUID? = nil
+
+    /// The waste type shown in the UI — respects manual overrides
+    var effectiveWasteType: WasteType { wasteOverride ?? wasteType }
+    var isWasteOverridden: Bool { wasteOverride != nil }
 
     init(
         id: UUID = UUID(),
@@ -158,7 +163,7 @@ struct VideoClip: Identifiable, Hashable {
 extension VideoClip: Codable {
     enum CodingKeys: String, CodingKey {
         case id, sourceFileURL, sourceFrameRate, timecodeStart, timecodeEnd
-        case wasteType, tagIDs, similarityGroupID
+        case wasteType, wasteOverride, tagIDs, similarityGroupID
     }
 
     init(from decoder: Decoder) throws {
@@ -169,6 +174,7 @@ extension VideoClip: Codable {
         timecodeStart = try c.decode(CMTime.self, forKey: .timecodeStart)
         timecodeEnd = try c.decode(CMTime.self, forKey: .timecodeEnd)
         wasteType = try c.decodeIfPresent(WasteType.self, forKey: .wasteType) ?? .none
+        wasteOverride = try c.decodeIfPresent(WasteType.self, forKey: .wasteOverride)
         tagIDs = try c.decodeIfPresent(Set<UUID>.self, forKey: .tagIDs) ?? []
         similarityGroupID = try c.decodeIfPresent(UUID.self, forKey: .similarityGroupID)
 
@@ -190,6 +196,9 @@ extension VideoClip: Codable {
         try c.encode(timecodeEnd, forKey: .timecodeEnd)
         if wasteType != .none {
             try c.encode(wasteType, forKey: .wasteType)
+        }
+        if let override = wasteOverride {
+            try c.encode(override, forKey: .wasteOverride)
         }
         if !tagIDs.isEmpty {
             try c.encode(tagIDs, forKey: .tagIDs)

@@ -515,7 +515,7 @@ struct ClipGridView: View {
 
     private var wasteClipCount: Int {
         guard let session = appState.importSession else { return 0 }
-        return session.allClips.filter { $0.wasteType != .none }.count
+        return session.allClips.filter { $0.effectiveWasteType != .none }.count
     }
 
     private var similarityGroupCount: Int {
@@ -642,6 +642,28 @@ struct ClipGridView: View {
             Button("Preview") {
                 previewingClip = clip
                 showPreviewModal = true
+            }
+            Divider()
+
+            // Waste override
+            let targetIDs: Set<UUID> = appState.selectedClipIDs.contains(clip.id) && appState.selectedClipIDs.count > 1
+                ? appState.selectedClipIDs
+                : [clip.id]
+            let isBatch = targetIDs.count > 1
+
+            if clip.effectiveWasteType != .none {
+                Button(isBatch ? "Mark \(targetIDs.count) as Non-Waste" : "Mark as Non-Waste") {
+                    appState.importSession?.setWasteOverride(targetIDs, override: .none)
+                }
+            } else if clip.wasteType == .none && !clip.isWasteOverridden {
+                Button(isBatch ? "Mark \(targetIDs.count) as Waste" : "Mark as Waste") {
+                    appState.importSession?.setWasteOverride(targetIDs, override: .solid)
+                }
+            }
+            if clip.isWasteOverridden {
+                Button(isBatch ? "Reset \(targetIDs.count) to Auto-detected" : "Reset to Auto-detected") {
+                    appState.importSession?.setWasteOverride(targetIDs, override: nil)
+                }
             }
             Divider()
 
@@ -1209,12 +1231,12 @@ struct ClipPreviewModal: View {
                         foreground: isSelected ? FramwiseTheme.textPrimary : FramwiseTheme.textMuted
                     ))
 
-                    if liveClip.wasteType != .none {
+                    if liveClip.effectiveWasteType != .none {
                         HStack(spacing: 8) {
                             Circle()
                                 .fill(FramwiseTheme.danger)
                                 .frame(width: 8, height: 8)
-                            Text(liveClip.wasteType.rawValue.uppercased())
+                            Text(liveClip.effectiveWasteType.rawValue.uppercased())
                                 .font(.framwiseMono(10))
                                 .foregroundStyle(FramwiseTheme.textPrimary)
                         }

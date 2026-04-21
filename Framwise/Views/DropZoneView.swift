@@ -64,11 +64,11 @@ struct DropZoneView: View {
                         .frame(width: 74, height: 74)
 
                         VStack(spacing: 8) {
-                            Text(isTargeted ? "Release to Import" : "Drop Video Files")
+                            Text(isTargeted ? "Release to Import" : "Drop Video Files or Folders")
                                 .font(.framwiseDisplay(26, weight: .semibold))
                                 .foregroundStyle(FramwiseTheme.textPrimary)
 
-                            Text("Supports MOV, MP4, MPEG4, and QuickTime footage. Multiple reels are fine.")
+                            Text("Supports MOV, MP4, MPEG4, and QuickTime footage.\nDrop folders to scan them recursively.")
                                 .font(.framwiseUI(13))
                                 .foregroundStyle(FramwiseTheme.textMuted)
                                 .multilineTextAlignment(.center)
@@ -93,7 +93,7 @@ struct DropZoneView: View {
             }
 
             HStack(spacing: 12) {
-                ForEach(["MOV", "MP4", "MPEG4", "QuickTime"], id: \.self) { format in
+                ForEach(["MOV", "MP4", "MPEG4", "QuickTime", "Folders"], id: \.self) { format in
                     Text(format)
                         .font(.framwiseMono(11))
                         .foregroundStyle(FramwiseTheme.textMuted)
@@ -188,7 +188,7 @@ struct DropZoneView: View {
         .background(FramwiseTheme.appGradient)
         .fileImporter(
             isPresented: $showFileImporter,
-            allowedContentTypes: [.movie, .video, .mpeg4Movie, .quickTimeMovie],
+            allowedContentTypes: [.movie, .video, .mpeg4Movie, .quickTimeMovie, .folder],
             allowsMultipleSelection: true
         ) { result in
             handleFileImport(result: result)
@@ -198,29 +198,21 @@ struct DropZoneView: View {
     // MARK: - File Handling
 
     private func handleDrop(providers: [NSItemProvider]) {
-
         Task {
-            var urls: [URL] = []
-            var unsupportedNames: [String] = []
+            var droppedURLs: [URL] = []
             for provider in providers {
                 let url: URL? = await withCheckedContinuation { continuation in
                     provider.loadObject(ofClass: URL.self) { url, _ in
                         continuation.resume(returning: url)
                     }
                 }
-                if let url {
-                    if supportedVideoExtensions.contains(url.pathExtension.lowercased()) {
-                        urls.append(url)
-                    } else {
-                        unsupportedNames.append(url.lastPathComponent)
-                    }
-                }
+                if let url { droppedURLs.append(url) }
             }
-            if !urls.isEmpty {
-                importFiles(urls: urls)
-            } else if !unsupportedNames.isEmpty {
-                // Only show error when ALL dropped files are unsupported
-                importViewModel.error = ImportError.unsupportedFormat(unsupportedNames.joined(separator: ", "))
+            let (videoURLs, unsupported) = resolveVideoURLs(from: droppedURLs)
+            if !videoURLs.isEmpty {
+                importFiles(urls: videoURLs)
+            } else if !unsupported.isEmpty {
+                importViewModel.error = ImportError.unsupportedFormat(unsupported.joined(separator: ", "))
             }
         }
     }
@@ -228,7 +220,8 @@ struct DropZoneView: View {
     private func handleFileImport(result: Result<[URL], Error>) {
         switch result {
         case .success(let urls):
-            importFiles(urls: urls)
+            let (videoURLs, _) = resolveVideoURLs(from: urls)
+            importFiles(urls: videoURLs)
         case .failure(let error):
             importViewModel.error = error
         }
