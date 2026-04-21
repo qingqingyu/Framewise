@@ -13,12 +13,15 @@ class ClipGridViewModel: ObservableObject {
     @Published var searchText = ""
     @Published var sortOrder: SortOrder = .original
     @Published var viewMode: ViewMode = .all
+    @Published var groupSimilar: Bool = false
+    @Published var similarityGroupFilter: UUID? = nil
     private var selectionAnchorID: UUID?
 
     enum SortOrder {
         case original
         case duration
         case filename
+        case similarity
     }
 
     enum ViewMode: String, CaseIterable {
@@ -41,6 +44,7 @@ class ClipGridViewModel: ObservableObject {
             let id: UUID
             let wasteType: WasteType
             let tagIDs: [UUID]
+            let similarityGroupID: UUID?
         }
 
         let clipStates: [ClipFilterState]
@@ -51,6 +55,8 @@ class ClipGridViewModel: ObservableObject {
         let searchText: String
         let sortOrder: SortOrder
         let viewMode: ViewMode
+        let similarityGroupFilter: UUID?
+        let groupSimilar: Bool
     }
 
     private var cachedInput: FilterInput?
@@ -64,7 +70,8 @@ class ClipGridViewModel: ObservableObject {
                 FilterInput.ClipFilterState(
                     id: $0.id,
                     wasteType: $0.wasteType,
-                    tagIDs: $0.tagIDs.sorted { $0.uuidString < $1.uuidString }
+                    tagIDs: $0.tagIDs.sorted { $0.uuidString < $1.uuidString },
+                    similarityGroupID: $0.similarityGroupID
                 )
             },
             selectedIDs: selectedIDs,
@@ -73,7 +80,9 @@ class ClipGridViewModel: ObservableObject {
             hideWaste: hideWaste,
             searchText: searchText,
             sortOrder: sortOrder,
-            viewMode: viewMode
+            viewMode: viewMode,
+            similarityGroupFilter: similarityGroupFilter,
+            groupSimilar: groupSimilar
         )
 
         if cachedInput == input {
@@ -122,6 +131,11 @@ class ClipGridViewModel: ObservableObject {
             result = result.filter { $0.tagIDs.contains(tagFilter) }
         }
 
+        // Similarity group filter
+        if let groupFilter = similarityGroupFilter {
+            result = result.filter { $0.similarityGroupID == groupFilter }
+        }
+
         // View mode filter
         if viewMode == .selected {
             result = result.filter { selectedIDs.contains($0.id) }
@@ -142,8 +156,42 @@ class ClipGridViewModel: ObservableObject {
             result.sort { $0.duration > $1.duration }
         case .filename:
             result.sort { $0.sourceFileName < $1.sourceFileName }
+        case .similarity:
+            result = sortBySimilarityGroup(result)
         }
 
+        // When groupSimilar is on (and not already sorted by similarity), cluster grouped clips together
+        if groupSimilar && sortOrder != .similarity {
+            result = sortBySimilarityGroup(result)
+        }
+
+        return result
+    }
+
+    /// Reorder clips so that similarity group members are adjacent,
+    /// preserving relative order otherwise. Ungrouped clips come last.
+    private func sortBySimilarityGroup(_ clips: [VideoClip]) -> [VideoClip] {
+        var grouped: [UUID: [VideoClip]] = [:]
+        var groupOrder: [UUID] = []
+        var ungrouped: [VideoClip] = []
+
+        for clip in clips {
+            if let gid = clip.similarityGroupID {
+                if grouped[gid] == nil {
+                    groupOrder.append(gid)
+                    grouped[gid] = []
+                }
+                grouped[gid]?.append(clip)
+            } else {
+                ungrouped.append(clip)
+            }
+        }
+
+        var result: [VideoClip] = []
+        for gid in groupOrder {
+            result.append(contentsOf: grouped[gid] ?? [])
+        }
+        result.append(contentsOf: ungrouped)
         return result
     }
 
@@ -229,6 +277,8 @@ class ClipGridViewModel: ObservableObject {
         searchText = ""
         sortOrder = .original
         viewMode = .all
+        groupSimilar = false
+        similarityGroupFilter = nil
         selectionAnchorID = nil
     }
 }

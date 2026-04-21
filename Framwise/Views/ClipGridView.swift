@@ -202,6 +202,37 @@ struct ClipGridView: View {
                                 foreground: hideWasteClips ? FramwiseTheme.textPrimary : FramwiseTheme.textMuted
                             ))
                         }
+
+                        if similarityGroupCount > 0 {
+                            Button(action: {
+                                gridViewModel.groupSimilar.toggle()
+                                if !gridViewModel.groupSimilar {
+                                    gridViewModel.similarityGroupFilter = nil
+                                }
+                            }) {
+                                Label(
+                                    gridViewModel.groupSimilar ? "\(similarityGroupCount) groups" : "Group similar",
+                                    systemImage: "square.on.square"
+                                )
+                            }
+                            .buttonStyle(FramwiseGhostButtonStyle(
+                                fill: gridViewModel.groupSimilar ? FramwiseTheme.info.opacity(0.14) : FramwiseTheme.surfaceRaised,
+                                border: gridViewModel.groupSimilar ? FramwiseTheme.info.opacity(0.28) : FramwiseTheme.line.opacity(0.8),
+                                foreground: gridViewModel.groupSimilar ? FramwiseTheme.textPrimary : FramwiseTheme.textMuted
+                            ))
+                        }
+
+                        if let groupFilter = gridViewModel.similarityGroupFilter {
+                            filterChip(
+                                title: similarityGroupLabel(for: groupFilter),
+                                systemImage: "square.on.square.fill",
+                                fill: FramwiseTheme.info.opacity(0.16),
+                                border: FramwiseTheme.info.opacity(0.28),
+                                foreground: FramwiseTheme.textPrimary
+                            ) {
+                                gridViewModel.similarityGroupFilter = nil
+                            }
+                        }
                     }
                 }
             }
@@ -487,12 +518,29 @@ struct ClipGridView: View {
         return session.allClips.filter { $0.wasteType != .none }.count
     }
 
+    private var similarityGroupCount: Int {
+        appState.importSession?.similarityGroups.count ?? 0
+    }
+
+    private var similarityGroupSizeMap: [UUID: Int] {
+        guard let groups = appState.importSession?.similarityGroups else { return [:] }
+        return Dictionary(uniqueKeysWithValues: groups.map { ($0.id, $0.count) })
+    }
+
+    private func similarityGroupLabel(for groupID: UUID) -> String {
+        if let group = appState.importSession?.similarityGroups.first(where: { $0.id == groupID }) {
+            return "\(group.count) takes"
+        }
+        return "Group"
+    }
+
     private var hasActiveFilters: Bool {
         !gridViewModel.searchText.isEmpty ||
         appState.selectedSourceURL != nil ||
         appState.importSession?.activeTagFilter != nil ||
         hideWasteClips ||
-        gridViewModel.viewMode != .all
+        gridViewModel.viewMode != .all ||
+        gridViewModel.similarityGroupFilter != nil
     }
 
     private var emptyResultsExplanation: String {
@@ -539,7 +587,8 @@ struct ClipGridView: View {
             size: gridSize.cellSize,
             isSelected: appState.selectedClipIDs.contains(clip.id),
             thumbnailGenerator: thumbnailGenerator,
-            tags: appState.importSession?.tags ?? []
+            tags: appState.importSession?.tags ?? [],
+            similarityGroupSize: clip.similarityGroupID.flatMap { similarityGroupSizeMap[$0] } ?? 0
         )
         .id(clip.id)
         .onDrag {
@@ -583,6 +632,12 @@ struct ClipGridView: View {
             Divider()
             Button("Select All from Same File") {
                 selectAllFromSameFile(as: clip)
+            }
+            if let groupID = clip.similarityGroupID, similarityGroupSizeMap[groupID] ?? 0 >= 2 {
+                Button("Show Similar Takes") {
+                    gridViewModel.groupSimilar = true
+                    gridViewModel.similarityGroupFilter = groupID
+                }
             }
             Button("Preview") {
                 previewingClip = clip

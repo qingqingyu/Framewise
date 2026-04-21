@@ -28,12 +28,13 @@ class SessionStore {
         let tags: [ClipTag]
         let activeTagFilter: UUID?
         let selectedClipIDs: Set<UUID>
-        let sourceFileMetadata: [URL: FileMetadata]  // nil for legacy sessions
+        let sourceFileMetadata: [URL: FileMetadata]
+        let similarityGroups: [SimilarityGroup]
 
         enum CodingKeys: String, CodingKey {
             case version, id, createdDate, sourceFiles, allClips
             case isAnalyzed, userClipOrder, tags, activeTagFilter, selectedClipIDs
-            case sourceFileMetadata
+            case sourceFileMetadata, similarityGroups
         }
 
         init(from decoder: Decoder) throws {
@@ -49,12 +50,14 @@ class SessionStore {
             activeTagFilter = try c.decodeIfPresent(UUID.self, forKey: .activeTagFilter)
             selectedClipIDs = try c.decodeIfPresent(Set<UUID>.self, forKey: .selectedClipIDs) ?? []
             sourceFileMetadata = try c.decodeIfPresent([URL: FileMetadata].self, forKey: .sourceFileMetadata) ?? [:]
+            similarityGroups = try c.decodeIfPresent([SimilarityGroup].self, forKey: .similarityGroups) ?? []
         }
 
         init(version: Int, id: UUID, createdDate: Date, sourceFiles: [URL],
              allClips: [VideoClip], isAnalyzed: Bool, userClipOrder: [UUID]?,
              tags: [ClipTag], activeTagFilter: UUID?, selectedClipIDs: Set<UUID>,
-             sourceFileMetadata: [URL: FileMetadata] = [:]) {
+             sourceFileMetadata: [URL: FileMetadata] = [:],
+             similarityGroups: [SimilarityGroup] = []) {
             self.version = version
             self.id = id
             self.createdDate = createdDate
@@ -66,6 +69,7 @@ class SessionStore {
             self.activeTagFilter = activeTagFilter
             self.selectedClipIDs = selectedClipIDs
             self.sourceFileMetadata = sourceFileMetadata
+            self.similarityGroups = similarityGroups
         }
     }
 
@@ -110,7 +114,8 @@ class SessionStore {
             tags: session.tags,
             activeTagFilter: session.activeTagFilter,
             selectedClipIDs: selectedClipIDs,
-            sourceFileMetadata: metadata
+            sourceFileMetadata: metadata,
+            similarityGroups: session.similarityGroups
         )
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
@@ -157,8 +162,6 @@ class SessionStore {
     // MARK: - Migration
 
     private func migrate(_ data: SessionData) -> SessionData {
-        // Add future migrations here, e.g.:
-        // if data.version < 2 { data = migrateV1toV2(data) }
         return SessionData(
             version: Self.currentVersion,
             id: data.id,
@@ -170,7 +173,8 @@ class SessionStore {
             tags: data.tags,
             activeTagFilter: data.activeTagFilter,
             selectedClipIDs: data.selectedClipIDs,
-            sourceFileMetadata: data.sourceFileMetadata
+            sourceFileMetadata: data.sourceFileMetadata,
+            similarityGroups: data.similarityGroups
         )
     }
 }

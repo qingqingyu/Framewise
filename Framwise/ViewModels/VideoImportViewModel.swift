@@ -16,6 +16,7 @@ struct VideoImportResult {
     let sourceURL: URL
     let clips: [VideoClip]
     let wasteTypes: [UUID: WasteType]  // clipID → wasteType
+    let similarityGroups: [SimilarityGroup]
 }
 
 @MainActor
@@ -34,14 +35,16 @@ class VideoImportViewModel: ObservableObject {
 
     private let sceneDetector = SceneDetector()
     private let wasteDetector = WasteDetector()
-    var singleVideoAnalyzer: (URL, SceneDetector, WasteDetector, Int) async throws -> VideoImportResult
+    private let similarityDetector = SimilarityDetector()
+    var singleVideoAnalyzer: (URL, SceneDetector, WasteDetector, SimilarityDetector, Int) async throws -> VideoImportResult
 
     init() {
-        self.singleVideoAnalyzer = { url, sceneDetector, wasteDetector, targetSegmentCount in
+        self.singleVideoAnalyzer = { url, sceneDetector, wasteDetector, similarityDetector, targetSegmentCount in
             try await Self.analyzeSingleVideo(
             url: url,
             sceneDetector: sceneDetector,
             wasteDetector: wasteDetector,
+            similarityDetector: similarityDetector,
             targetSegmentCount: targetSegmentCount
             )
         }
@@ -154,6 +157,7 @@ class VideoImportViewModel: ObservableObject {
             // Capture values for use in non-isolated tasks
             let sceneDetector = self.sceneDetector
             let wasteDetector = self.wasteDetector
+            let similarityDetector = self.similarityDetector
             let targetCount = self.targetSegmentCount
             let analyzer = self.singleVideoAnalyzer
 
@@ -165,7 +169,7 @@ class VideoImportViewModel: ObservableObject {
                 for url in uniqueURLs {
                     group.addTask {
                         do {
-                            let result = try await analyzer(url, sceneDetector, wasteDetector, targetCount)
+                            let result = try await analyzer(url, sceneDetector, wasteDetector, similarityDetector, targetCount)
                             return (url, .success(result))
                         } catch {
                             return (url, .failure(error))
@@ -231,6 +235,17 @@ class VideoImportViewModel: ObservableObject {
                 session.allClips[i].wasteType = wasteType
             }
         }
+
+        // Apply similarity groups
+        for group in result.similarityGroups {
+            let groupClipIDs = Set(group.clipIDs)
+            for i in startIndex..<session.allClips.count {
+                if groupClipIDs.contains(session.allClips[i].id) {
+                    session.allClips[i].similarityGroupID = group.id
+                }
+            }
+            session.similarityGroups.append(group)
+        }
     }
 
     // MARK: - Single Video Analysis (Non-isolated, for parallel execution)
@@ -240,6 +255,7 @@ class VideoImportViewModel: ObservableObject {
         url: URL,
         sceneDetector: SceneDetector,
         wasteDetector: WasteDetector,
+        similarityDetector: SimilarityDetector,
         targetSegmentCount: Int
     ) async throws -> VideoImportResult {
         let asset = AVAsset(url: url)
@@ -297,7 +313,11 @@ class VideoImportViewModel: ObservableObject {
         // Waste detection
         let wasteTypes = await detectWasteInClips(clips: clips, sourceURL: url, wasteDetector: wasteDetector)
 
-        return VideoImportResult(sourceURL: url, clips: clips, wasteTypes: wasteTypes)
+        // Similarity detection (only non-waste clips are worth grouping)
+        let nonWasteClips = clips.filter { wasteTypes[$0.id] == nil }
+        let similarityGroups = await detectSimilarClips(clips: nonWasteClips, sourceURL: url, similarityDetector: similarityDetector)
+
+        return VideoImportResult(sourceURL: url, clips: clips, wasteTypes: wasteTypes, similarityGroups: similarityGroups)
     }
 
     // MARK: - Waste Detection (Non-isolated)
@@ -311,6 +331,18 @@ class VideoImportViewModel: ObservableObject {
         guard !clips.isEmpty else { return [:] }
         let asset = AVAsset(url: sourceURL)
         return await wasteDetector.detectWaste(in: clips, asset: asset)
+    }
+
+    // MARK: - Similarity Detection (Non-isolated)
+
+    nonisolated private static func detectSimilarClips(
+        clips: [VideoClip],
+        sourceURL: URL,
+        similarityDetector: SimilarityDetector
+    ) async -> [SimilarityGroup] {
+        guard clips.count >= 2 else { return [] }
+        let asset = AVAsset(url: sourceURL)
+        return await similarityDetector.detectSimilarClips(in: clips, asset: asset)
     }
 
     // MARK: - Clip Refinement (Pure)

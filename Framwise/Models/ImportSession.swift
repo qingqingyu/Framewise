@@ -19,6 +19,7 @@ class ImportSession: ObservableObject {
     @Published var userClipOrder: [UUID]? = nil
     @Published var tags: [ClipTag] = []
     @Published var activeTagFilter: UUID? = nil  // nil = show all
+    @Published var similarityGroups: [SimilarityGroup] = []
 
     var totalDuration: Double {
         allClips.reduce(0) { $0 + $1.duration }
@@ -58,6 +59,17 @@ class ImportSession: ObservableObject {
             order.removeAll { removedClipIDs.contains($0) }
             userClipOrder = order.isEmpty ? nil : order
         }
+        // Clean up similarity groups referencing removed clips
+        for i in similarityGroups.indices.reversed() {
+            similarityGroups[i].clipIDs.removeAll { removedClipIDs.contains($0) }
+            if similarityGroups[i].clipIDs.count < 2 {
+                let orphanedGroupID = similarityGroups[i].id
+                similarityGroups.remove(at: i)
+                for j in allClips.indices where allClips[j].similarityGroupID == orphanedGroupID {
+                    allClips[j].similarityGroupID = nil
+                }
+            }
+        }
     }
 
     func clear() {
@@ -67,6 +79,7 @@ class ImportSession: ObservableObject {
         userClipOrder = nil
         tags.removeAll()
         activeTagFilter = nil
+        similarityGroups.removeAll()
     }
 
     func moveClip(_ draggedID: UUID, toTarget targetID: UUID) {
@@ -192,6 +205,7 @@ class ImportSession: ObservableObject {
         isAnalyzed = data.isAnalyzed
         userClipOrder = data.userClipOrder
         tags = data.tags
+        similarityGroups = data.similarityGroups
 
         // Validate activeTagFilter references an existing tag
         if let filter = data.activeTagFilter {

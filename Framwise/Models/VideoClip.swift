@@ -69,6 +69,7 @@ struct VideoClip: Identifiable, Hashable {
     var isSelected: Bool = false
     var wasteType: WasteType = .none
     var tagIDs: Set<UUID> = []
+    var similarityGroupID: UUID? = nil
 
     init(
         id: UUID = UUID(),
@@ -157,7 +158,7 @@ struct VideoClip: Identifiable, Hashable {
 extension VideoClip: Codable {
     enum CodingKeys: String, CodingKey {
         case id, sourceFileURL, sourceFrameRate, timecodeStart, timecodeEnd
-        case wasteType, tagIDs
+        case wasteType, tagIDs, similarityGroupID
     }
 
     init(from decoder: Decoder) throws {
@@ -169,6 +170,7 @@ extension VideoClip: Codable {
         timecodeEnd = try c.decode(CMTime.self, forKey: .timecodeEnd)
         wasteType = try c.decodeIfPresent(WasteType.self, forKey: .wasteType) ?? .none
         tagIDs = try c.decodeIfPresent(Set<UUID>.self, forKey: .tagIDs) ?? []
+        similarityGroupID = try c.decodeIfPresent(UUID.self, forKey: .similarityGroupID)
 
         sourceFileName = sourceFileURL.lastPathComponent
         isSelected = false
@@ -191,6 +193,9 @@ extension VideoClip: Codable {
         }
         if !tagIDs.isEmpty {
             try c.encode(tagIDs, forKey: .tagIDs)
+        }
+        if let groupID = similarityGroupID {
+            try c.encode(groupID, forKey: .similarityGroupID)
         }
     }
 }

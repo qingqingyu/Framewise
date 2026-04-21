@@ -14,6 +14,7 @@ struct ClipCellView: View {
     let isSelected: Bool
     let thumbnailGenerator: ThumbnailGenerator
     var tags: [ClipTag] = []
+    var similarityGroupSize: Int = 0
 
     @State private var thumbnails: [CGImage] = []
     @State private var currentThumbnailIndex = 0
@@ -99,6 +100,21 @@ struct ClipCellView: View {
                             statusBadge(text: wasteLabel.uppercased(), systemImage: "trash.fill", color: FramwiseTheme.danger)
                                 .padding(10)
                             Spacer()
+                        }
+                        Spacer()
+                    }
+                }
+
+                if similarityGroupSize >= 2 {
+                    VStack {
+                        HStack {
+                            Spacer()
+                            statusBadge(
+                                text: "\(similarityGroupSize) TAKES",
+                                systemImage: "square.on.square",
+                                color: FramwiseTheme.info
+                            )
+                            .padding(10)
                         }
                         Spacer()
                     }

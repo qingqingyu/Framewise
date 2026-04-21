@@ -35,6 +35,8 @@
 		AFC046459BDAB56479818668 /* ClipTag.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE0A4EDE9A1EA5BB62085D5B /* ClipTag.swift */; };
 		E6BF493CAE38242E3396B0CE /* TagCreateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 506A4184A4530FAFF2D72E23 /* TagCreateView.swift */; };
 		FD1A2B3C4D5E6F7890AB0002 /* FramwiseDesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD1A2B3C4D5E6F7890AB0001 /* FramwiseDesignSystem.swift */; };
+		CD2A3B4C5D6E7F8901230001 /* SimilarityGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD2A3B4C5D6E7F8901230002 /* SimilarityGroup.swift */; };
+		CD2A3B4C5D6E7F8901230003 /* SimilarityDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD2A3B4C5D6E7F8901230004 /* SimilarityDetector.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -77,6 +79,8 @@
 		4A595C1BF4904D87A1866767 /* ClipGridViewModelTagTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipGridViewModelTagTests.swift; sourceTree = "<group>"; };
 		CE0A4EDE9A1EA5BB62085D5B /* ClipTag.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ClipTag.swift; path = Framwise/Models/ClipTag.swift; sourceTree = SOURCE_ROOT; };
 		FD1A2B3C4D5E6F7890AB0001 /* FramwiseDesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FramwiseDesignSystem.swift; sourceTree = "<group>"; };
+		CD2A3B4C5D6E7F8901230002 /* SimilarityGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimilarityGroup.swift; sourceTree = "<group>"; };
+		CD2A3B4C5D6E7F8901230004 /* SimilarityDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimilarityDetector.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -145,6 +149,7 @@
 				B1000002,
 				B1000003,
 				CE0A4EDE9A1EA5BB62085D5B /* ClipTag.swift */,
+				CD2A3B4C5D6E7F8901230002 /* SimilarityGroup.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -181,6 +186,7 @@
 				B1000012,
 				B1000019,
 				B1000020,
+				CD2A3B4C5D6E7F8901230004 /* SimilarityDetector.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -340,6 +346,8 @@
 				AFC046459BDAB56479818668 /* ClipTag.swift in Sources */,
 				E6BF493CAE38242E3396B0CE /* TagCreateView.swift in Sources */,
 				FD1A2B3C4D5E6F7890AB0002 /* FramwiseDesignSystem.swift in Sources */,
+				CD2A3B4C5D6E7F8901230001 /* SimilarityGroup.swift in Sources */,
+				CD2A3B4C5D6E7F8901230003 /* SimilarityDetector.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
