@@ -123,14 +123,14 @@ final class PreviewAndImportViewModelTests: XCTestCase {
         let successfulURL = try makeTemporaryVideoURL(named: "good.mov")
         let failingURL = try makeTemporaryVideoURL(named: "bad.mov")
 
-        viewModel.singleVideoAnalyzer = { url, _, _, _ in
+        viewModel.singleVideoAnalyzer = { url, _, _, _, _ in
             if url == successfulURL {
                 let clip = VideoClip(
                     sourceFileURL: url,
                     timecodeStart: .zero,
                     timecodeEnd: CMTime(seconds: 1, preferredTimescale: 600)
                 )
-                return VideoImportResult(sourceURL: url, clips: [clip], wasteTypes: [:])
+                return VideoImportResult(sourceURL: url, clips: [clip], wasteTypes: [:], similarityGroups: [])
             }
             throw ImportError.analysisFailed("boom")
         }
@@ -149,14 +149,14 @@ final class PreviewAndImportViewModelTests: XCTestCase {
         let duplicateURL = try makeTemporaryVideoURL(named: "same.mov")
         let counter = ImportInvocationCounter()
 
-        viewModel.singleVideoAnalyzer = { url, _, _, _ in
+        viewModel.singleVideoAnalyzer = { url, _, _, _, _ in
             await counter.increment()
             let clip = VideoClip(
                 sourceFileURL: url,
                 timecodeStart: .zero,
                 timecodeEnd: CMTime(seconds: 1, preferredTimescale: 600)
             )
-            return VideoImportResult(sourceURL: url, clips: [clip], wasteTypes: [:])
+            return VideoImportResult(sourceURL: url, clips: [clip], wasteTypes: [:], similarityGroups: [])
         }
 
         viewModel.importVideosStreaming(from: [duplicateURL, duplicateURL], into: session)
