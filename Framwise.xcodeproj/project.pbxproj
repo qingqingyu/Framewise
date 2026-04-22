@@ -37,6 +37,7 @@
 		FD1A2B3C4D5E6F7890AB0002 /* FramwiseDesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD1A2B3C4D5E6F7890AB0001 /* FramwiseDesignSystem.swift */; };
 		CD2A3B4C5D6E7F8901230001 /* SimilarityGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD2A3B4C5D6E7F8901230002 /* SimilarityGroup.swift */; };
 		CD2A3B4C5D6E7F8901230003 /* SimilarityDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD2A3B4C5D6E7F8901230004 /* SimilarityDetector.swift */; };
+		FR000001000000000000A001 /* FileResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR000001000000000000A002 /* FileResolver.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -81,6 +82,7 @@
 		FD1A2B3C4D5E6F7890AB0001 /* FramwiseDesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FramwiseDesignSystem.swift; sourceTree = "<group>"; };
 		CD2A3B4C5D6E7F8901230002 /* SimilarityGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimilarityGroup.swift; sourceTree = "<group>"; };
 		CD2A3B4C5D6E7F8901230004 /* SimilarityDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimilarityDetector.swift; sourceTree = "<group>"; };
+		FR000001000000000000A002 /* FileResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileResolver.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -187,6 +189,7 @@
 				B1000019,
 				B1000020,
 				CD2A3B4C5D6E7F8901230004 /* SimilarityDetector.swift */,
+				FR000001000000000000A002 /* FileResolver.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -348,6 +351,7 @@
 				FD1A2B3C4D5E6F7890AB0002 /* FramwiseDesignSystem.swift in Sources */,
 				CD2A3B4C5D6E7F8901230001 /* SimilarityGroup.swift in Sources */,
 				CD2A3B4C5D6E7F8901230003 /* SimilarityDetector.swift in Sources */,
+				FR000001000000000000A001 /* FileResolver.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

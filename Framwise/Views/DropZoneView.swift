@@ -93,7 +93,7 @@ struct DropZoneView: View {
             }
 
             HStack(spacing: 12) {
-                ForEach(["MOV", "MP4", "MPEG4", "QuickTime", "Folders"], id: \.self) { format in
+                ForEach(["MOV", "MP4", "MPEG4", "QuickTime"], id: \.self) { format in
                     Text(format)
                         .font(.framwiseMono(11))
                         .foregroundStyle(FramwiseTheme.textMuted)
@@ -208,7 +208,7 @@ struct DropZoneView: View {
                 }
                 if let url { droppedURLs.append(url) }
             }
-            let (videoURLs, unsupported) = resolveVideoURLs(from: droppedURLs)
+            let (videoURLs, unsupported) = FileResolver.resolveVideoURLs(from: droppedURLs)
             if !videoURLs.isEmpty {
                 importFiles(urls: videoURLs)
             } else if !unsupported.isEmpty {
@@ -220,7 +220,7 @@ struct DropZoneView: View {
     private func handleFileImport(result: Result<[URL], Error>) {
         switch result {
         case .success(let urls):
-            let (videoURLs, _) = resolveVideoURLs(from: urls)
+            let (videoURLs, _) = FileResolver.resolveVideoURLs(from: urls)
             importFiles(urls: videoURLs)
         case .failure(let error):
             importViewModel.error = error

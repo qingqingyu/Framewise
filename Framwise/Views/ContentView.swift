@@ -174,7 +174,7 @@ struct ContentView: View {
     private func handleFileImport(result: Result<[URL], Error>) {
         switch result {
         case .success(let urls):
-            let (videoURLs, _) = resolveVideoURLs(from: urls)
+            let (videoURLs, _) = FileResolver.resolveVideoURLs(from: urls)
             importFiles(urls: videoURLs)
         case .failure(let error):
             importViewModel.error = error
@@ -436,7 +436,7 @@ struct SidebarView: View {
                 }
                 if let url { droppedURLs.append(url) }
             }
-            let (videoURLs, unsupported) = resolveVideoURLs(from: droppedURLs)
+            let (videoURLs, unsupported) = FileResolver.resolveVideoURLs(from: droppedURLs)
             if !videoURLs.isEmpty {
                 importFilesFromURLs(videoURLs)
             } else if !unsupported.isEmpty {
