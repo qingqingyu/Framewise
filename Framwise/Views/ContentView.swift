@@ -262,11 +262,12 @@ struct SidebarView: View {
 
                     sidebarSection(title: "Tags", subtitle: "\(session.tags.count) sorting lanes") {
                         VStack(spacing: 8) {
-                            ForEach(session.tags) { tag in
+                            ForEach(Array(session.tags.enumerated()), id: \.element.id) { index, tag in
                                 SidebarTagRow(
                                     tag: tag,
                                     count: session.clipCount(for: tag.id),
-                                    isActive: session.activeTagFilter == tag.id
+                                    isActive: session.activeTagFilter == tag.id,
+                                    shortcutNumber: index < 9 ? index + 1 : nil
                                 ) {
                                     if session.activeTagFilter == tag.id {
                                         session.activeTagFilter = nil
@@ -807,6 +808,7 @@ private struct SidebarTagRow: View {
     let tag: ClipTag
     let count: Int
     let isActive: Bool
+    var shortcutNumber: Int? = nil
     let action: () -> Void
 
     var body: some View {
@@ -821,6 +823,21 @@ private struct SidebarTagRow: View {
                     .foregroundStyle(FramwiseTheme.textPrimary)
 
                 Spacer()
+
+                if let num = shortcutNumber {
+                    Text("\(num)")
+                        .font(.framwiseMono(10))
+                        .foregroundStyle(FramwiseTheme.textMuted.opacity(0.6))
+                        .frame(width: 18, height: 18)
+                        .background(
+                            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                .fill(FramwiseTheme.surfaceRaised)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                .stroke(FramwiseTheme.line.opacity(0.5), lineWidth: 0.5)
+                        )
+                }
 
                 Text("\(count)")
                     .font(.framwiseMono(11))

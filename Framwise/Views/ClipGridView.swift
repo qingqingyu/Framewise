@@ -59,6 +59,37 @@ struct ClipGridView: View {
     }
 
     var body: some View {
+        gridContent
+        .padding(16)
+        .background(FramwiseTheme.appGradient)
+        .focusable()
+        .onKeyPress(.space) { handleSpaceKey() }
+        .onKeyPress(characters: .init(charactersIn: "123456789")) { handleTagShortcut($0) }
+        .onAppear {
+            Task {
+                if let session = appState.importSession {
+                    await thumbnailGenerator.preloadThumbnails(
+                        for: session.allClips,
+                        targetSize: gridSize.cellSize
+                    )
+                }
+            }
+        }
+        .sheet(isPresented: $showPreviewModal) {
+            if let clip = previewingClip {
+                ClipPreviewModal(clip: clip, isPresented: $showPreviewModal)
+            }
+        }
+        .sheet(isPresented: $showCreateTag) {
+            TagCreateView(
+                existingNames: Set(appState.importSession?.tags.map(\.name) ?? [])
+            ) { tag in
+                appState.importSession?.addTag(tag) ?? false
+            }
+        }
+    }
+
+    private var gridContent: some View {
         VStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 12) {
@@ -348,39 +379,6 @@ struct ClipGridView: View {
                 }
             }
             .framwisePanel(background: FramwiseTheme.surface, radius: 22)
-        }
-        .padding(16)
-        .background(FramwiseTheme.appGradient)
-        .focusable()
-        .onKeyPress(.space) {
-            if let clip = hoveredClip {
-                previewingClip = clip
-                showPreviewModal = true
-                return .handled
-            }
-            return .ignored
-        }
-        .onAppear {
-            Task {
-                if let session = appState.importSession {
-                    await thumbnailGenerator.preloadThumbnails(
-                        for: session.allClips,
-                        targetSize: gridSize.cellSize
-                    )
-                }
-            }
-        }
-        .sheet(isPresented: $showPreviewModal) {
-            if let clip = previewingClip {
-                ClipPreviewModal(clip: clip, isPresented: $showPreviewModal)
-            }
-        }
-        .sheet(isPresented: $showCreateTag) {
-            TagCreateView(
-                existingNames: Set(appState.importSession?.tags.map(\.name) ?? [])
-            ) { tag in
-                appState.importSession?.addTag(tag) ?? false
-            }
         }
     }
 
@@ -765,6 +763,42 @@ struct ClipGridView: View {
         for clip in clipsWithTag {
             appState.selectedClipIDs.insert(clip.id)
         }
+    }
+
+    private func handleSpaceKey() -> KeyPress.Result {
+        if let clip = hoveredClip {
+            previewingClip = clip
+            showPreviewModal = true
+            return .handled
+        }
+        return .ignored
+    }
+
+    private func handleTagShortcut(_ press: KeyPress) -> KeyPress.Result {
+        guard let session = appState.importSession else { return .ignored }
+        guard let digit = Int(String(press.characters)) else { return .ignored }
+        let index = digit - 1
+        guard index >= 0, index < session.tags.count else { return .ignored }
+        let tag = session.tags[index]
+
+        let targetIDs: Set<UUID>
+        if !appState.selectedClipIDs.isEmpty {
+            targetIDs = appState.selectedClipIDs
+        } else if let hovered = hoveredClip {
+            targetIDs = [hovered.id]
+        } else {
+            return .ignored
+        }
+
+        let allHaveTag = targetIDs.allSatisfy { id in
+            session.allClips.first { $0.id == id }?.tagIDs.contains(tag.id) == true
+        }
+        if allHaveTag {
+            session.removeTag(tag.id, fromClipIDs: targetIDs)
+        } else {
+            session.assignTag(tag.id, toClipIDs: targetIDs)
+        }
+        return .handled
     }
 }
 
