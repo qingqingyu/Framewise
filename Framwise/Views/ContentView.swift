@@ -185,7 +185,9 @@ struct ContentView: View {
         guard !urls.isEmpty else { return }
 
         if appState.importSession == nil {
-            appState.importSession = ImportSession()
+            let session = ImportSession()
+            session.loadWeddingPreset()
+            appState.importSession = session
         }
 
         importViewModel.importVideosStreaming(from: urls, into: appState.importSession!)
@@ -262,47 +264,56 @@ struct SidebarView: View {
 
                     sidebarSection(title: "Tags", subtitle: "\(session.tags.count) sorting lanes") {
                         VStack(spacing: 8) {
-                            ForEach(Array(session.tags.enumerated()), id: \.element.id) { index, tag in
-                                SidebarTagRow(
-                                    tag: tag,
-                                    count: session.clipCount(for: tag.id),
-                                    isActive: session.activeTagFilter == tag.id,
-                                    shortcutNumber: index < 9 ? index + 1 : nil
-                                ) {
-                                    if session.activeTagFilter == tag.id {
-                                        session.activeTagFilter = nil
-                                    } else {
-                                        session.activeTagFilter = tag.id
+                            if session.tags.isEmpty {
+                                TagsEmptyStateView(
+                                    onLoadPreset: { session.loadWeddingPreset() },
+                                    onCreateTag: { showCreateTag = true }
+                                )
+                            } else {
+                                ForEach(Array(session.tags.enumerated()), id: \.element.id) { index, tag in
+                                    SidebarTagRow(
+                                        tag: tag,
+                                        count: session.clipCount(for: tag.id),
+                                        isActive: session.activeTagFilter == tag.id,
+                                        shortcutNumber: index < 9 ? index + 1 : nil
+                                    ) {
+                                        if session.activeTagFilter == tag.id {
+                                            session.activeTagFilter = nil
+                                        } else {
+                                            session.activeTagFilter = tag.id
+                                        }
+                                    }
+                                    .contextMenu {
+                                        Button("Rename") {
+                                            renamingTag = tag
+                                        }
+                                        Button("Delete", role: .destructive) {
+                                            session.removeTag(tag.id)
+                                        }
                                     }
                                 }
-                                .contextMenu {
-                                    Button("Rename") {
-                                        renamingTag = tag
-                                    }
-                                    Button("Delete", role: .destructive) {
-                                        session.removeTag(tag.id)
-                                    }
-                                }
-                            }
 
-                            HStack(spacing: 8) {
-                                Button(action: { showCreateTag = true }) {
-                                    Label("New Tag", systemImage: "plus")
-                                }
-                                .buttonStyle(FramwiseGhostButtonStyle())
+                                TagsKeyboardHint(tagCount: session.tags.count)
 
-                                Button(action: {
-                                    session.loadWeddingPreset()
-                                }) {
-                                    Label("Wedding Preset", systemImage: "bolt.fill")
+                                HStack(spacing: 8) {
+                                    Button(action: { showCreateTag = true }) {
+                                        Label("New Tag", systemImage: "plus")
+                                    }
+                                    .buttonStyle(FramwiseGhostButtonStyle())
+
+                                    Button(action: {
+                                        session.loadWeddingPreset()
+                                    }) {
+                                        Label("Wedding Preset", systemImage: "bolt.fill")
+                                    }
+                                    .buttonStyle(FramwiseGhostButtonStyle(
+                                        fill: FramwiseTheme.surface,
+                                        border: FramwiseTheme.warning.opacity(0.35),
+                                        foreground: FramwiseTheme.warning
+                                    ))
                                 }
-                                .buttonStyle(FramwiseGhostButtonStyle(
-                                    fill: FramwiseTheme.surface,
-                                    border: FramwiseTheme.warning.opacity(0.35),
-                                    foreground: FramwiseTheme.warning
-                                ))
+                                .padding(.top, 4)
                             }
-                            .padding(.top, 4)
                         }
                     }
                 } else {
@@ -450,7 +461,9 @@ struct SidebarView: View {
         guard !urls.isEmpty else { return }
 
         if appState.importSession == nil {
-            appState.importSession = ImportSession()
+            let session = ImportSession()
+            session.loadWeddingPreset()
+            appState.importSession = session
         }
 
         importViewModel.importVideosStreaming(from: urls, into: appState.importSession!)
@@ -855,6 +868,115 @@ private struct SidebarTagRow: View {
             )
         }
         .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Tags Empty State
+
+private struct TagsEmptyStateView: View {
+    let onLoadPreset: () -> Void
+    let onCreateTag: () -> Void
+
+    var body: some View {
+        VStack(spacing: 14) {
+            VStack(spacing: 6) {
+                Image(systemName: "tag.slash")
+                    .font(.system(size: 22, weight: .light))
+                    .foregroundStyle(FramwiseTheme.textMuted.opacity(0.5))
+
+                Text("No sorting tags yet")
+                    .font(.framwiseUI(13, weight: .medium))
+                    .foregroundStyle(FramwiseTheme.textMuted)
+            }
+            .padding(.top, 4)
+
+            Button(action: onLoadPreset) {
+                HStack(spacing: 8) {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 12, weight: .medium))
+                    Text("Load Wedding Preset")
+                        .font(.framwiseUI(13, weight: .medium))
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(FramwiseTheme.warm.opacity(0.1))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(FramwiseTheme.warm.opacity(0.3), lineWidth: 1)
+                )
+                .foregroundStyle(FramwiseTheme.warm)
+            }
+            .buttonStyle(.plain)
+
+            Text("Pre-built tags for ceremony, reception, first dance & more. Press 1–6 to tag clips instantly.")
+                .font(.framwiseUI(11))
+                .foregroundStyle(FramwiseTheme.textMuted.opacity(0.7))
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .lineSpacing(2)
+
+            Button(action: onCreateTag) {
+                HStack(spacing: 6) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 10, weight: .semibold))
+                    Text("Create custom tag")
+                        .font(.framwiseUI(12))
+                }
+                .foregroundStyle(FramwiseTheme.textMuted)
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 2)
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+// MARK: - Tags Keyboard Hint
+
+private struct TagsKeyboardHint: View {
+    let tagCount: Int
+
+    var body: some View {
+        let maxKey = min(tagCount, 9)
+        HStack(spacing: 6) {
+            Image(systemName: "keyboard")
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(FramwiseTheme.textMuted.opacity(0.5))
+
+            Text("Hover a clip, press ")
+                .font(.framwiseUI(11))
+                .foregroundStyle(FramwiseTheme.textMuted.opacity(0.6))
+            +
+            Text("1")
+                .font(.framwiseMono(11))
+                .foregroundStyle(FramwiseTheme.warm.opacity(0.8))
+            +
+            Text("–")
+                .font(.framwiseUI(11))
+                .foregroundStyle(FramwiseTheme.textMuted.opacity(0.6))
+            +
+            Text("\(maxKey)")
+                .font(.framwiseMono(11))
+                .foregroundStyle(FramwiseTheme.warm.opacity(0.8))
+            +
+            Text(" to tag")
+                .font(.framwiseUI(11))
+                .foregroundStyle(FramwiseTheme.textMuted.opacity(0.6))
+        }
+        .padding(.vertical, 6)
+        .padding(.horizontal, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(FramwiseTheme.warm.opacity(0.04))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(FramwiseTheme.warm.opacity(0.1), lineWidth: 0.5)
+        )
     }
 }
 

@@ -26,6 +26,8 @@ struct ClipGridView: View {
     @State private var dropTargetID: UUID?
     @State private var hideWasteClips = false
     @State private var showCreateTag = false
+    @State private var focusedClipID: UUID?
+    @State private var columnCount: Int = 4
     @FocusState private var isGridFocused: Bool
 
     enum GridSize: String, CaseIterable {
@@ -65,6 +67,12 @@ struct ClipGridView: View {
         .focusable()
         .onKeyPress(.space) { handleSpaceKey() }
         .onKeyPress(characters: .init(charactersIn: "123456789")) { handleTagShortcut($0) }
+        .onKeyPress(.leftArrow) { moveFocus(.left) }
+        .onKeyPress(.rightArrow) { moveFocus(.right) }
+        .onKeyPress(.upArrow) { moveFocus(.up) }
+        .onKeyPress(.downArrow) { moveFocus(.down) }
+        .onKeyPress(.return) { handleEnterKey() }
+        .onKeyPress(.escape) { handleEscapeKey() }
         .onAppear {
             Task {
                 if let session = appState.importSession {
@@ -302,8 +310,8 @@ struct ClipGridView: View {
 
             GeometryReader { gridGeometry in
                 let availableWidth = gridGeometry.size.width - 24
-                let columnCount = max(1, Int(availableWidth / (gridSize.cellSize.width + 12)))
-                let columns = Array(repeating: GridItem(.fixed(gridSize.cellSize.width), spacing: 12), count: columnCount)
+                let cols = max(1, Int(availableWidth / (gridSize.cellSize.width + 12)))
+                let columns = Array(repeating: GridItem(.fixed(gridSize.cellSize.width), spacing: 12), count: cols)
 
                 ScrollViewReader { proxy in
                     ScrollView {
@@ -376,6 +384,11 @@ struct ClipGridView: View {
                             scrollToClipID = nil
                         }
                     }
+                }
+                .onAppear { columnCount = cols }
+                .onChange(of: gridGeometry.size) { _, _ in
+                    let updated = max(1, Int((gridGeometry.size.width - 24) / (gridSize.cellSize.width + 12)))
+                    columnCount = updated
                 }
             }
             .framwisePanel(background: FramwiseTheme.surface, radius: 22)
@@ -606,6 +619,13 @@ struct ClipGridView: View {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .stroke(FramwiseTheme.accent, lineWidth: 3) : nil
         )
+        .overlay(
+            focusedClipID == clip.id ?
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(FramwiseTheme.warm, style: StrokeStyle(lineWidth: 2, dash: [6, 3]))
+            : nil
+        )
+        .shadow(color: focusedClipID == clip.id ? FramwiseTheme.warm.opacity(0.3) : .clear, radius: 6)
         .opacity(draggedClipID == clip.id ? 0.3 : 1.0)
         .onHover { isHovering in
             if isHovering {
@@ -615,6 +635,7 @@ struct ClipGridView: View {
             }
         }
         .onTapGesture {
+            focusedClipID = clip.id
             let modifiers = NSEvent.modifierFlags
             gridViewModel.handleSelection(
                 clip.id,
@@ -765,13 +786,69 @@ struct ClipGridView: View {
         }
     }
 
-    private func handleSpaceKey() -> KeyPress.Result {
-        if let clip = hoveredClip {
-            previewingClip = clip
-            showPreviewModal = true
+    // MARK: - Keyboard Navigation
+
+    private enum FocusDirection { case left, right, up, down }
+
+    private func moveFocus(_ direction: FocusDirection) -> KeyPress.Result {
+        let clips = visibleClipsInDisplayOrder
+        guard !clips.isEmpty else { return .ignored }
+
+        guard let currentID = focusedClipID,
+              let currentIndex = clips.firstIndex(where: { $0.id == currentID }) else {
+            focusedClipID = clips.first?.id
+            scrollToClipID = focusedClipID
+            return .handled
+        }
+
+        let newIndex: Int
+        switch direction {
+        case .left:  newIndex = max(0, currentIndex - 1)
+        case .right: newIndex = min(clips.count - 1, currentIndex + 1)
+        case .up:    newIndex = max(0, currentIndex - columnCount)
+        case .down:  newIndex = min(clips.count - 1, currentIndex + columnCount)
+        }
+
+        guard newIndex != currentIndex else { return .handled }
+
+        withAnimation(.easeInOut(duration: 0.15)) {
+            focusedClipID = clips[newIndex].id
+        }
+        scrollToClipID = focusedClipID
+        return .handled
+    }
+
+    private func handleEnterKey() -> KeyPress.Result {
+        guard let id = focusedClipID,
+              let clip = visibleClipsInDisplayOrder.first(where: { $0.id == id }) else {
+            return .ignored
+        }
+        previewingClip = clip
+        showPreviewModal = true
+        return .handled
+    }
+
+    private func handleEscapeKey() -> KeyPress.Result {
+        if focusedClipID != nil {
+            focusedClipID = nil
             return .handled
         }
         return .ignored
+    }
+
+    private func handleSpaceKey() -> KeyPress.Result {
+        let targetClip: VideoClip?
+        if let focused = focusedClipID {
+            targetClip = visibleClipsInDisplayOrder.first { $0.id == focused }
+        } else if let hovered = hoveredClip {
+            targetClip = hovered
+        } else {
+            targetClip = nil
+        }
+        guard let clip = targetClip else { return .ignored }
+        previewingClip = clip
+        showPreviewModal = true
+        return .handled
     }
 
     private func handleTagShortcut(_ press: KeyPress) -> KeyPress.Result {
@@ -784,6 +861,8 @@ struct ClipGridView: View {
         let targetIDs: Set<UUID>
         if !appState.selectedClipIDs.isEmpty {
             targetIDs = appState.selectedClipIDs
+        } else if let focused = focusedClipID {
+            targetIDs = [focused]
         } else if let hovered = hoveredClip {
             targetIDs = [hovered.id]
         } else {

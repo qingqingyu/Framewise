@@ -230,9 +230,10 @@ struct DropZoneView: View {
     private func importFiles(urls: [URL]) {
         guard !urls.isEmpty else { return }
 
-        // 如果没有session，创建新的（与 ContentView 保持一致）
         if appState.importSession == nil {
-            appState.importSession = ImportSession()
+            let session = ImportSession()
+            session.loadWeddingPreset()
+            appState.importSession = session
         }
 
         importViewModel.importVideosStreaming(from: urls, into: appState.importSession!)
