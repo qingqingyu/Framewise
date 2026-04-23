@@ -73,6 +73,11 @@ struct ClipGridView: View {
         .onKeyPress(.downArrow) { moveFocus(.down) }
         .onKeyPress(.return) { handleEnterKey() }
         .onKeyPress(.escape) { handleEscapeKey() }
+        .onChange(of: visibleClipIDs) { _, newIDs in
+            if let focused = focusedClipID, !newIDs.contains(focused) {
+                focusedClipID = nil
+            }
+        }
         .onAppear {
             Task {
                 if let session = appState.importSession {
@@ -570,6 +575,10 @@ struct ClipGridView: View {
             return "\(clipCount) clips across active sources"
         }
         return "\(clipCount) clips on current reel"
+    }
+
+    private var visibleClipIDs: Set<UUID> {
+        Set(visibleClipsInDisplayOrder.map(\.id))
     }
 
     private var visibleClipsInDisplayOrder: [VideoClip] {

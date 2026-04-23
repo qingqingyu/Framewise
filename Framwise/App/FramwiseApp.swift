@@ -103,6 +103,15 @@ class AppState: ObservableObject {
         }
     }
 
+    /// Ensure an import session exists, creating one with wedding preset if needed
+    func ensureSession() {
+        if importSession == nil {
+            let session = ImportSession()
+            session.loadWeddingPreset()
+            importSession = session
+        }
+    }
+
     func clearSession() {
         importSession = nil
         selectedClipIDs = []

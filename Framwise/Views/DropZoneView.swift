@@ -229,13 +229,7 @@ struct DropZoneView: View {
 
     private func importFiles(urls: [URL]) {
         guard !urls.isEmpty else { return }
-
-        if appState.importSession == nil {
-            let session = ImportSession()
-            session.loadWeddingPreset()
-            appState.importSession = session
-        }
-
+        appState.ensureSession()
         importViewModel.importVideosStreaming(from: urls, into: appState.importSession!)
     }
 }

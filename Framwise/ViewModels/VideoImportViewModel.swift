@@ -614,7 +614,7 @@ class VideoImportViewModel: ObservableObject {
 
         // 检查是否是支持的格式
         let ext = url.pathExtension.lowercased()
-        guard supportedVideoExtensions.contains(ext) else {
+        guard FileResolver.supportedVideoExtensions.contains(ext) else {
             throw ImportError.unsupportedFormat(ext)
         }
     }

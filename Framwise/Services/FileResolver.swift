@@ -6,10 +6,10 @@
 
 import Foundation
 
-/// Supported video file extensions (single source of truth)
-let supportedVideoExtensions: Set<String> = ["mp4", "mov", "mxf", "avi", "mkv", "m4v"]
-
 enum FileResolver {
+    /// Supported video file extensions (single source of truth)
+    static let supportedVideoExtensions: Set<String> = ["mp4", "mov", "mxf", "avi", "mkv", "m4v"]
+
     /// Hard cap to prevent runaway enumeration on huge directory trees
     private static let maxVideoFiles = 5000
 

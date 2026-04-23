@@ -183,13 +183,7 @@ struct ContentView: View {
 
     private func importFiles(urls: [URL]) {
         guard !urls.isEmpty else { return }
-
-        if appState.importSession == nil {
-            let session = ImportSession()
-            session.loadWeddingPreset()
-            appState.importSession = session
-        }
-
+        appState.ensureSession()
         importViewModel.importVideosStreaming(from: urls, into: appState.importSession!)
     }
 
@@ -459,13 +453,7 @@ struct SidebarView: View {
 
     private func importFilesFromURLs(_ urls: [URL]) {
         guard !urls.isEmpty else { return }
-
-        if appState.importSession == nil {
-            let session = ImportSession()
-            session.loadWeddingPreset()
-            appState.importSession = session
-        }
-
+        appState.ensureSession()
         importViewModel.importVideosStreaming(from: urls, into: appState.importSession!)
     }
 
@@ -946,7 +934,7 @@ private struct TagsKeyboardHint: View {
                 .font(.system(size: 10, weight: .medium))
                 .foregroundStyle(FramwiseTheme.textMuted.opacity(0.5))
 
-            Text("Hover a clip, press ")
+            Text("Focus or hover a clip, press ")
                 .font(.framwiseUI(11))
                 .foregroundStyle(FramwiseTheme.textMuted.opacity(0.6))
             +
