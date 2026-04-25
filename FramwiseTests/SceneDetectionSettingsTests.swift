@@ -51,4 +51,21 @@ final class SceneDetectionSettingsTests: XCTestCase {
         XCTAssertNil(defaults.object(forKey: SceneDetectionSettings.sensitivityKey))
         XCTAssertTrue(defaults.bool(forKey: SceneDetectionSettings.didMigrateSensitivityKey))
     }
+
+    // MARK: - Auto Sensitivity
+
+    func testAutoSensitivity_boundaries() {
+        XCTAssertEqual(SceneDetectionSettings.autoSensitivity(forTargetCount: 12), 0.3, accuracy: 0.0001)
+        XCTAssertEqual(SceneDetectionSettings.autoSensitivity(forTargetCount: 120), 0.9, accuracy: 0.0001)
+    }
+
+    func testAutoSensitivity_midRange() {
+        let mid = SceneDetectionSettings.autoSensitivity(forTargetCount: 66)
+        XCTAssertEqual(mid, 0.6, accuracy: 0.01)
+    }
+
+    func testAutoSensitivity_clampsOutOfRange() {
+        XCTAssertEqual(SceneDetectionSettings.autoSensitivity(forTargetCount: 0), 0.3, accuracy: 0.0001)
+        XCTAssertEqual(SceneDetectionSettings.autoSensitivity(forTargetCount: 200), 0.9, accuracy: 0.0001)
+    }
 }

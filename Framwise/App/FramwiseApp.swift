@@ -87,6 +87,8 @@ class AppState: ObservableObject {
             // Filter out IDs that no longer correspond to existing clips
             let validIDs = Set(session.allClips.map { $0.id })
             self.selectedClipIDs = data.selectedClipIDs.intersection(validIDs)
+            normalizeStateForCurrentSession()
+            subscribeToSessionChanges()
         }
     }
 

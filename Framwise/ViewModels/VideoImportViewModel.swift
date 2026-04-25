@@ -59,11 +59,9 @@ class VideoImportViewModel: ObservableObject {
 
     private var targetSegmentCount: Int {
         let count = UserDefaults.standard.integer(forKey: "segmentCount")
-        return clamped(count, in: 12...120, default: 36)
-    }
-    private var sceneDetectionSensitivity: Double {
-        let value = UserDefaults.standard.double(forKey: "sceneDetectionSensitivity")
-        return clamped(value, in: 0.1...0.9, default: SceneDetectionSettings.defaultUISensitivity)
+        return clamped(count,
+                       in: SceneDetectionSettings.minTileCount...SceneDetectionSettings.maxTileCount,
+                       default: SceneDetectionSettings.defaultTileCount)
     }
 
     /// Reset import state (called when session is cleared mid-import)
@@ -151,8 +149,16 @@ class VideoImportViewModel: ObservableObject {
                 }
             }
 
-            // Apply settings from UserDefaults
-            await sceneDetector.setSensitivity(sceneDetectionSensitivity)
+            let urlsToAnalyze = uniqueURLs.filter { insertedSourceURLs.contains($0) }
+            guard !urlsToAnalyze.isEmpty else {
+                statusMessage = "All files already imported."
+                return
+            }
+            totalFilesCount = urlsToAnalyze.count
+
+            await sceneDetector.setSensitivity(
+                SceneDetectionSettings.autoSensitivity(forTargetCount: targetSegmentCount)
+            )
 
             // Capture values for use in non-isolated tasks
             let sceneDetector = self.sceneDetector
@@ -166,7 +172,7 @@ class VideoImportViewModel: ObservableObject {
             var firstError: Error?
 
             await withTaskGroup(of: (URL, Result<VideoImportResult, Error>).self) { group in
-                for url in uniqueURLs {
+                for url in urlsToAnalyze {
                     group.addTask {
                         do {
                             let result = try await analyzer(url, sceneDetector, wasteDetector, similarityDetector, targetCount)
@@ -182,9 +188,9 @@ class VideoImportViewModel: ObservableObject {
                 for await (url, groupResult) in group {
                     guard importGeneration == myGeneration, !Task.isCancelled else { break }
                     completedCount += 1
-                    importProgress = Double(completedCount) / Double(uniqueURLs.count)
+                    importProgress = Double(completedCount) / Double(urlsToAnalyze.count)
                     analyzingProgress = importProgress
-                    currentVideoName = "Processing \(completedCount)/\(uniqueURLs.count) videos..."
+                    currentVideoName = "Processing \(completedCount)/\(urlsToAnalyze.count) videos..."
 
                     switch groupResult {
                     case .success(let result):
@@ -444,7 +450,9 @@ class VideoImportViewModel: ObservableObject {
         error = nil
         statusMessage = "Importing videos..."
 
-        await sceneDetector.setSensitivity(sceneDetectionSensitivity)
+        await sceneDetector.setSensitivity(
+            SceneDetectionSettings.autoSensitivity(forTargetCount: targetSegmentCount)
+        )
 
         do {
             for (index, url) in urls.enumerated() {

@@ -77,6 +77,9 @@ struct ClipGridView: View {
             if let focused = focusedClipID, !newIDs.contains(focused) {
                 focusedClipID = nil
             }
+            if let hovered = hoveredClip, !newIDs.contains(hovered.id) {
+                hoveredClip = nil
+            }
         }
         .onAppear {
             Task {
@@ -168,9 +171,15 @@ struct ClipGridView: View {
                             gridViewModel.deselectAll(in: appState)
                         }
                         Button("Invert Selection") {
-                            let currentClips = groupedClips.flatMap { $0.clips }
-                            if !currentClips.isEmpty {
-                                gridViewModel.invertSelection(currentClips, in: appState)
+                            guard let session = appState.importSession else { return }
+                            let pool = gridViewModel.clipsForInversion(
+                                from: session.allClips,
+                                sourceURL: appState.selectedSourceURL,
+                                tagFilter: session.activeTagFilter,
+                                hideWaste: hideWasteClips
+                            )
+                            if !pool.isEmpty {
+                                gridViewModel.invertSelection(pool, in: appState)
                             }
                         }
                     } label: {
@@ -353,9 +362,9 @@ struct ClipGridView: View {
                                                 .lineLimit(1)
                                                 .frame(maxWidth: 200, alignment: .trailing)
 
-                                            if let firstClip = group.clips.first {
+                                            if !group.clips.isEmpty {
                                                 Button(action: {
-                                                    selectAllFromSameFile(as: firstClip)
+                                                    selectVisibleClips(group.clips)
                                                 }) {
                                                     Label("Select All", systemImage: "checkmark.circle.fill")
                                                 }
@@ -392,8 +401,10 @@ struct ClipGridView: View {
                 }
                 .onAppear { columnCount = cols }
                 .onChange(of: gridGeometry.size) { _, _ in
-                    let updated = max(1, Int((gridGeometry.size.width - 24) / (gridSize.cellSize.width + 12)))
-                    columnCount = updated
+                    columnCount = max(1, Int((gridGeometry.size.width - 24) / (gridSize.cellSize.width + 12)))
+                }
+                .onChange(of: gridSize) { _, _ in
+                    columnCount = max(1, Int((gridGeometry.size.width - 24) / (gridSize.cellSize.width + 12)))
                 }
             }
             .framwisePanel(background: FramwiseTheme.surface, radius: 22)
@@ -659,7 +670,7 @@ struct ClipGridView: View {
             }
             Divider()
             Button("Select All from Same File") {
-                selectAllFromSameFile(as: clip)
+                selectVisibleClipsFromSameFile(as: clip)
             }
             if let groupID = clip.similarityGroupID, similarityGroupSizeMap[groupID] ?? 0 >= 2 {
                 Button("Show Similar Takes") {
@@ -673,7 +684,7 @@ struct ClipGridView: View {
             }
             Divider()
 
-            // Waste override
+            // Waste override — batch operations filter to applicable clips only
             let targetIDs: Set<UUID> = appState.selectedClipIDs.contains(clip.id) && appState.selectedClipIDs.count > 1
                 ? appState.selectedClipIDs
                 : [clip.id]
@@ -681,16 +692,28 @@ struct ClipGridView: View {
 
             if clip.effectiveWasteType != .none {
                 Button(isBatch ? "Mark \(targetIDs.count) as Non-Waste" : "Mark as Non-Waste") {
-                    appState.importSession?.setWasteOverride(targetIDs, override: .none)
+                    guard let session = appState.importSession else { return }
+                    let applicable = targetIDs.filter { id in
+                        session.allClips.first { $0.id == id }?.effectiveWasteType != .none
+                    }
+                    session.setWasteOverride(Set(applicable), override: .none)
                 }
             } else if clip.wasteType == .none && !clip.isWasteOverridden {
                 Button(isBatch ? "Mark \(targetIDs.count) as Waste" : "Mark as Waste") {
-                    appState.importSession?.setWasteOverride(targetIDs, override: .solid)
+                    guard let session = appState.importSession else { return }
+                    let applicable = targetIDs.filter { id in
+                        session.allClips.first { $0.id == id }?.effectiveWasteType == .none
+                    }
+                    session.setWasteOverride(Set(applicable), override: .solid)
                 }
             }
             if clip.isWasteOverridden {
                 Button(isBatch ? "Reset \(targetIDs.count) to Auto-detected" : "Reset to Auto-detected") {
-                    appState.importSession?.setWasteOverride(targetIDs, override: nil)
+                    guard let session = appState.importSession else { return }
+                    let applicable = targetIDs.filter { id in
+                        session.allClips.first { $0.id == id }?.isWasteOverridden == true
+                    }
+                    session.setWasteOverride(Set(applicable), override: nil)
                 }
             }
             Divider()
@@ -762,11 +785,15 @@ struct ClipGridView: View {
         }
     }
 
-    private func selectAllFromSameFile(as referenceClip: VideoClip) {
-        guard let session = appState.importSession else { return }
-        for clip in session.allClips where clip.sourceFileURL == referenceClip.sourceFileURL {
+    private func selectVisibleClips(_ clips: [VideoClip]) {
+        for clip in clips {
             appState.selectedClipIDs.insert(clip.id)
         }
+    }
+
+    private func selectVisibleClipsFromSameFile(as referenceClip: VideoClip) {
+        let clips = visibleClipsInDisplayOrder.filter { $0.sourceFileURL == referenceClip.sourceFileURL }
+        selectVisibleClips(clips)
     }
 
     private func assignTagToTarget(_ tagID: UUID, clipID: UUID) {
@@ -849,7 +876,7 @@ struct ClipGridView: View {
         let targetClip: VideoClip?
         if let focused = focusedClipID {
             targetClip = visibleClipsInDisplayOrder.first { $0.id == focused }
-        } else if let hovered = hoveredClip {
+        } else if let hovered = hoveredClip, visibleClipIDs.contains(hovered.id) {
             targetClip = hovered
         } else {
             targetClip = nil
@@ -868,11 +895,11 @@ struct ClipGridView: View {
         let tag = session.tags[index]
 
         let targetIDs: Set<UUID>
-        if !appState.selectedClipIDs.isEmpty {
-            targetIDs = appState.selectedClipIDs
-        } else if let focused = focusedClipID {
+        if let focused = focusedClipID {
             targetIDs = [focused]
-        } else if let hovered = hoveredClip {
+        } else if !appState.selectedClipIDs.isEmpty {
+            targetIDs = appState.selectedClipIDs
+        } else if let hovered = hoveredClip, visibleClipIDs.contains(hovered.id) {
             targetIDs = [hovered.id]
         } else {
             return .ignored

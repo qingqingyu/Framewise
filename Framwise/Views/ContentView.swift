@@ -681,54 +681,62 @@ struct ExportSheetView: View {
 }
 
 struct SettingsView: View {
-    @AppStorage("segmentCount") private var segmentCount = 36
-    @AppStorage("sceneDetectionSensitivity") private var sceneDetectionSensitivity = SceneDetectionSettings.defaultUISensitivity
+    @AppStorage("segmentCount") private var segmentCount = SceneDetectionSettings.defaultTileCount
+
+    private static let sliderRange = Double(SceneDetectionSettings.minTileCount)...Double(SceneDetectionSettings.maxTileCount)
+    private static let sliderStep = Double(SceneDetectionSettings.tileCountStep)
+
+    private var densityLabel: String {
+        switch segmentCount {
+        case ...18: return "Broad overview"
+        case 19...48: return "Balanced"
+        case 49...84: return "Detailed"
+        default: return "Fine detail"
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             VStack(alignment: .leading, spacing: 6) {
-                Text("WORKSPACE TUNING")
+                Text("PREFERENCES")
                     .font(.framwiseMono(10))
                     .foregroundStyle(FramwiseTheme.warm)
                 Text("Settings")
                     .font(.framwiseDisplay(24, weight: .semibold))
                     .foregroundStyle(FramwiseTheme.textPrimary)
-                Text("Adjust scene detection and default clip segmentation for the first-pass workflow.")
+                Text("Configure how videos are split into preview tiles.")
                     .font(.framwiseUI(13))
                     .foregroundStyle(FramwiseTheme.textMuted)
             }
 
-            VStack(alignment: .leading, spacing: 16) {
-                settingsCard(
-                    title: "Scene Detection",
-                    value: String(format: "%.2f", sceneDetectionSensitivity)
-                ) {
-                    Slider(value: $sceneDetectionSensitivity, in: 0.1...0.9, step: 0.05) {
-                        Text("Detection Sensitivity")
-                    }
-                    .tint(FramwiseTheme.accent)
+            settingsCard(
+                title: "Preview Tiles",
+                value: "\(segmentCount)"
+            ) {
+                Slider(value: Binding(
+                    get: { Double(segmentCount) },
+                    set: { segmentCount = Int($0) }
+                ), in: Self.sliderRange, step: Self.sliderStep) {
+                    Text("Target Tile Count")
+                }
+                .tint(FramwiseTheme.warm)
 
-                    Text("Higher values detect more scene changes.")
+                HStack(spacing: 8) {
+                    Text(densityLabel)
+                        .font(.framwiseMono(11))
+                        .foregroundStyle(FramwiseTheme.warm)
+
+                    Text("—")
+                        .foregroundStyle(FramwiseTheme.textMuted.opacity(0.4))
+
+                    Text("More tiles = finer detail. Scene detection sensitivity adjusts automatically.")
                         .font(.framwiseUI(12))
                         .foregroundStyle(FramwiseTheme.textMuted)
                 }
 
-                settingsCard(
-                    title: "Segment Splitting",
-                    value: "\(segmentCount)"
-                ) {
-                    Slider(value: Binding(
-                        get: { Double(segmentCount) },
-                        set: { segmentCount = Int($0) }
-                    ), in: 12...120, step: 12) {
-                        Text("Target Segment Count")
-                    }
-                    .tint(FramwiseTheme.warning)
-
-                    Text("Each video will be split into roughly this many segments.")
-                        .font(.framwiseUI(12))
-                        .foregroundStyle(FramwiseTheme.textMuted)
-                }
+                Text("Changes apply to next import.")
+                    .font(.framwiseUI(11))
+                    .foregroundStyle(FramwiseTheme.textMuted.opacity(0.5))
             }
         }
         .padding(20)
@@ -927,32 +935,25 @@ private struct TagsEmptyStateView: View {
 private struct TagsKeyboardHint: View {
     let tagCount: Int
 
-    var body: some View {
+    private var hintText: Text {
         let maxKey = min(tagCount, 9)
+        let muted = FramwiseTheme.textMuted.opacity(0.6)
+        let warm = FramwiseTheme.warm.opacity(0.8)
+        let prefix = Text("Focus or hover a clip, press ").font(.framwiseUI(11)).foregroundStyle(muted)
+        let one = Text("1").font(.framwiseMono(11)).foregroundStyle(warm)
+        let dash = Text("–").font(.framwiseUI(11)).foregroundStyle(muted)
+        let end = Text("\(maxKey)").font(.framwiseMono(11)).foregroundStyle(warm)
+        let suffix = Text(" to tag").font(.framwiseUI(11)).foregroundStyle(muted)
+        return prefix + one + dash + end + suffix
+    }
+
+    var body: some View {
         HStack(spacing: 6) {
             Image(systemName: "keyboard")
                 .font(.system(size: 10, weight: .medium))
                 .foregroundStyle(FramwiseTheme.textMuted.opacity(0.5))
 
-            Text("Focus or hover a clip, press ")
-                .font(.framwiseUI(11))
-                .foregroundStyle(FramwiseTheme.textMuted.opacity(0.6))
-            +
-            Text("1")
-                .font(.framwiseMono(11))
-                .foregroundStyle(FramwiseTheme.warm.opacity(0.8))
-            +
-            Text("–")
-                .font(.framwiseUI(11))
-                .foregroundStyle(FramwiseTheme.textMuted.opacity(0.6))
-            +
-            Text("\(maxKey)")
-                .font(.framwiseMono(11))
-                .foregroundStyle(FramwiseTheme.warm.opacity(0.8))
-            +
-            Text(" to tag")
-                .font(.framwiseUI(11))
-                .foregroundStyle(FramwiseTheme.textMuted.opacity(0.6))
+            hintText
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 10)

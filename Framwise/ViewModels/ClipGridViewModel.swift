@@ -115,42 +115,25 @@ class ClipGridViewModel: ObservableObject {
 
     // MARK: - Actual Computation (private)
 
+    /// Shared content filters (waste, source, tag, similarity group, search).
+    /// Excludes viewMode and sorting — callers layer those on as needed.
+    private func applyContentFilters(_ clips: [VideoClip], sourceURL: URL?, tagFilter: UUID?, hideWaste: Bool) -> [VideoClip] {
+        var result = clips
+        if hideWaste { result = result.filter { $0.effectiveWasteType == .none } }
+        if let url = sourceURL { result = result.filter { $0.sourceFileURL == url } }
+        if let tagFilter = tagFilter { result = result.filter { $0.tagIDs.contains(tagFilter) } }
+        if let groupFilter = similarityGroupFilter { result = result.filter { $0.similarityGroupID == groupFilter } }
+        if !searchText.isEmpty { result = result.filter { $0.sourceFileName.localizedCaseInsensitiveContains(searchText) } }
+        return result
+    }
+
     private func computeFilteredClips(from allClips: [VideoClip], selectedIDs: Set<UUID>, sourceURL: URL?, tagFilter: UUID?, hideWaste: Bool) -> [VideoClip] {
-        var result = allClips
+        var result = applyContentFilters(allClips, sourceURL: sourceURL, tagFilter: tagFilter, hideWaste: hideWaste)
 
-        // Waste filter (respects manual overrides)
-        if hideWaste {
-            result = result.filter { $0.effectiveWasteType == .none }
-        }
-
-        // Source file filter
-        if let url = sourceURL {
-            result = result.filter { $0.sourceFileURL == url }
-        }
-
-        // Tag filter
-        if let tagFilter = tagFilter {
-            result = result.filter { $0.tagIDs.contains(tagFilter) }
-        }
-
-        // Similarity group filter
-        if let groupFilter = similarityGroupFilter {
-            result = result.filter { $0.similarityGroupID == groupFilter }
-        }
-
-        // View mode filter
         if viewMode == .selected {
             result = result.filter { selectedIDs.contains($0.id) }
         }
 
-        // Search filter
-        if !searchText.isEmpty {
-            result = result.filter {
-                $0.sourceFileName.localizedCaseInsensitiveContains(searchText)
-            }
-        }
-
-        // Sort
         switch sortOrder {
         case .original:
             break
@@ -162,7 +145,6 @@ class ClipGridViewModel: ObservableObject {
             result = sortBySimilarityGroup(result)
         }
 
-        // When groupSimilar is on (and not already sorted by similarity), cluster grouped clips together
         if groupSimilar && sortOrder != .similarity {
             result = sortBySimilarityGroup(result)
         }
@@ -262,6 +244,13 @@ class ClipGridViewModel: ObservableObject {
     func deselectAll(in appState: AppState) {
         appState.selectedClipIDs.removeAll()
         selectionAnchorID = nil
+    }
+
+    /// Returns clips filtered by all active criteria EXCEPT viewMode.
+    /// Used by Invert Selection so it operates against the correct pool
+    /// even when viewMode == .selected (which would otherwise self-cancel).
+    func clipsForInversion(from allClips: [VideoClip], sourceURL: URL?, tagFilter: UUID?, hideWaste: Bool) -> [VideoClip] {
+        applyContentFilters(allClips, sourceURL: sourceURL, tagFilter: tagFilter, hideWaste: hideWaste)
     }
 
     /// Invert selection within the given clips, preserving selections outside the view
