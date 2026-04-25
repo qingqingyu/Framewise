@@ -38,6 +38,13 @@
 		CD2A3B4C5D6E7F8901230001 /* SimilarityGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD2A3B4C5D6E7F8901230002 /* SimilarityGroup.swift */; };
 		CD2A3B4C5D6E7F8901230003 /* SimilarityDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD2A3B4C5D6E7F8901230004 /* SimilarityDetector.swift */; };
 		FR000001000000000000A001 /* FileResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR000001000000000000A002 /* FileResolver.swift */; };
+		F1BB00000000000000000001 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1AA00000000000000000001 /* SidebarView.swift */; };
+		F1BB00000000000000000002 /* ExportSheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1AA00000000000000000002 /* ExportSheetView.swift */; };
+		F1BB00000000000000000003 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1AA00000000000000000003 /* SettingsView.swift */; };
+		F1BB00000000000000000004 /* SidebarComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1AA00000000000000000004 /* SidebarComponents.swift */; };
+		F2BB00000000000000000001 /* TimelineViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2AA00000000000000000001 /* TimelineViews.swift */; };
+		F2BB00000000000000000002 /* ClipPreviewModal.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2AA00000000000000000002 /* ClipPreviewModal.swift */; };
+		F2BB00000000000000000003 /* ClipDropDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2AA00000000000000000003 /* ClipDropDelegate.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -63,6 +70,13 @@
 		'B1000008' = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DropZoneView.swift; sourceTree = "<group>"; };
 		'B1000009' = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipGridView.swift; sourceTree = "<group>"; };
 		'B1000010' = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipCellView.swift; sourceTree = "<group>"; };
+		F2AA00000000000000000001 /* TimelineViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineViews.swift; sourceTree = "<group>"; };
+		F2AA00000000000000000002 /* ClipPreviewModal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipPreviewModal.swift; sourceTree = "<group>"; };
+		F2AA00000000000000000003 /* ClipDropDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipDropDelegate.swift; sourceTree = "<group>"; };
+		F1AA00000000000000000001 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
+		F1AA00000000000000000002 /* ExportSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportSheetView.swift; sourceTree = "<group>"; };
+		F1AA00000000000000000003 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		F1AA00000000000000000004 /* SidebarComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarComponents.swift; sourceTree = "<group>"; };
 		'B1000011' = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDetector.swift; sourceTree = "<group>"; };
 		'B1000012' = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThumbnailGenerator.swift; sourceTree = "<group>"; };
 		'B1000013' = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimecodeUtils.swift; sourceTree = "<group>"; };
@@ -171,8 +185,15 @@
 			isa = PBXGroup;
 			children = (
 				B1000007,
+				F1AA00000000000000000001 /* SidebarView.swift */,
+				F1AA00000000000000000002 /* ExportSheetView.swift */,
+				F1AA00000000000000000003 /* SettingsView.swift */,
+				F1AA00000000000000000004 /* SidebarComponents.swift */,
 				B1000008,
 				B1000009,
+				F2AA00000000000000000001 /* TimelineViews.swift */,
+				F2AA00000000000000000002 /* ClipPreviewModal.swift */,
+				F2AA00000000000000000003 /* ClipDropDelegate.swift */,
 				B1000010,
 				B1000017,
 				506A4184A4530FAFF2D72E23 /* TagCreateView.swift */,
@@ -335,8 +356,15 @@
 				A1000005,
 				A1000006,
 				A1000007,
+				F1BB00000000000000000001 /* SidebarView.swift in Sources */,
+				F1BB00000000000000000002 /* ExportSheetView.swift in Sources */,
+				F1BB00000000000000000003 /* SettingsView.swift in Sources */,
+				F1BB00000000000000000004 /* SidebarComponents.swift in Sources */,
 				A1000008,
 				A1000009,
+				F2BB00000000000000000001 /* TimelineViews.swift in Sources */,
+				F2BB00000000000000000002 /* ClipPreviewModal.swift in Sources */,
+				F2BB00000000000000000003 /* ClipDropDelegate.swift in Sources */,
 				A1000010,
 				A1000011,
 				A1000012,
