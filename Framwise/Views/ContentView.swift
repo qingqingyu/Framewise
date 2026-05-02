@@ -94,28 +94,14 @@ struct ContentView: View {
             Spacer(minLength: 12)
 
             if importViewModel.isAnalyzing {
-                HStack(spacing: 10) {
-                    FramwiseLoadingIndicator(tint: FramwiseTheme.warning, diameter: 16)
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Analyzing \(importViewModel.currentVideoName)")
-                            .font(.framwiseUI(12, weight: .medium))
-                            .foregroundStyle(FramwiseTheme.textPrimary)
-                            .lineLimit(1)
-
-                        if let session = appState.importSession, session.clipCount > importViewModel.clipsFoundCount {
-                            Text("\(importViewModel.clipsFoundCount) new / \(session.clipCount) total")
-                                .font(.framwiseMono(11))
-                                .foregroundStyle(FramwiseTheme.textMuted)
-                        } else {
-                            Text("\(importViewModel.clipsFoundCount) clips found")
-                                .font(.framwiseMono(11))
-                                .foregroundStyle(FramwiseTheme.textMuted)
-                        }
-                    }
+                HStack(spacing: 8) {
+                    FramwiseLoadingIndicator(tint: FramwiseTheme.warning, diameter: 14)
+                    Text("\(importViewModel.clipsFoundCount) clips found")
+                        .font(.framwiseMono(11))
+                        .foregroundStyle(FramwiseTheme.textMuted)
                 }
                 .padding(.horizontal, 12)
-                .padding(.vertical, 10)
+                .padding(.vertical, 9)
                 .framwisePanel(background: FramwiseTheme.surfaceRaised, radius: 16)
             }
 
