@@ -67,19 +67,19 @@ struct ContentView: View {
         HStack(spacing: 14) {
             HStack(spacing: 14) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
                         .fill(
                             LinearGradient(
-                                colors: [FramwiseTheme.warm.opacity(0.35), FramwiseTheme.accent.opacity(0.55)],
+                                colors: [FramwiseTheme.warm.opacity(0.22), FramwiseTheme.accent.opacity(0.38)],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
                         )
                     Text("F")
-                        .font(.framwiseDisplay(18, weight: .bold))
-                        .foregroundStyle(.black.opacity(0.82))
+                        .font(.framwiseDisplay(15, weight: .bold))
+                        .foregroundStyle(.black.opacity(0.78))
                 }
-                .frame(width: 38, height: 38)
+                .frame(width: 30, height: 30)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("DIGITAL LIGHT TABLE")

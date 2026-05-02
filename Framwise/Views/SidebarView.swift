@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct SidebarView: View {
     @EnvironmentObject var appState: AppState
@@ -18,21 +19,13 @@ struct SidebarView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("INGEST + SORT")
-                        .font(.framwiseMono(10))
-                        .foregroundStyle(FramwiseTheme.warm)
-                    Text("Workspace")
-                        .font(.framwiseDisplay(24, weight: .semibold))
-                        .foregroundStyle(FramwiseTheme.textPrimary)
-                    Text("Sources, tags, and clip inventory stay visible while the footage does the talking.")
-                        .font(.framwiseUI(13))
-                        .foregroundStyle(FramwiseTheme.textMuted)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .padding(.top, 8)
+                workspaceHeader
 
-                dropZone
+                if appState.importSession != nil {
+                    dropZone
+                } else {
+                    emptyWorkflowPreview
+                }
 
                 if let session = appState.importSession {
                     sidebarSection(title: "Source Files", subtitle: "\(session.sourceFiles.count) active reels") {
@@ -123,13 +116,6 @@ struct SidebarView: View {
                             }
                         }
                     }
-                } else {
-                    sidebarSection(title: "No Session", subtitle: "Start with footage import") {
-                        Text("Drop files above or use the Import button to create your first working session.")
-                            .font(.framwiseUI(13))
-                            .foregroundStyle(FramwiseTheme.textMuted)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
                 }
             }
             .padding(16)
@@ -140,7 +126,10 @@ struct SidebarView: View {
                 FramwiseTheme.subtleHighlight.opacity(0.45)
             }
         )
-        .onDrop(of: [.fileURL], isTargeted: $isTargeted) { providers in
+        .optionalFileURLDrop(
+            enabled: appState.importSession != nil,
+            isTargeted: $isTargeted
+        ) { providers in
             handleDrop(providers: providers)
             return true
         }
@@ -224,6 +213,92 @@ struct SidebarView: View {
     }
 
     @ViewBuilder
+    private var workspaceHeader: some View {
+        if appState.importSession != nil {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("INGEST + SORT")
+                    .font(.framwiseMono(10))
+                    .foregroundStyle(FramwiseTheme.warm)
+                Text("Workspace")
+                    .font(.framwiseDisplay(24, weight: .semibold))
+                    .foregroundStyle(FramwiseTheme.textPrimary)
+                Text("Sources, tags, and clip inventory stay visible while the footage does the talking.")
+                    .font(.framwiseUI(13))
+                    .foregroundStyle(FramwiseTheme.textMuted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.top, 8)
+        } else {
+            VStack(alignment: .leading, spacing: 5) {
+                Text("WORKFLOW PREVIEW")
+                    .font(.framwiseMono(9))
+                    .foregroundStyle(FramwiseTheme.textMuted.opacity(0.9))
+                Text("Workspace")
+                    .font(.framwiseDisplay(20, weight: .semibold))
+                    .foregroundStyle(FramwiseTheme.textMuted)
+                Text("Outlines what unlocks after import.")
+                    .font(.framwiseUI(12))
+                    .foregroundStyle(FramwiseTheme.textMuted.opacity(0.88))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.top, 8)
+        }
+    }
+
+    private var emptyWorkflowPreview: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            workflowPreviewRow(
+                icon: "folder.fill",
+                title: "Sources",
+                caption: "Imported reels and folders land here."
+            )
+            workflowPreviewDivider
+            workflowPreviewRow(
+                icon: "tag",
+                title: "Tags",
+                caption: "Sorting lanes and filters populate after ingest."
+            )
+            workflowPreviewDivider
+            workflowPreviewRow(
+                icon: "square.grid.2x2",
+                title: "Clip Inventory",
+                caption: "Counts and routing stay visible beside the grid."
+            )
+        }
+        .padding(14)
+        .framwisePanel(background: FramwiseTheme.surface.opacity(0.55), radius: 18)
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(FramwiseTheme.line.opacity(0.35), lineWidth: 1)
+        )
+    }
+
+    private var workflowPreviewDivider: some View {
+        Rectangle()
+            .fill(FramwiseTheme.line.opacity(0.35))
+            .frame(height: 1)
+            .padding(.vertical, 10)
+    }
+
+    private func workflowPreviewRow(icon: String, title: String, caption: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(FramwiseTheme.textMuted.opacity(0.65))
+                .frame(width: 22, alignment: .center)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.framwiseUI(13, weight: .semibold))
+                    .foregroundStyle(FramwiseTheme.textMuted.opacity(0.92))
+                Text(caption)
+                    .font(.framwiseUI(12))
+                    .foregroundStyle(FramwiseTheme.textMuted.opacity(0.72))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    @ViewBuilder
     private func sidebarSection<Content: View>(
         title: String,
         subtitle: String,
@@ -281,6 +356,21 @@ struct SidebarView: View {
             return String(format: "%dm %ds", minutes, secs)
         } else {
             return String(format: "%ds", secs)
+        }
+    }
+}
+
+extension View {
+    @ViewBuilder
+    func optionalFileURLDrop(
+        enabled: Bool,
+        isTargeted: Binding<Bool>,
+        perform: @escaping ([NSItemProvider]) -> Bool
+    ) -> some View {
+        if enabled {
+            self.onDrop(of: [.fileURL], isTargeted: isTargeted, perform: perform)
+        } else {
+            self
         }
     }
 }

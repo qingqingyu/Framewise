@@ -20,22 +20,17 @@ struct DropZoneView: View {
             Spacer()
 
             VStack(spacing: 20) {
-                Text("DIGITAL LIGHT TABLE")
-                    .font(.framwiseMono(11))
-                    .foregroundStyle(FramwiseTheme.warm)
+                Text("Drop Video Files or Folders")
+                    .font(.framwiseDisplay(42, weight: .semibold))
+                    .foregroundStyle(FramwiseTheme.textPrimary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 640)
 
-                VStack(spacing: 12) {
-                    Text("Import footage, then\nstart making judgments.")
-                        .font(.framwiseDisplay(42, weight: .semibold))
-                        .foregroundStyle(FramwiseTheme.textPrimary)
-                        .multilineTextAlignment(.center)
-
-                    Text("Framwise is built for the fast pass before the real edit: ingest, split, scan, reject, tag, and hand off only the clips worth touching.")
-                        .font(.framwiseUI(15))
-                        .foregroundStyle(FramwiseTheme.textMuted)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: 620)
-                }
+                Text("Import footage first, then review, reject, tag, and hand off the clips worth keeping.")
+                    .font(.framwiseUI(14))
+                    .foregroundStyle(FramwiseTheme.textMuted)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 520)
 
                 ZStack {
                     RoundedRectangle(cornerRadius: 28, style: .continuous)
@@ -64,49 +59,28 @@ struct DropZoneView: View {
                         .frame(width: 74, height: 74)
 
                         VStack(spacing: 8) {
-                            Text(isTargeted ? "Release to Import" : "Drop Video Files or Folders")
-                                .font(.framwiseDisplay(26, weight: .semibold))
+                            Text(isTargeted ? "Release to import" : "Drop here to import")
+                                .font(.framwiseDisplay(24, weight: .semibold))
                                 .foregroundStyle(FramwiseTheme.textPrimary)
 
-                            Text("Supports MOV, MP4, MPEG4, and QuickTime footage.\nDrop folders to scan them recursively.")
+                            Text("MOV · MP4 · MPEG4 · QuickTime · folders scanned recursively")
                                 .font(.framwiseUI(13))
                                 .foregroundStyle(FramwiseTheme.textMuted)
                                 .multilineTextAlignment(.center)
+                                .frame(maxWidth: 480)
                         }
 
-                        HStack(spacing: 10) {
-                            Button(action: { showFileImporter = true }) {
-                                Label("Choose Files", systemImage: "plus")
-                            }
-                            .buttonStyle(FramwisePrimaryButtonStyle())
-
-                            Text("or drag them straight into the bay")
-                                .font(.framwiseUI(13))
-                                .foregroundStyle(FramwiseTheme.textMuted)
+                        Button(action: { showFileImporter = true }) {
+                            Label("Choose Files", systemImage: "plus")
                         }
+                        .buttonStyle(FramwisePrimaryButtonStyle())
                     }
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, 24)
                 }
-            }
-            .onDrop(of: [.fileURL], isTargeted: $isTargeted) { providers in
-                handleDrop(providers: providers)
-                return true
-            }
-
-            HStack(spacing: 12) {
-                ForEach(["MOV", "MP4", "MPEG4", "QuickTime"], id: \.self) { format in
-                    Text(format)
-                        .font(.framwiseMono(11))
-                        .foregroundStyle(FramwiseTheme.textMuted)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(
-                            Capsule(style: .continuous)
-                                .fill(FramwiseTheme.surfaceRaised)
-                        )
-                        .overlay(
-                            Capsule(style: .continuous)
-                                .stroke(FramwiseTheme.line.opacity(0.7), lineWidth: 1)
-                        )
+                .onDrop(of: [.fileURL], isTargeted: $isTargeted) { providers in
+                    handleDrop(providers: providers)
+                    return true
                 }
             }
 
