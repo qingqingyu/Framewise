@@ -132,16 +132,22 @@ actor SimilarityDetector {
         return hash
     }
 
-    /// Naive 2D DCT (Type-II) — sufficient for 32x32 input
-    private func dct2D(_ input: [Double], size: Int) -> [Double] {
-        // Precompute cosine table
+    /// Precomputed cosine table for 32x32 DCT — allocated once per process.
+    private static let cosTable32: [Double] = {
+        let size = 32
         let n = Double(size)
-        var cosTable = [Double](repeating: 0, count: size * size)
+        var table = [Double](repeating: 0, count: size * size)
         for k in 0..<size {
             for i in 0..<size {
-                cosTable[k * size + i] = cos(Double.pi * Double(k) * (2.0 * Double(i) + 1.0) / (2.0 * n))
+                table[k * size + i] = cos(Double.pi * Double(k) * (2.0 * Double(i) + 1.0) / (2.0 * n))
             }
         }
+        return table
+    }()
+
+    /// 2D DCT (Type-II) using precomputed cosine table
+    private func dct2D(_ input: [Double], size: Int) -> [Double] {
+        let cosTable = Self.cosTable32
 
         // Row-wise 1D DCT
         var temp = [Double](repeating: 0, count: size * size)
@@ -178,8 +184,12 @@ actor SimilarityDetector {
 
     // MARK: - Union-Find Grouping
 
+    /// Clip count threshold below which exhaustive O(C²) is fast enough.
+    private static let lshCutoff = 100
+
     /// Group clips by pHash similarity using Union-Find.
-    /// Two clips are similar if any of their frame hashes are within the threshold.
+    /// For small sets (≤100 clips): exhaustive all-pairs comparison.
+    /// For large sets: multi-band LSH to reduce comparisons from O(C²) to ~O(C).
     private func groupBySimilarity(
         _ clipHashes: [(clipID: UUID, hashes: [UInt64], duration: Double)]
     ) -> [SimilarityGroup] {
@@ -212,11 +222,46 @@ actor SimilarityDetector {
             }
         }
 
-        // Compare all pairs
-        for i in 0..<count {
-            for j in (i + 1)..<count {
-                if areSimilar(clipHashes[i].hashes, clipHashes[j].hashes) {
-                    union(i, j)
+        if count <= Self.lshCutoff {
+            for i in 0..<count {
+                for j in (i + 1)..<count {
+                    if areSimilar(clipHashes[i].hashes, clipHashes[j].hashes) {
+                        union(i, j)
+                    }
+                }
+            }
+        } else {
+            // Multi-band LSH: split each 64-bit hash into 8 bands of 8 bits.
+            // Two clips sharing an identical band value are candidate pairs.
+            // ~90% recall at hamming distance 10; >99% at distance ≤5.
+            let bandCount = 8
+            var bandTables = [[UInt8: [Int]]](repeating: [:], count: bandCount)
+
+            for (idx, entry) in clipHashes.enumerated() {
+                for hash in entry.hashes {
+                    for band in 0..<bandCount {
+                        let bandValue = UInt8((hash >> (band * 8)) & 0xFF)
+                        bandTables[band][bandValue, default: []].append(idx)
+                    }
+                }
+            }
+
+            var seen = Set<UInt64>()
+            for table in bandTables {
+                for (_, bucket) in table {
+                    let unique = Array(Set(bucket))
+                    guard unique.count >= 2 else { continue }
+                    for i in 0..<unique.count {
+                        for j in (i + 1)..<unique.count {
+                            let a = min(unique[i], unique[j])
+                            let b = max(unique[i], unique[j])
+                            let key = UInt64(a) << 32 | UInt64(b)
+                            guard seen.insert(key).inserted else { continue }
+                            if areSimilar(clipHashes[a].hashes, clipHashes[b].hashes) {
+                                union(a, b)
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -228,14 +273,12 @@ actor SimilarityDetector {
             groups[root, default: []].append(i)
         }
 
-        // Build SimilarityGroup objects (only groups of 2+)
         return groups.values.compactMap { indices -> SimilarityGroup? in
             guard indices.count >= 2 else { return nil }
 
             let groupID = UUID()
             let clipIDs = indices.map { clipHashes[$0].clipID }
 
-            // Representative = longest duration clip
             let repIndex = indices.max(by: { clipHashes[$0].duration < clipHashes[$1].duration })!
             let repClipID = clipHashes[repIndex].clipID
 

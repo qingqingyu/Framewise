@@ -82,14 +82,7 @@ struct ClipGridView: View {
             }
         }
         .onAppear {
-            Task {
-                if let session = appState.importSession {
-                    await thumbnailGenerator.preloadThumbnails(
-                        for: session.allClips,
-                        targetSize: gridSize.cellSize
-                    )
-                }
-            }
+            // Thumbnails are loaded lazily by each ClipCellView on appear.
         }
         .sheet(isPresented: $showPreviewModal) {
             if let clip = previewingClip {

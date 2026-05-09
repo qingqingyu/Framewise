@@ -123,7 +123,7 @@ final class PreviewAndImportViewModelTests: XCTestCase {
         let successfulURL = try makeTemporaryVideoURL(named: "good.mov")
         let failingURL = try makeTemporaryVideoURL(named: "bad.mov")
 
-        viewModel.singleVideoAnalyzer = { url, _, _, _, _ in
+        viewModel.singleVideoAnalyzer = { url, _, _ in
             if url == successfulURL {
                 let clip = VideoClip(
                     sourceFileURL: url,
@@ -149,7 +149,7 @@ final class PreviewAndImportViewModelTests: XCTestCase {
         let duplicateURL = try makeTemporaryVideoURL(named: "same.mov")
         let counter = ImportInvocationCounter()
 
-        viewModel.singleVideoAnalyzer = { url, _, _, _, _ in
+        viewModel.singleVideoAnalyzer = { url, _, _ in
             await counter.increment()
             let clip = VideoClip(
                 sourceFileURL: url,

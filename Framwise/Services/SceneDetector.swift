@@ -99,7 +99,12 @@ actor SceneDetector {
         return [CMTime.zero] + sceneChanges + [duration]
     }
 
-    /// Detect scene change points with streaming events
+    /// Duration threshold (seconds) above which two-phase sampling is used.
+    private let twoPhaseThreshold: Double = 300 // 5 minutes
+
+    /// Detect scene change points with streaming events.
+    /// Short videos (<5 min): single-pass at full sampling rate.
+    /// Long videos (>=5 min): two-phase — coarse 1fps scan, then fine scan around change regions.
     func detectScenesStream(in asset: AVAsset) -> AsyncStream<SceneEvent> {
         AsyncStream { continuation in
             let task = Task {
@@ -113,83 +118,221 @@ actor SceneDetector {
                         return
                     }
 
-                    // 获取视频轨道
                     guard let videoTrack = try await asset.loadTracks(withMediaType: .video).first else {
                         throw SceneDetectorError.noVideoTrack
                     }
 
                     let frameRate = try await videoTrack.load(.nominalFrameRate)
 
-                    // 使用AVAssetImageGenerator获取帧
                     let generator = AVAssetImageGenerator(asset: asset)
                     generator.appliesPreferredTrackTransform = true
                     generator.requestedTimeToleranceBefore = .zero
                     generator.requestedTimeToleranceAfter = .zero
 
-                    // 每秒采样帧数
-                    let samplesPerSecond = min(max(Double(frameRate) / 2, 5), 15)
-                    let sampleInterval = 1.0 / samplesPerSecond
-                    let activeSensitivity = sensitivity
-                    let activeMinimumSceneDuration = minimumSceneDuration
+                    let fineRate = min(max(Double(frameRate) / 2, 5), 15)
+                    let fineInterval = 1.0 / fineRate
+                    let activeSensitivity = self.sensitivity
+                    let activeMinDuration = self.minimumSceneDuration
 
-                    var sceneChanges: [CMTime] = []
-                    var previousHistogram: [Double]?
-
-                    var currentTime = 0.0
-                    var lastSceneTime = 0.0
-
-                    while currentTime < durationSeconds {
-                        // Check for cancellation
-                        guard !Task.isCancelled else {
-                            continuation.finish()
-                            return
-                        }
-
-                        let time = CMTime(seconds: currentTime, preferredTimescale: 600)
-
-                        do {
-                            let (image, _) = try await generator.image(at: time)
-                            let histogram = try computeHistogram(from: image)
-
-                            if let prevHist = previousHistogram {
-                                let difference = histogramDifference(histogram, prevHist)
-                                let passesThreshold = difference > activeSensitivity
-                                let meetsMinimumDuration = (currentTime - lastSceneTime) >= activeMinimumSceneDuration
-
-                                if passesThreshold && meetsMinimumDuration {
-                                    sceneChanges.append(time)
-                                    lastSceneTime = currentTime
-                                    // Emit scene change event
-                                    continuation.yield(.sceneChange(time))
-                                }
-                            }
-
-                            previousHistogram = histogram
-                        } catch {
-                            // Log skipped frame for debugging (does not stop processing)
-                            continuation.yield(.frameSkipped(time: currentTime, reason: error.localizedDescription))
-                        }
-
-                        // Emit progress event
-                        let progress = currentTime / durationSeconds
-                        continuation.yield(.progress(progress))
-
-                        currentTime += sampleInterval
+                    if durationSeconds >= self.twoPhaseThreshold {
+                        let result = try await self.twoPhaseDetect(
+                            generator: generator,
+                            durationSeconds: durationSeconds,
+                            duration: duration,
+                            fineInterval: fineInterval,
+                            sensitivity: activeSensitivity,
+                            minSceneDuration: activeMinDuration,
+                            continuation: continuation
+                        )
+                        continuation.yield(.completed([CMTime.zero] + result + [duration]))
+                    } else {
+                        let result = try await self.singlePassDetect(
+                            generator: generator,
+                            durationSeconds: durationSeconds,
+                            duration: duration,
+                            sampleInterval: fineInterval,
+                            sensitivity: activeSensitivity,
+                            minSceneDuration: activeMinDuration,
+                            continuation: continuation
+                        )
+                        continuation.yield(.completed([CMTime.zero] + result + [duration]))
                     }
-
-                    // Emit completion: start + detected cuts + end
-                    continuation.yield(.completed([CMTime.zero] + sceneChanges + [duration]))
                     continuation.finish()
                 } catch {
                     continuation.yield(.error(error))
                     continuation.finish()
                 }
             }
-            // Cancel the task when the stream consumer stops listening
             continuation.onTermination = { @Sendable _ in
                 task.cancel()
             }
         }
+    }
+
+    // MARK: - Single-Pass Detection (short videos)
+
+    private func singlePassDetect(
+        generator: AVAssetImageGenerator,
+        durationSeconds: Double,
+        duration: CMTime,
+        sampleInterval: Double,
+        sensitivity: Double,
+        minSceneDuration: Double,
+        continuation: AsyncStream<SceneEvent>.Continuation
+    ) async throws -> [CMTime] {
+        var sceneChanges: [CMTime] = []
+        var previousHistogram: [Double]?
+        var currentTime = 0.0
+        var lastSceneTime = 0.0
+
+        while currentTime < durationSeconds {
+            guard !Task.isCancelled else { throw CancellationError() }
+
+            let time = CMTime(seconds: currentTime, preferredTimescale: 600)
+            do {
+                let (image, _) = try await generator.image(at: time)
+                let histogram = try computeHistogram(from: image)
+
+                if let prevHist = previousHistogram {
+                    let difference = histogramDifference(histogram, prevHist)
+                    if difference > sensitivity && (currentTime - lastSceneTime) >= minSceneDuration {
+                        sceneChanges.append(time)
+                        lastSceneTime = currentTime
+                        continuation.yield(.sceneChange(time))
+                    }
+                }
+                previousHistogram = histogram
+            } catch {
+                continuation.yield(.frameSkipped(time: currentTime, reason: error.localizedDescription))
+            }
+
+            continuation.yield(.progress(currentTime / durationSeconds))
+            currentTime += sampleInterval
+        }
+        return sceneChanges
+    }
+
+    // MARK: - Two-Phase Detection (long videos)
+
+    private func twoPhaseDetect(
+        generator: AVAssetImageGenerator,
+        durationSeconds: Double,
+        duration: CMTime,
+        fineInterval: Double,
+        sensitivity: Double,
+        minSceneDuration: Double,
+        continuation: AsyncStream<SceneEvent>.Continuation
+    ) async throws -> [CMTime] {
+        // Phase 1: Coarse scan at 1 sample/sec to find candidate change regions.
+        // Uses a lower threshold (70%) to avoid missing changes at low temporal resolution.
+        // Enforces minSceneDuration to prevent rapid flicker from creating excessive windows.
+        let coarseInterval = 1.0
+        let coarseThreshold = sensitivity * 0.7
+        var candidateRegions: [Double] = []
+        var prevHistogram: [Double]?
+        var t = 0.0
+        var lastCandidateTime = 0.0
+
+        while t < durationSeconds {
+            guard !Task.isCancelled else { throw CancellationError() }
+            let time = CMTime(seconds: t, preferredTimescale: 600)
+
+            do {
+                let (image, _) = try await generator.image(at: time)
+                let histogram = try computeHistogram(from: image)
+
+                if let prev = prevHistogram {
+                    let diff = histogramDifference(histogram, prev)
+                    if diff > coarseThreshold && (t - lastCandidateTime) >= minSceneDuration {
+                        candidateRegions.append(t)
+                        lastCandidateTime = t
+                    }
+                }
+                prevHistogram = histogram
+            } catch {
+                continuation.yield(.frameSkipped(time: t, reason: error.localizedDescription))
+            }
+
+            continuation.yield(.progress(t / durationSeconds * 0.5))
+            t += coarseInterval
+        }
+
+        // Phase 2: Fine scan in ±margin windows around each candidate.
+        let margin = max(coarseInterval, 1.0)
+        let windows = Self.mergeWindows(
+            candidateRegions.map { ($0 - margin, $0 + margin) },
+            clampedTo: 0...durationSeconds
+        )
+
+        let totalFineTime = max(1.0, windows.reduce(0.0) { $0 + ($1.1 - $1.0) })
+        var fineTimeDone = 0.0
+        var sceneChanges: [CMTime] = []
+        var finePrevHistogram: [Double]?
+        var lastSceneTime = 0.0
+
+        for (windowStart, windowEnd) in windows {
+            // Sample a frame just before the window to establish baseline histogram
+            let baselineTime = max(0, windowStart - fineInterval)
+            if finePrevHistogram == nil || windowStart > lastSceneTime + margin * 2 {
+                let baseTime = CMTime(seconds: baselineTime, preferredTimescale: 600)
+                if let (img, _) = try? await generator.image(at: baseTime),
+                   let hist = try? computeHistogram(from: img) {
+                    finePrevHistogram = hist
+                }
+            }
+
+            var ft = windowStart
+            while ft < windowEnd {
+                guard !Task.isCancelled else { throw CancellationError() }
+                let time = CMTime(seconds: ft, preferredTimescale: 600)
+
+                do {
+                    let (image, _) = try await generator.image(at: time)
+                    let histogram = try computeHistogram(from: image)
+
+                    if let prev = finePrevHistogram {
+                        let diff = histogramDifference(histogram, prev)
+                        if diff > sensitivity && (ft - lastSceneTime) >= minSceneDuration {
+                            sceneChanges.append(time)
+                            lastSceneTime = ft
+                            continuation.yield(.sceneChange(time))
+                        }
+                    }
+                    finePrevHistogram = histogram
+                } catch {
+                    continuation.yield(.frameSkipped(time: ft, reason: error.localizedDescription))
+                }
+
+                fineTimeDone += fineInterval
+                let progress = 0.5 + min(1.0, fineTimeDone / totalFineTime) * 0.5
+                continuation.yield(.progress(progress))
+                ft += fineInterval
+            }
+        }
+
+        return sceneChanges
+    }
+
+    /// Merge overlapping (start, end) intervals and clamp to the given range.
+    private static func mergeWindows(
+        _ windows: [(Double, Double)],
+        clampedTo range: ClosedRange<Double>
+    ) -> [(Double, Double)] {
+        guard !windows.isEmpty else { return [] }
+        let clamped = windows
+            .map { (max(range.lowerBound, $0.0), min(range.upperBound, $0.1)) }
+            .filter { $0.0 < $0.1 }
+        guard !clamped.isEmpty else { return [] }
+        let sorted = clamped.sorted { $0.0 < $1.0 }
+        var merged: [(Double, Double)] = [sorted[0]]
+        for window in sorted.dropFirst() {
+            if window.0 <= merged[merged.count - 1].1 {
+                merged[merged.count - 1].1 = max(merged[merged.count - 1].1, window.1)
+            } else {
+                merged.append(window)
+            }
+        }
+        return merged
     }
 
     // MARK: - Histogram Computation

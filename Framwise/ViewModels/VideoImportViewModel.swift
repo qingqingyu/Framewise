@@ -33,19 +33,21 @@ class VideoImportViewModel: ObservableObject {
     @Published var isAnalyzing: Bool = false
     @Published var totalFilesCount: Int = 0
 
-    private let sceneDetector = SceneDetector()
-    private let wasteDetector = WasteDetector()
-    private let similarityDetector = SimilarityDetector()
-    var singleVideoAnalyzer: (URL, SceneDetector, WasteDetector, SimilarityDetector, Int) async throws -> VideoImportResult
+    /// Each video analysis creates its own detector instances to avoid actor serialization.
+    /// Shared instances are only kept for setting sensitivity before spawning tasks.
+    private let sharedSceneDetector = SceneDetector()
+
+    /// Maximum number of videos analyzed concurrently to avoid CPU/IO saturation.
+    private let maxConcurrentAnalysis = 3
+
+    var singleVideoAnalyzer: (URL, Double, Int) async throws -> VideoImportResult
 
     init() {
-        self.singleVideoAnalyzer = { url, sceneDetector, wasteDetector, similarityDetector, targetSegmentCount in
+        self.singleVideoAnalyzer = { url, sensitivity, targetSegmentCount in
             try await Self.analyzeSingleVideo(
-            url: url,
-            sceneDetector: sceneDetector,
-            wasteDetector: wasteDetector,
-            similarityDetector: similarityDetector,
-            targetSegmentCount: targetSegmentCount
+                url: url,
+                sensitivity: sensitivity,
+                targetSegmentCount: targetSegmentCount
             )
         }
     }
@@ -156,26 +158,26 @@ class VideoImportViewModel: ObservableObject {
             }
             totalFilesCount = urlsToAnalyze.count
 
-            await sceneDetector.setSensitivity(
-                SceneDetectionSettings.autoSensitivity(forTargetCount: targetSegmentCount)
-            )
+            let sensitivity = SceneDetectionSettings.autoSensitivity(forTargetCount: targetSegmentCount)
 
-            // Capture values for use in non-isolated tasks
-            let sceneDetector = self.sceneDetector
-            let wasteDetector = self.wasteDetector
-            let similarityDetector = self.similarityDetector
             let targetCount = self.targetSegmentCount
             let analyzer = self.singleVideoAnalyzer
+            let concurrencyLimit = self.maxConcurrentAnalysis
 
             var completedCount = 0
             var failedCount = 0
             var firstError: Error?
 
             await withTaskGroup(of: (URL, Result<VideoImportResult, Error>).self) { group in
-                for url in urlsToAnalyze {
+                var enqueued = 0
+                var urlIterator = urlsToAnalyze.makeIterator()
+
+                // Seed the group with up to concurrencyLimit tasks
+                while enqueued < concurrencyLimit, let url = urlIterator.next() {
+                    enqueued += 1
                     group.addTask {
                         do {
-                            let result = try await analyzer(url, sceneDetector, wasteDetector, similarityDetector, targetCount)
+                            let result = try await analyzer(url, sensitivity, targetCount)
                             return (url, .success(result))
                         } catch {
                             return (url, .failure(error))
@@ -183,10 +185,11 @@ class VideoImportViewModel: ObservableObject {
                     }
                 }
 
-                // Merge results as each video completes (serial writes to session)
-                // Check cancellation to bail out early when user clears session
                 for await (url, groupResult) in group {
-                    guard importGeneration == myGeneration, !Task.isCancelled else { break }
+                    guard importGeneration == myGeneration, !Task.isCancelled else {
+                        group.cancelAll()
+                        break
+                    }
                     completedCount += 1
                     importProgress = Double(completedCount) / Double(urlsToAnalyze.count)
                     analyzingProgress = importProgress
@@ -206,6 +209,18 @@ class VideoImportViewModel: ObservableObject {
                         #endif
                         if firstError == nil {
                             firstError = error
+                        }
+                    }
+
+                    // Enqueue next video to maintain sliding window
+                    if let nextURL = urlIterator.next() {
+                        group.addTask {
+                            do {
+                                let result = try await analyzer(nextURL, sensitivity, targetCount)
+                                return (nextURL, .success(result))
+                            } catch {
+                                return (nextURL, .failure(error))
+                            }
                         }
                     }
                 }
@@ -256,12 +271,11 @@ class VideoImportViewModel: ObservableObject {
 
     // MARK: - Single Video Analysis (Non-isolated, for parallel execution)
 
-    /// Analyze a single video independently — no session interaction
+    /// Analyze a single video independently — each call creates its own detector instances
+    /// to avoid actor serialization when multiple videos are processed in parallel.
     nonisolated private static func analyzeSingleVideo(
         url: URL,
-        sceneDetector: SceneDetector,
-        wasteDetector: WasteDetector,
-        similarityDetector: SimilarityDetector,
+        sensitivity: Double,
         targetSegmentCount: Int
     ) async throws -> VideoImportResult {
         let asset = AVAsset(url: url)
@@ -274,6 +288,13 @@ class VideoImportViewModel: ObservableObject {
 
         let duration = try await asset.load(.duration)
         let totalDuration = CMTimeGetSeconds(duration)
+
+        // Per-video detector instances — no shared actor contention
+        let sceneDetector = SceneDetector()
+        let wasteDetector = WasteDetector()
+        let similarityDetector = SimilarityDetector()
+
+        await sceneDetector.setSensitivity(sensitivity)
 
         // Stream scene detection
         let stream = await sceneDetector.detectScenesStream(in: asset)
@@ -450,7 +471,7 @@ class VideoImportViewModel: ObservableObject {
         error = nil
         statusMessage = "Importing videos..."
 
-        await sceneDetector.setSensitivity(
+        await sharedSceneDetector.setSensitivity(
             SceneDetectionSettings.autoSensitivity(forTargetCount: targetSegmentCount)
         )
 
@@ -494,7 +515,7 @@ class VideoImportViewModel: ObservableObject {
 
         // 检测场景变化点
         statusMessage = "Detecting scenes in \(url.lastPathComponent)..."
-        let sceneChanges = try await sceneDetector.detectScenes(in: asset)
+        let sceneChanges = try await sharedSceneDetector.detectScenes(in: asset)
 
         // 根据场景变化生成clip segments
         let segments = try await generateClipSegments(

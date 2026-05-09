@@ -216,11 +216,18 @@ Framwise/
 │   ├── ExportViewModel.swift          # EDL/FCPXML 导出（智能命名、废料排除）
 │   └── PreviewViewModel.swift         # 片段预览播放控制（默认 2x 倍速）
 ├── Views/
-│   ├── ContentView.swift              # 主界面布局 + 侧边栏（指标、源文件列表、标签、导入区）
+│   ├── ContentView.swift              # 主界面布局（顶部工具条、NavigationView、import/export/clear 入口）
+│   ├── SidebarView.swift              # 侧边栏（来源列表、统计指标、标签管理、拖拽导入）
+│   ├── SidebarComponents.swift        # 侧边栏复用组件（SidebarRow、SidebarTagRow、SidebarMetricRow、TagsEmptyStateView、TagsKeyboardHint）
+│   ├── ExportSheetView.swift          # 导出弹窗（格式选择、废料排除提示、NSSavePanel 保存）
+│   ├── SettingsView.swift             # 设置窗口（Preview Tiles 滑块、密度提示）
 │   ├── DropZoneView.swift             # 拖拽导入区域 + 进度显示（支持文件夹）
-│   ├── ClipGridView.swift             # 网格视图 + 拖拽重排 + 时间线导航 + 右键菜单
+│   ├── ClipGridView.swift             # 网格视图（工具栏、过滤 chips、键盘导航、右键菜单、拖拽重排）
+│   ├── TimelineViews.swift            # 迷你时间线（CollapsedTimelineView、ClipBlockView、TimeMarkersView）
+│   ├── ClipPreviewModal.swift         # 片段预览弹窗（播放器、选中/废料状态、标签显示）
+│   ├── ClipDropDelegate.swift         # 片段拖拽重排 DropDelegate
 │   ├── ClipCellView.swift             # 单格视图（动画缩略图、废料/KEPT/TAKES 标记）
-│   ├── ClipPreviewView.swift          # 片段预览弹窗 + 播放器
+│   ├── ClipPreviewView.swift          # 视频播放器 NSViewRepresentable 封装
 │   └── TagCreateView.swift            # 标签创建/重命名界面
 ├── Services/
 │   ├── SceneDetector.swift            # 场景检测（直方图差分、流式分析）
