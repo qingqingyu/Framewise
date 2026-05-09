@@ -81,9 +81,6 @@ struct ClipGridView: View {
                 hoveredClip = nil
             }
         }
-        .onAppear {
-            // Thumbnails are loaded lazily by each ClipCellView on appear.
-        }
         .sheet(isPresented: $showPreviewModal) {
             if let clip = previewingClip {
                 ClipPreviewModal(clip: clip, isPresented: $showPreviewModal)

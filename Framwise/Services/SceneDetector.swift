@@ -138,7 +138,6 @@ actor SceneDetector {
                         let result = try await self.twoPhaseDetect(
                             generator: generator,
                             durationSeconds: durationSeconds,
-                            duration: duration,
                             fineInterval: fineInterval,
                             sensitivity: activeSensitivity,
                             minSceneDuration: activeMinDuration,
@@ -149,7 +148,6 @@ actor SceneDetector {
                         let result = try await self.singlePassDetect(
                             generator: generator,
                             durationSeconds: durationSeconds,
-                            duration: duration,
                             sampleInterval: fineInterval,
                             sensitivity: activeSensitivity,
                             minSceneDuration: activeMinDuration,
@@ -174,7 +172,6 @@ actor SceneDetector {
     private func singlePassDetect(
         generator: AVAssetImageGenerator,
         durationSeconds: Double,
-        duration: CMTime,
         sampleInterval: Double,
         sensitivity: Double,
         minSceneDuration: Double,
@@ -217,7 +214,6 @@ actor SceneDetector {
     private func twoPhaseDetect(
         generator: AVAssetImageGenerator,
         durationSeconds: Double,
-        duration: CMTime,
         fineInterval: Double,
         sensitivity: Double,
         minSceneDuration: Double,

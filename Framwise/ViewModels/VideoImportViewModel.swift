@@ -188,7 +188,22 @@ class VideoImportViewModel: ObservableObject {
                 for await (url, groupResult) in group {
                     guard importGeneration == myGeneration, !Task.isCancelled else {
                         group.cancelAll()
-                        break
+                        // Drain remaining results so completed tasks don't leave
+                        // source files without clips in the session.
+                        for await (url, remainingResult) in group {
+                            switch remainingResult {
+                            case .success(let result):
+                                mergeResult(result, into: session)
+                                completedCount += 1
+                            case .failure:
+                                failedCount += 1
+                                if insertedSourceURLs.contains(url) {
+                                    session.removeSourceFile(url)
+                                    insertedSourceURLs.remove(url)
+                                }
+                            }
+                        }
+                        return
                     }
                     completedCount += 1
                     importProgress = Double(completedCount) / Double(urlsToAnalyze.count)
