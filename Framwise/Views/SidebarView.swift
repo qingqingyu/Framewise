@@ -23,6 +23,9 @@ struct SidebarView: View {
 
                 if appState.importSession != nil {
                     dropZone
+                    if let error = importViewModel.error {
+                        importErrorView(error)
+                    }
                 } else {
                     emptyWorkflowPreview
                 }
@@ -212,6 +215,27 @@ struct SidebarView: View {
         .animation(.easeInOut(duration: 0.15), value: isTargeted)
     }
 
+    private func importErrorView(_ error: Error) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(FramwiseTheme.danger)
+            Text(error.localizedDescription)
+                .font(.framwiseUI(12))
+                .foregroundStyle(FramwiseTheme.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(FramwiseTheme.danger.opacity(0.08))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(FramwiseTheme.danger.opacity(0.22), lineWidth: 1)
+        )
+    }
+
     @ViewBuilder
     private var workspaceHeader: some View {
         if appState.importSession != nil {
@@ -335,6 +359,8 @@ struct SidebarView: View {
                 importFilesFromURLs(videoURLs)
             } else if !unsupported.isEmpty {
                 importViewModel.error = ImportError.unsupportedFormat(unsupported.joined(separator: ", "))
+            } else {
+                importViewModel.error = ImportError.noSupportedVideos
             }
         }
     }

@@ -264,6 +264,22 @@ class ClipGridViewModel: ObservableObject {
         selectionAnchorID = clips.last?.id
     }
 
+    /// Applies the user's manual clip order only when no explicit ordering mode
+    /// is active. Group-similar and non-original sort modes should be visible.
+    func displayOrderedClips(_ filteredClips: [VideoClip], userClipOrder: [UUID]?) -> [VideoClip] {
+        guard let userClipOrder,
+              !groupSimilar,
+              sortOrder == .original else {
+            return filteredClips
+        }
+
+        let filteredSet = Set(filteredClips.map(\.id))
+        let clipMap = Dictionary(uniqueKeysWithValues: filteredClips.map { ($0.id, $0) })
+        return userClipOrder.compactMap { id in
+            filteredSet.contains(id) ? clipMap[id] : nil
+        }
+    }
+
     func resetTransientUIState() {
         searchText = ""
         sortOrder = .original

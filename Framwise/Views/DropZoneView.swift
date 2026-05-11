@@ -187,6 +187,8 @@ struct DropZoneView: View {
                 importFiles(urls: videoURLs)
             } else if !unsupported.isEmpty {
                 importViewModel.error = ImportError.unsupportedFormat(unsupported.joined(separator: ", "))
+            } else {
+                importViewModel.error = ImportError.noSupportedVideos
             }
         }
     }
@@ -194,8 +196,14 @@ struct DropZoneView: View {
     private func handleFileImport(result: Result<[URL], Error>) {
         switch result {
         case .success(let urls):
-            let (videoURLs, _) = FileResolver.resolveVideoURLs(from: urls)
-            importFiles(urls: videoURLs)
+            let (videoURLs, unsupported) = FileResolver.resolveVideoURLs(from: urls)
+            if !videoURLs.isEmpty {
+                importFiles(urls: videoURLs)
+            } else if !unsupported.isEmpty {
+                importViewModel.error = ImportError.unsupportedFormat(unsupported.joined(separator: ", "))
+            } else {
+                importViewModel.error = ImportError.noSupportedVideos
+            }
         case .failure(let error):
             importViewModel.error = error
         }

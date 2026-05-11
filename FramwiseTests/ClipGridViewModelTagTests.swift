@@ -141,4 +141,37 @@ final class ClipGridViewModelTagTests: XCTestCase {
 
         XCTAssertEqual(appState.selectedClipIDs, Set(visibleClipIDs))
     }
+
+    // MARK: - Display ordering
+
+    func testDisplayOrderedClips_appliesUserOrderWhenNoOrderingModeIsActive() {
+        let clip1 = makeClip(name: "a.mov")
+        let clip2 = makeClip(name: "b.mov")
+        let clip3 = makeClip(name: "c.mov")
+
+        let result = vm.displayOrderedClips(
+            [clip1, clip2, clip3],
+            userClipOrder: [clip3.id, clip1.id, clip2.id]
+        )
+
+        XCTAssertEqual(result.map(\.id), [clip3.id, clip1.id, clip2.id])
+    }
+
+    func testDisplayOrderedClips_preservesSimilarityOrderingWhenGroupSimilarIsActive() {
+        let groupID = UUID()
+        var clip1 = makeClip(name: "a.mov")
+        var clip2 = makeClip(name: "b.mov")
+        let clip3 = makeClip(name: "c.mov")
+        clip1.similarityGroupID = groupID
+        clip2.similarityGroupID = groupID
+
+        vm.groupSimilar = true
+        let filtered = vm.filteredClips(from: [clip3, clip1, clip2])
+        let result = vm.displayOrderedClips(
+            filtered,
+            userClipOrder: [clip3.id, clip1.id, clip2.id]
+        )
+
+        XCTAssertEqual(result.map(\.id), [clip1.id, clip2.id, clip3.id])
+    }
 }

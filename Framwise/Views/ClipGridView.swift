@@ -65,6 +65,8 @@ struct ClipGridView: View {
         .padding(16)
         .background(FramwiseTheme.appGradient)
         .focusable()
+        .focused($isGridFocused)
+        .onAppear { isGridFocused = true }
         .onKeyPress(.space) { handleSpaceKey() }
         .onKeyPress(characters: .init(charactersIn: "123456789")) { handleTagShortcut($0) }
         .onKeyPress(.leftArrow) { moveFocus(.left) }
@@ -511,6 +513,7 @@ struct ClipGridView: View {
                     appState.importSession?.activeTagFilter = nil
                     hideWasteClips = false
                     gridViewModel.viewMode = .all
+                    gridViewModel.similarityGroupFilter = nil
                 }
                 .buttonStyle(FramwisePrimaryButtonStyle())
             }
@@ -593,12 +596,7 @@ struct ClipGridView: View {
     private var orderedFlatClips: [VideoClip] {
         guard let session = appState.importSession,
               let order = session.userClipOrder else { return [] }
-        // Apply the same filters as groupedClips via gridViewModel
-        let filteredSet = Set(filteredClips.map { $0.id })
-        let clipMap = Dictionary(uniqueKeysWithValues: session.allClips.map { ($0.id, $0) })
-        return order.compactMap { id in
-            filteredSet.contains(id) ? clipMap[id] : nil
-        }
+        return gridViewModel.displayOrderedClips(filteredClips, userClipOrder: order)
     }
 
     @ViewBuilder
@@ -636,7 +634,7 @@ struct ClipGridView: View {
             : nil
         )
         .shadow(color: focusedClipID == clip.id ? FramwiseTheme.warm.opacity(0.3) : .clear, radius: 6)
-        .opacity(draggedClipID == clip.id ? 0.3 : 1.0)
+        .opacity(draggedClipID == clip.id && dropTargetID != nil ? 0.3 : 1.0)
         .onHover { isHovering in
             if isHovering {
                 hoveredClip = clip
@@ -645,6 +643,7 @@ struct ClipGridView: View {
             }
         }
         .onTapGesture {
+            isGridFocused = true
             focusedClipID = clip.id
             let modifiers = NSEvent.modifierFlags
             gridViewModel.handleSelection(
@@ -684,17 +683,17 @@ struct ClipGridView: View {
                 Button(isBatch ? "Mark \(targetIDs.count) as Non-Waste" : "Mark as Non-Waste") {
                     guard let session = appState.importSession else { return }
                     let applicable = targetIDs.filter { id in
-                        session.allClips.first { $0.id == id }?.effectiveWasteType != .none
+                        effectiveWasteType(for: id, in: session).map { $0 != .none } ?? false
                     }
-                    session.setWasteOverride(Set(applicable), override: .none)
+                    session.setWasteOverride(Set(applicable), override: WasteType.none)
                 }
             } else if clip.wasteType == .none && !clip.isWasteOverridden {
                 Button(isBatch ? "Mark \(targetIDs.count) as Waste" : "Mark as Waste") {
                     guard let session = appState.importSession else { return }
                     let applicable = targetIDs.filter { id in
-                        session.allClips.first { $0.id == id }?.effectiveWasteType == .none
+                        effectiveWasteType(for: id, in: session).map { $0 == .none } ?? false
                     }
-                    session.setWasteOverride(Set(applicable), override: .solid)
+                    session.setWasteOverride(Set(applicable), override: WasteType.solid)
                 }
             }
             if clip.isWasteOverridden {
@@ -773,6 +772,10 @@ struct ClipGridView: View {
                 }
             }
         }
+    }
+
+    private func effectiveWasteType(for clipID: UUID, in session: ImportSession) -> WasteType? {
+        session.allClips.first { $0.id == clipID }?.effectiveWasteType
     }
 
     private func selectVisibleClips(_ clips: [VideoClip]) {

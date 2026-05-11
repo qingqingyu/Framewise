@@ -105,6 +105,17 @@ final class PreviewAndImportViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.statusMessage, "")
     }
 
+    func testUnsupportedFormatDescription_formatsExtensionsAndFileNamesCleanly() {
+        XCTAssertEqual(
+            ImportError.unsupportedFormat("txt").errorDescription,
+            "Unsupported format: .txt"
+        )
+        XCTAssertEqual(
+            ImportError.unsupportedFormat("notes.txt, archive.zip").errorDescription,
+            "Unsupported file format: notes.txt, archive.zip"
+        )
+    }
+
     func testVideoClipTimecodeStrings_useSourceFrameRate() {
         let clip = VideoClip(
             sourceFileURL: URL(fileURLWithPath: "/tmp/test.mov"),

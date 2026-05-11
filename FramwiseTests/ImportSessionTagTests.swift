@@ -234,4 +234,17 @@ final class ImportSessionTagTests: XCTestCase {
         let clip = makeClip(name: "test.mov")
         XCTAssertTrue(clip.tagIDs.isEmpty)
     }
+
+    // MARK: - Waste override
+
+    func testSetWasteOverrideToNoneKeepsAutoWasteAsNonWaste() {
+        var clip = makeClip(name: "waste.mov")
+        clip.wasteType = .blackout
+        session.addClip(clip)
+
+        session.setWasteOverride(clip.id, override: WasteType.none)
+
+        XCTAssertEqual(session.allClips[0].effectiveWasteType, .none)
+        XCTAssertTrue(session.allClips[0].isWasteOverridden)
+    }
 }
