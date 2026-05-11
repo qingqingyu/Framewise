@@ -358,7 +358,7 @@ struct SidebarView: View {
             if !videoURLs.isEmpty {
                 importFilesFromURLs(videoURLs)
             } else if !unsupported.isEmpty {
-                importViewModel.error = ImportError.unsupportedFormat(unsupported.joined(separator: ", "))
+                importViewModel.error = ImportError.unsupportedFiles(unsupported)
             } else {
                 importViewModel.error = ImportError.noSupportedVideos
             }

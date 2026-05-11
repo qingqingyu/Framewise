@@ -669,6 +669,7 @@ class VideoImportViewModel: ObservableObject {
 enum ImportError: LocalizedError {
     case fileNotFound(URL)
     case unsupportedFormat(String)
+    case unsupportedFiles([String])
     case noSupportedVideos
     case invalidVideo
     case analysisFailed(String)
@@ -677,15 +678,20 @@ enum ImportError: LocalizedError {
         switch self {
         case .fileNotFound(let url):
             return "File not found: \(url.lastPathComponent)"
-        case .unsupportedFormat(let value):
-            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmed.isEmpty else {
+        case .unsupportedFormat(let ext):
+            let trimmedExtension = ext.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmedExtension.isEmpty else {
                 return "Unsupported format."
             }
-            if trimmed.contains(",") || trimmed.contains(".") {
-                return "Unsupported file format: \(trimmed)"
+            return "Unsupported format: .\(trimmedExtension)"
+        case .unsupportedFiles(let names):
+            let displayNames = names
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+            guard !displayNames.isEmpty else {
+                return "Unsupported file format."
             }
-            return "Unsupported format: .\(trimmed)"
+            return "Unsupported file format: \(displayNames.joined(separator: ", "))"
         case .noSupportedVideos:
             return "No supported video files found."
         case .invalidVideo:

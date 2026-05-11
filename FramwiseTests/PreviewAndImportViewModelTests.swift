@@ -111,8 +111,12 @@ final class PreviewAndImportViewModelTests: XCTestCase {
             "Unsupported format: .txt"
         )
         XCTAssertEqual(
-            ImportError.unsupportedFormat("notes.txt, archive.zip").errorDescription,
+            ImportError.unsupportedFiles(["notes.txt", "archive.zip"]).errorDescription,
             "Unsupported file format: notes.txt, archive.zip"
+        )
+        XCTAssertEqual(
+            ImportError.unsupportedFiles(["README"]).errorDescription,
+            "Unsupported file format: README"
         )
     }
 
@@ -173,7 +177,8 @@ final class PreviewAndImportViewModelTests: XCTestCase {
         viewModel.importVideosStreaming(from: [duplicateURL, duplicateURL], into: session)
         try await waitForImportToFinish(viewModel)
 
-        XCTAssertEqual(await counter.value(), 1)
+        let invocationCount = await counter.value()
+        XCTAssertEqual(invocationCount, 1)
         XCTAssertEqual(session.sourceFiles, [duplicateURL])
         XCTAssertEqual(session.allClips.count, 1)
     }

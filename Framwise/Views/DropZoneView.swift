@@ -186,7 +186,7 @@ struct DropZoneView: View {
             if !videoURLs.isEmpty {
                 importFiles(urls: videoURLs)
             } else if !unsupported.isEmpty {
-                importViewModel.error = ImportError.unsupportedFormat(unsupported.joined(separator: ", "))
+                importViewModel.error = ImportError.unsupportedFiles(unsupported)
             } else {
                 importViewModel.error = ImportError.noSupportedVideos
             }
@@ -200,7 +200,7 @@ struct DropZoneView: View {
             if !videoURLs.isEmpty {
                 importFiles(urls: videoURLs)
             } else if !unsupported.isEmpty {
-                importViewModel.error = ImportError.unsupportedFormat(unsupported.joined(separator: ", "))
+                importViewModel.error = ImportError.unsupportedFiles(unsupported)
             } else {
                 importViewModel.error = ImportError.noSupportedVideos
             }
