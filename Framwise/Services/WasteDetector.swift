@@ -142,7 +142,7 @@ actor WasteDetector {
             let diff = g - mean
             varianceSum += diff * diff
         }
-        let stdDev = sqrt(varianceSum / Double(pixelCount))
+        let stdDev = pixelCount > 0 ? sqrt(varianceSum / Double(pixelCount)) : 0
 
         // Laplacian variance for blur detection.
         // 3x3 kernel: [0,1,0; 1,-4,1; 0,1,0] applied to interior pixels.

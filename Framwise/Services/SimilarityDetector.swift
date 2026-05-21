@@ -100,14 +100,14 @@ actor SimilarityDetector {
         // Apply 2D DCT
         let dctResult = dct2D(matrix, size: size)
 
-        // Extract top-left 8x8 block (low frequencies), excluding DC component [0,0]
+        // Extract top-left 8x8 block (low frequencies).
+        // Use all 64 coefficients (including DC) to fill the full 64-bit hash.
         let block = hashBlockSize
         var lowFreq = [Double]()
-        lowFreq.reserveCapacity(block * block - 1)
+        lowFreq.reserveCapacity(block * block)
 
         for y in 0..<block {
             for x in 0..<block {
-                if y == 0 && x == 0 { continue }
                 lowFreq.append(dctResult[y * size + x])
             }
         }

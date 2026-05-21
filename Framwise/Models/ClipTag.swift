@@ -34,6 +34,7 @@ struct ClipTag: Identifiable, Hashable, Codable {
             }
         }
 
-        var localizedName: String { rawValue }
+        /// Display name matching the raw value. Rename when adding localization.
+        var displayName: String { rawValue }
     }
 }

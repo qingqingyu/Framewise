@@ -92,6 +92,7 @@ struct VideoClip: Identifiable, Hashable {
         self.timecodeStart = timecodeStart
         self.timecodeEnd = timecodeEnd
         self.wasteType = wasteType
+        assert(CMTimeCompare(timecodeEnd, timecodeStart) >= 0, "VideoClip: timecodeEnd must be >= timecodeStart")
         let dur = CMTimeGetSeconds(timecodeEnd) - CMTimeGetSeconds(timecodeStart)
         let count = Self.thumbnailCount(forDuration: dur)
         self.thumbnailTimes = thumbnailTimes.isEmpty

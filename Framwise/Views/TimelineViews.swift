@@ -22,23 +22,24 @@ struct CollapsedTimelineView: View {
         groups.flatMap { $0.clips }
     }
 
+    private static let palette: [Color] = [
+        FramwiseTheme.info,
+        FramwiseTheme.success,
+        FramwiseTheme.warning,
+        FramwiseTheme.accent,
+        Color(hex: "E58ACF"),
+        Color(hex: "58C7D1"),
+        Color(hex: "8EA6FF"),
+        Color(hex: "7DDDB8"),
+        FramwiseTheme.danger,
+        FramwiseTheme.warm,
+        Color(hex: "4FA89B"),
+        Color(hex: "A77A5B")
+    ]
+
     private var fileColorMap: [URL: Color] {
-        let colors: [Color] = [
-            FramwiseTheme.info,
-            FramwiseTheme.success,
-            FramwiseTheme.warning,
-            FramwiseTheme.accent,
-            Color(hex: "E58ACF"),
-            Color(hex: "58C7D1"),
-            Color(hex: "8EA6FF"),
-            Color(hex: "7DDDB8"),
-            FramwiseTheme.danger,
-            FramwiseTheme.warm,
-            Color(hex: "4FA89B"),
-            Color(hex: "A77A5B")
-        ]
-        return Dictionary(uniqueKeysWithValues:
-            groups.enumerated().map { ($0.element.sourceURL, colors[$0.offset % colors.count]) }
+        Dictionary(uniqueKeysWithValues:
+            groups.enumerated().map { ($0.element.sourceURL, Self.palette[$0.offset % Self.palette.count]) }
         )
     }
 

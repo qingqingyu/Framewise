@@ -187,7 +187,7 @@ actor ThumbnailGenerator {
         }
 
         guard !uncachedIndices.isEmpty else {
-            return times.indices.map { results[$0]! }
+            return times.indices.compactMap { results[$0] }
         }
 
         // Batch extract uncached frames via AVFoundation's native batch API
