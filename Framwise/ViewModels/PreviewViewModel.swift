@@ -26,6 +26,7 @@ class PreviewViewModel: ObservableObject {
 
     /// Load a clip for preview
     func loadClip(_ clip: VideoClip) {
+        let start = Date()
         // Clean up previous player
         cleanupPlayer()
         error = nil
@@ -77,12 +78,23 @@ class PreviewViewModel: ObservableObject {
                 switch status {
                 case .readyToPlay:
                     self?.duration = CMTimeGetSeconds(clip.timecodeEnd) - CMTimeGetSeconds(clip.timecodeStart)
+                    AppLogger.info(AppLogger.preview, "Preview player ready", context: [
+                        "clipID": clip.id.uuidString,
+                        "sourceURL": AppLogger.fileReference(clip.sourceFileURL),
+                        "durationMs": AppLogger.durationMilliseconds(since: start)
+                    ])
                 case .failed:
-                    self?.error = playerItem.error ?? NSError(
+                    let resolvedError = playerItem.error ?? NSError(
                         domain: AVFoundationErrorDomain,
                         code: -1,
                         userInfo: [NSLocalizedDescriptionKey: "Failed to load video. The file may have been moved or deleted."]
                     )
+                    self?.error = resolvedError
+                    AppLogger.error(AppLogger.preview, "Preview player failed", error: resolvedError, context: [
+                        "clipID": clip.id.uuidString,
+                        "sourceURL": AppLogger.fileReference(clip.sourceFileURL),
+                        "durationMs": AppLogger.durationMilliseconds(since: start)
+                    ])
                     self?.cleanupPlayer()
                 default:
                     break

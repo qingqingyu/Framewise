@@ -17,6 +17,10 @@ struct ContentView: View {
     @State private var showExportSheet = false
     @State private var showFileImporter = false
 
+    private var hasImportedClips: Bool {
+        appState.importSession?.allClips.isEmpty == false
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             appChromeBar
@@ -105,13 +109,34 @@ struct ContentView: View {
                 .framwisePanel(background: FramwiseTheme.surfaceRaised, radius: 16)
             }
 
+            if let persistenceError = appState.persistenceError {
+                Label("Session issue", systemImage: "externaldrive.badge.exclamationmark")
+                    .font(.framwiseMono(11))
+                    .foregroundStyle(FramwiseTheme.warning)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 9)
+                    .framwisePanel(background: FramwiseTheme.warning.opacity(0.08), radius: 16)
+                    .help(persistenceError.localizedDescription)
+            }
+
             Spacer(minLength: 12)
 
             HStack(spacing: 10) {
-                Button(action: { showFileImporter = true }) {
-                    Label("Import", systemImage: "plus")
+                if hasImportedClips {
+                    Button(action: { showFileImporter = true }) {
+                        Label("Import", systemImage: "plus")
+                    }
+                    .buttonStyle(FramwisePrimaryButtonStyle())
+                } else {
+                    Button(action: { showFileImporter = true }) {
+                        Label("Import", systemImage: "plus")
+                    }
+                    .buttonStyle(FramwiseGhostButtonStyle(
+                        fill: FramwiseTheme.surface,
+                        border: FramwiseTheme.line.opacity(0.75),
+                        foreground: FramwiseTheme.textMuted
+                    ))
                 }
-                .buttonStyle(FramwisePrimaryButtonStyle())
 
                 if appState.importSession != nil {
                     Text("\(appState.selectedClipIDs.count) selected")
@@ -125,8 +150,8 @@ struct ContentView: View {
                         Label("Export", systemImage: "square.and.arrow.up")
                     }
                     .buttonStyle(FramwiseGhostButtonStyle(
-                        fill: appState.selectedClipIDs.isEmpty ? FramwiseTheme.surface : FramwiseTheme.surfaceRaised,
-                        border: appState.selectedClipIDs.isEmpty ? FramwiseTheme.line.opacity(0.7) : FramwiseTheme.accent.opacity(0.3),
+                        fill: appState.selectedClipIDs.isEmpty ? FramwiseTheme.surface : FramwiseTheme.accentSoft,
+                        border: appState.selectedClipIDs.isEmpty ? FramwiseTheme.line.opacity(0.7) : FramwiseTheme.accent.opacity(0.45),
                         foreground: appState.selectedClipIDs.isEmpty ? FramwiseTheme.textMuted : FramwiseTheme.textPrimary
                     ))
                     .disabled(appState.selectedClipIDs.isEmpty)
@@ -170,6 +195,9 @@ struct ContentView: View {
             }
         case .failure(let error):
             importViewModel.error = error
+            AppLogger.error(AppLogger.importFlow, "File importer failed", error: error, context: [
+                "surface": "toolbar"
+            ])
         }
     }
 
@@ -181,8 +209,9 @@ struct ContentView: View {
 
     private func clearSession() {
         importViewModel.cancelImport()
-        gridViewModel.resetTransientUIState()
-        appState.clearSession()
+        if appState.clearSession() {
+            gridViewModel.resetTransientUIState()
+        }
     }
 }
 #Preview {

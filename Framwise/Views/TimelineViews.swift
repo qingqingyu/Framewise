@@ -45,7 +45,13 @@ struct CollapsedTimelineView: View {
 
     var body: some View {
         if allClips.isEmpty {
-            EmptyView()
+            FramwiseStatePanel(
+                state: .empty,
+                title: "Sequence map empty",
+                message: "Current filters leave no clips for the timeline.",
+                systemImage: "timeline.selection",
+                compact: true
+            )
         } else if groups.count <= 1 {
             // Single source: use original single-track layout
             singleTrackContent

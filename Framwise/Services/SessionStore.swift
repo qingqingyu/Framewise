@@ -82,8 +82,6 @@ class SessionStore {
         } else {
             resolvedFileURL = Self.defaultFileURL()
         }
-        let dir = resolvedFileURL.deletingLastPathComponent()
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         self.fileURL = resolvedFileURL
     }
 
@@ -94,14 +92,40 @@ class SessionStore {
     }
 
     func save(session: ImportSession, selectedClipIDs: Set<UUID>) throws {
+        let start = Date()
+        let dir = fileURL.deletingLastPathComponent()
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+
         // Snapshot source file metadata for change detection on restore
         let fm = FileManager.default
-        let metadata: [URL: FileMetadata] = Dictionary(uniqueKeysWithValues: session.sourceFiles.compactMap { url -> (URL, FileMetadata)? in
-            guard let attrs = try? fm.attributesOfItem(atPath: url.path),
-                  let mtime = attrs[.modificationDate] as? Date,
-                  let size = attrs[.size] as? Int64 else { return nil }
-            return (url, FileMetadata(modificationDate: mtime.timeIntervalSince1970, fileSize: size))
-        })
+        var metadata: [URL: FileMetadata] = [:]
+        for url in session.sourceFiles {
+            do {
+                let attrs = try fm.attributesOfItem(atPath: url.path)
+                guard let mtime = attrs[.modificationDate] as? Date,
+                      let size = attrs[.size] as? Int64 else {
+                    AppLogger.warning(AppLogger.persistence, "Source metadata missing expected fields", context: [
+                        "sessionID": session.id.uuidString,
+                        "sourceURL": AppLogger.fileReference(url)
+                    ])
+                    continue
+                }
+                metadata[url] = FileMetadata(modificationDate: mtime.timeIntervalSince1970, fileSize: size)
+            } catch {
+                AppLogger.error(AppLogger.persistence, "Failed to read source metadata while saving session", error: error, context: [
+                    "sessionID": session.id.uuidString,
+                    "sourceURL": AppLogger.fileReference(url)
+                ])
+                continue
+            }
+        }
+
+        AppLogger.info(AppLogger.persistence, "Prepared session snapshot", context: [
+            "sessionID": session.id.uuidString,
+            "sourceCount": session.sourceFiles.count,
+            "metadataCount": metadata.count,
+            "durationMs": AppLogger.durationMilliseconds(since: start)
+        ])
 
         let data = SessionData(
             version: Self.currentVersion,
@@ -125,14 +149,18 @@ class SessionStore {
 
     func load() throws -> SessionData? {
         guard FileManager.default.fileExists(atPath: fileURL.path) else { return nil }
+        let start = Date()
         let jsonData = try Data(contentsOf: fileURL)
 
         // Try iso8601 first (current format), fall back to double (legacy format)
-        let decoder = JSONDecoder()
         var data: SessionData
-        if let decoded = try? decodeWithISO8601(jsonData) {
+        do {
+            let decoded = try decodeWithISO8601(jsonData)
             data = decoded
-        } else {
+        } catch {
+            AppLogger.error(AppLogger.persistence, "ISO8601 session decode failed, trying legacy date format", error: error, context: [
+                "fileURL": AppLogger.fileReference(fileURL)
+            ])
             data = try decodeWithDoubleDate(jsonData)
         }
 
@@ -140,6 +168,12 @@ class SessionStore {
         if data.version < Self.currentVersion {
             data = migrate(data)
         }
+        AppLogger.info(AppLogger.persistence, "Loaded session data", context: [
+            "sessionID": data.id.uuidString,
+            "sourceCount": data.sourceFiles.count,
+            "clipCount": data.allClips.count,
+            "durationMs": AppLogger.durationMilliseconds(since: start)
+        ])
         return data
     }
 
@@ -155,8 +189,9 @@ class SessionStore {
         return try decoder.decode(SessionData.self, from: data)
     }
 
-    func delete() {
-        try? FileManager.default.removeItem(at: fileURL)
+    func delete() throws {
+        guard FileManager.default.fileExists(atPath: fileURL.path) else { return }
+        try FileManager.default.removeItem(at: fileURL)
     }
 
     // MARK: - Migration

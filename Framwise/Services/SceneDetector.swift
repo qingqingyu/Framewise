@@ -87,9 +87,9 @@ actor SceneDetector {
             } catch {
                 // Skip frames that cannot be extracted (e.g., corrupted, codec issues)
                 // This is expected for some video formats; continue processing
-                #if DEBUG
-                print("[SceneDetector] Skipped frame at \(currentTime)s: \(error.localizedDescription)")
-                #endif
+                AppLogger.error(AppLogger.importFlow, "Scene detector skipped frame", error: error, context: [
+                    "time": currentTime
+                ])
             }
 
             currentTime += sampleInterval
@@ -200,6 +200,9 @@ actor SceneDetector {
                 }
                 previousHistogram = histogram
             } catch {
+                AppLogger.error(AppLogger.importFlow, "Single-pass scene detection skipped frame", error: error, context: [
+                    "time": currentTime
+                ])
                 continuation.yield(.frameSkipped(time: currentTime, reason: error.localizedDescription))
             }
 
@@ -246,6 +249,9 @@ actor SceneDetector {
                 }
                 prevHistogram = histogram
             } catch {
+                AppLogger.error(AppLogger.importFlow, "Coarse scene detection skipped frame", error: error, context: [
+                    "time": t
+                ])
                 continuation.yield(.frameSkipped(time: t, reason: error.localizedDescription))
             }
 
@@ -271,9 +277,14 @@ actor SceneDetector {
             let baselineTime = max(0, windowStart - fineInterval)
             if finePrevHistogram == nil || windowStart > lastSceneTime + margin * 2 {
                 let baseTime = CMTime(seconds: baselineTime, preferredTimescale: 600)
-                if let (img, _) = try? await generator.image(at: baseTime),
-                   let hist = try? computeHistogram(from: img) {
+                do {
+                    let (img, _) = try await generator.image(at: baseTime)
+                    let hist = try computeHistogram(from: img)
                     finePrevHistogram = hist
+                } catch {
+                    AppLogger.error(AppLogger.importFlow, "Fine scene detection baseline failed", error: error, context: [
+                        "time": baselineTime
+                    ])
                 }
             }
 
@@ -296,6 +307,9 @@ actor SceneDetector {
                     }
                     finePrevHistogram = histogram
                 } catch {
+                    AppLogger.error(AppLogger.importFlow, "Fine scene detection skipped frame", error: error, context: [
+                        "time": ft
+                    ])
                     continuation.yield(.frameSkipped(time: ft, reason: error.localizedDescription))
                 }
 

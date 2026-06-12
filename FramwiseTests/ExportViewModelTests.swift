@@ -139,6 +139,7 @@ final class ExportViewModelTests: XCTestCase {
             XCTFail("Expected inaccessible EDL export to throw")
         } catch let error as ExportError {
             XCTAssertEqual(error.errorDescription, "Could not export EDL: metadata could not be read for any selected source files.")
+            XCTAssertEqual(viewModel.exportWarnings.count, 2)
         } catch {
             XCTFail("Unexpected error: \(error)")
         }
@@ -159,6 +160,22 @@ final class ExportViewModelTests: XCTestCase {
         XCTAssertTrue(edl.contains("FROM CLIP NAME: a.mov"))
         XCTAssertFalse(edl.contains("FROM CLIP NAME: b.mov"))
         XCTAssertEqual(viewModel.warning, "1 clip(s) skipped — source file inaccessible.")
+        XCTAssertEqual(viewModel.exportWarnings.count, 1)
+        XCTAssertEqual(viewModel.exportWarnings.first?.sourceURL.lastPathComponent, "b.mov")
+    }
+
+    func testExport_AllInaccessibleSources_PropagatesErrorToCallerAndViewModel() async {
+        let clips = [makeClip(sourceName: "a.mov", startSeconds: 0, endSeconds: 5)]
+        viewModel.videoInfoLoader = { _ in throw CocoaError(.fileReadNoSuchFile) }
+
+        do {
+            _ = try await viewModel.export(clips: clips, format: .edl)
+            XCTFail("Expected export to throw")
+        } catch {
+            XCTAssertNotNil(viewModel.error)
+            XCTAssertFalse(viewModel.isExporting)
+            XCTAssertEqual(viewModel.exportWarnings.count, 1)
+        }
     }
 
     // MARK: - C. FCPXML Generation (via buildFCPXMLString with fake video info)
@@ -290,6 +307,8 @@ final class ExportViewModelTests: XCTestCase {
         XCTAssertTrue(xml.contains("a.mov"))
         XCTAssertFalse(xml.contains("b.mov"))
         XCTAssertEqual(viewModel.warning, "Could not read metadata for: b.mov. Affected clips will be skipped. 1 clip(s) skipped due to inaccessible source files.")
+        XCTAssertEqual(viewModel.exportWarnings.count, 1)
+        XCTAssertEqual(viewModel.exportWarnings.first?.sourceURL.lastPathComponent, "b.mov")
     }
 
     func testFCPXML_PartiallyInaccessibleSources_SequenceDurationMatchesExportedClipsOnly() async throws {

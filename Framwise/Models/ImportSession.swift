@@ -272,9 +272,21 @@ class ImportSession: ObservableObject {
 
     /// Compare file mtime and size against saved metadata
     private static func isFileUnchanged(url: URL, savedMeta: SessionStore.FileMetadata, fm: FileManager) -> Bool {
-        guard let attrs = try? fm.attributesOfItem(atPath: url.path),
-              let mtime = attrs[.modificationDate] as? Date,
+        let attrs: [FileAttributeKey: Any]
+        do {
+            attrs = try fm.attributesOfItem(atPath: url.path)
+        } catch {
+            AppLogger.error(AppLogger.persistence, "Failed to inspect restored source file", error: error, context: [
+                "sourceURL": AppLogger.fileReference(url)
+            ])
+            return false
+        }
+
+        guard let mtime = attrs[.modificationDate] as? Date,
               let size = attrs[.size] as? Int64 else {
+            AppLogger.warning(AppLogger.persistence, "Restored source file metadata missing expected fields", context: [
+                "sourceURL": AppLogger.fileReference(url)
+            ])
             return false
         }
         // Allow 2-second mtime tolerance (filesystem granularity)

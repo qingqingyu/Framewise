@@ -19,6 +19,20 @@ struct VideoImportResult {
     let similarityGroups: [SimilarityGroup]
 }
 
+struct ImportWarning: Identifiable {
+    let id = UUID()
+    let sourceURL: URL
+    let error: Error
+
+    var title: String {
+        sourceURL.lastPathComponent
+    }
+
+    var message: String {
+        error.localizedDescription
+    }
+}
+
 @MainActor
 class VideoImportViewModel: ObservableObject {
     @Published var isImporting = false
@@ -32,6 +46,7 @@ class VideoImportViewModel: ObservableObject {
     @Published var analyzingProgress: Double = 0
     @Published var isAnalyzing: Bool = false
     @Published var totalFilesCount: Int = 0
+    @Published var importWarnings: [ImportWarning] = []
 
     /// Each video analysis creates its own detector instances to avoid actor serialization.
     /// Shared instances are only kept for setting sensitivity before spawning tasks.
@@ -58,6 +73,8 @@ class VideoImportViewModel: ObservableObject {
 
     /// Handle to the running import Task, so cancelImport can cancel it
     private var importTask: Task<Void, Never>?
+    private weak var activeImportSession: ImportSession?
+    private var pendingImportSourceURLs = Set<URL>()
 
     private var targetSegmentCount: Int {
         let count = UserDefaults.standard.integer(forKey: "segmentCount")
@@ -68,9 +85,16 @@ class VideoImportViewModel: ObservableObject {
 
     /// Reset import state (called when session is cleared mid-import)
     func cancelImport() {
+        let session = activeImportSession
+        let pendingSourceURLs = pendingImportSourceURLs
         importTask?.cancel()
         importTask = nil
         importGeneration += 1
+        for url in pendingSourceURLs {
+            session?.removeSourceFile(url)
+        }
+        activeImportSession = nil
+        pendingImportSourceURLs.removeAll()
         isImporting = false
         isAnalyzing = false
         importProgress = 0
@@ -80,6 +104,7 @@ class VideoImportViewModel: ObservableObject {
         totalFilesCount = 0
         statusMessage = ""
         error = nil
+        importWarnings = []
     }
 
     private func clamped(_ value: Int, in range: ClosedRange<Int>, default defaultValue: Int) -> Int {
@@ -114,22 +139,39 @@ class VideoImportViewModel: ObservableObject {
         isImporting = true
         isAnalyzing = true
         error = nil
+        importWarnings = []
         importProgress = 0
         analyzingProgress = 0
         statusMessage = "Importing videos..."
         currentVideoName = ""
         clipsFoundCount = 0
         totalFilesCount = uniqueURLs.count
+        activeImportSession = session
+        pendingImportSourceURLs.removeAll()
+        AppLogger.info(AppLogger.importFlow, "Import started", context: [
+            "generation": myGeneration,
+            "inputCount": uniqueURLs.count,
+            "sessionID": session.id.uuidString,
+            "targetSegmentCount": targetSegmentCount
+        ])
 
         importTask = Task {
+            let importStart = Date()
             defer {
                 // Only reset state if no newer import has started
                 if importGeneration == myGeneration {
                     importTask = nil
+                    activeImportSession = nil
+                    pendingImportSourceURLs.removeAll()
                     isImporting = false
                     isAnalyzing = false
                     importProgress = 1.0
                     analyzingProgress = 1.0
+                    AppLogger.info(AppLogger.importFlow, "Import state reset", context: [
+                        "generation": myGeneration,
+                        "sessionID": session.id.uuidString,
+                        "durationMs": AppLogger.durationMilliseconds(since: importStart)
+                    ])
                 }
             }
 
@@ -141,6 +183,11 @@ class VideoImportViewModel: ObservableObject {
                 } catch {
                     self.error = error
                     statusMessage = "Error: \(error.localizedDescription)"
+                    AppLogger.error(AppLogger.importFlow, "Import validation failed", error: error, context: [
+                        "generation": myGeneration,
+                        "sourceURL": AppLogger.fileReference(url),
+                        "sessionID": session.id.uuidString
+                    ])
                     return
                 }
             }
@@ -148,11 +195,14 @@ class VideoImportViewModel: ObservableObject {
             for url in uniqueURLs {
                 if session.addSourceFile(url) {
                     insertedSourceURLs.insert(url)
+                    pendingImportSourceURLs.insert(url)
                 }
             }
 
             let urlsToAnalyze = uniqueURLs.filter { insertedSourceURLs.contains($0) }
             guard !urlsToAnalyze.isEmpty else {
+                activeImportSession = nil
+                pendingImportSourceURLs.removeAll()
                 statusMessage = "All files already imported."
                 return
             }
@@ -188,21 +238,6 @@ class VideoImportViewModel: ObservableObject {
                 for await (url, groupResult) in group {
                     guard importGeneration == myGeneration, !Task.isCancelled else {
                         group.cancelAll()
-                        // Drain remaining results so completed tasks don't leave
-                        // source files without clips in the session.
-                        for await (url, remainingResult) in group {
-                            switch remainingResult {
-                            case .success(let result):
-                                mergeResult(result, into: session)
-                                completedCount += 1
-                            case .failure:
-                                failedCount += 1
-                                if insertedSourceURLs.contains(url) {
-                                    session.removeSourceFile(url)
-                                    insertedSourceURLs.remove(url)
-                                }
-                            }
-                        }
                         return
                     }
                     completedCount += 1
@@ -212,16 +247,29 @@ class VideoImportViewModel: ObservableObject {
 
                     switch groupResult {
                     case .success(let result):
+                        AppLogger.info(AppLogger.importFlow, "Video analysis succeeded", context: [
+                            "generation": myGeneration,
+                            "sourceURL": AppLogger.fileReference(result.sourceURL),
+                            "clipCount": result.clips.count,
+                            "similarityGroupCount": result.similarityGroups.count
+                        ])
                         mergeResult(result, into: session)
+                        pendingImportSourceURLs.remove(url)
                     case .failure(let error):
                         failedCount += 1
                         if insertedSourceURLs.contains(url) {
                             session.removeSourceFile(url)
                             insertedSourceURLs.remove(url)
+                            pendingImportSourceURLs.remove(url)
                         }
-                        #if DEBUG
-                        print("[VideoImport] Failed to analyze video: \(error.localizedDescription)")
-                        #endif
+                        importWarnings.append(ImportWarning(sourceURL: url, error: error))
+                        AppLogger.error(AppLogger.importFlow, "Video analysis failed", error: error, context: [
+                            "generation": myGeneration,
+                            "sourceURL": AppLogger.fileReference(url),
+                            "sessionID": session.id.uuidString,
+                            "completedCount": completedCount,
+                            "failedCount": failedCount
+                        ])
                         if firstError == nil {
                             firstError = error
                         }
@@ -246,6 +294,12 @@ class VideoImportViewModel: ObservableObject {
             if let error = firstError, completedCount == failedCount {
                 self.error = error
                 statusMessage = "Error: \(error.localizedDescription)"
+                AppLogger.error(AppLogger.importFlow, "Import failed for all files", error: error, context: [
+                    "generation": myGeneration,
+                    "sessionID": session.id.uuidString,
+                    "fileCount": urlsToAnalyze.count,
+                    "durationMs": AppLogger.durationMilliseconds(since: importStart)
+                ])
             } else {
                 session.isAnalyzed = true
                 if failedCount > 0 {
@@ -253,6 +307,13 @@ class VideoImportViewModel: ObservableObject {
                 } else {
                     statusMessage = "Import complete: \(session.clipCount) clips"
                 }
+                AppLogger.info(AppLogger.importFlow, "Import completed", context: [
+                    "generation": myGeneration,
+                    "sessionID": session.id.uuidString,
+                    "clipCount": session.clipCount,
+                    "failedCount": failedCount,
+                    "durationMs": AppLogger.durationMilliseconds(since: importStart)
+                ])
             }
         }
     }
@@ -332,9 +393,11 @@ class VideoImportViewModel: ObservableObject {
                 break
 
             case .frameSkipped(let time, let reason):
-                #if DEBUG
-                print("[VideoImport] Frame skipped at \(time)s: \(reason)")
-                #endif
+                AppLogger.warning(AppLogger.importFlow, "Frame skipped during scene detection", context: [
+                    "sourceURL": AppLogger.fileReference(url),
+                    "time": time,
+                    "reason": reason
+                ])
 
             case .completed:
                 // Process final segment
@@ -482,8 +545,10 @@ class VideoImportViewModel: ObservableObject {
     // MARK: - Legacy Import (保留兼容)
 
     func importVideos(from urls: [URL], into session: ImportSession) async {
+        let start = Date()
         isImporting = true
         error = nil
+        importWarnings = []
         statusMessage = "Importing videos..."
 
         await sharedSceneDetector.setSensitivity(
@@ -511,6 +576,11 @@ class VideoImportViewModel: ObservableObject {
         } catch {
             self.error = error
             statusMessage = "Error: \(error.localizedDescription)"
+            AppLogger.error(AppLogger.importFlow, "Legacy import failed", error: error, context: [
+                "sessionID": session.id.uuidString,
+                "inputCount": urls.count,
+                "durationMs": AppLogger.durationMilliseconds(since: start)
+            ])
         }
 
         isImporting = false

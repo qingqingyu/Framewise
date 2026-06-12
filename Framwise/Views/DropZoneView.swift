@@ -58,16 +58,18 @@ struct DropZoneView: View {
                         }
                         .frame(width: 74, height: 74)
 
-                        VStack(spacing: 8) {
-                            Text(isTargeted ? "Release to import" : "Drop here to import")
-                                .font(.framwiseDisplay(24, weight: .semibold))
-                                .foregroundStyle(FramwiseTheme.textPrimary)
+                        VStack(spacing: 12) {
+                            Text(isTargeted ? "Release to import" : "Ready for footage")
+                                .font(.framwiseUI(13, weight: .medium))
+                                .foregroundStyle(isTargeted ? FramwiseTheme.textPrimary : FramwiseTheme.textMuted)
 
-                            Text("MOV · MP4 · MPEG4 · QuickTime · folders scanned recursively")
-                                .font(.framwiseUI(13))
-                                .foregroundStyle(FramwiseTheme.textMuted)
-                                .multilineTextAlignment(.center)
-                                .frame(maxWidth: 480)
+                            HStack(spacing: 8) {
+                                formatChip("MOV")
+                                formatChip("MP4")
+                                formatChip("MPEG4")
+                                formatChip("QuickTime")
+                                formatChip("Folders")
+                            }
                         }
 
                         Button(action: { showFileImporter = true }) {
@@ -138,22 +140,24 @@ struct DropZoneView: View {
             }
 
             if let error = importViewModel.error {
-                HStack {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(FramwiseTheme.danger)
-                    Text(error.localizedDescription)
-                        .font(.framwiseUI(12))
-                        .foregroundStyle(FramwiseTheme.textPrimary)
+                FramwiseStatePanel(
+                    state: .error,
+                    title: "Import failed",
+                    message: error.localizedDescription,
+                    compact: true
+                )
+                .frame(maxWidth: 460)
+            } else if !importViewModel.importWarnings.isEmpty {
+                VStack(spacing: 8) {
+                    FramwiseStatePanel(
+                        state: .error,
+                        title: "\(importViewModel.importWarnings.count) file\(importViewModel.importWarnings.count == 1 ? "" : "s") skipped",
+                        message: importViewModel.importWarnings.map { "\($0.title): \($0.message)" }.prefix(2).joined(separator: "\n"),
+                        systemImage: "exclamationmark.triangle.fill",
+                        compact: true
+                    )
+                    .frame(maxWidth: 460)
                 }
-                .padding(14)
-                .background(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(FramwiseTheme.danger.opacity(0.08))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .stroke(FramwiseTheme.danger.opacity(0.22), lineWidth: 1)
-                )
             }
 
             Spacer()
@@ -171,16 +175,49 @@ struct DropZoneView: View {
 
     // MARK: - File Handling
 
+    private func formatChip(_ label: String) -> some View {
+        Text(label)
+            .font(.framwiseMono(10))
+            .foregroundStyle(FramwiseTheme.textMuted)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 5)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(FramwiseTheme.surfaceRaised.opacity(0.7))
+            )
+            .overlay(
+                Capsule(style: .continuous)
+                    .stroke(FramwiseTheme.line.opacity(0.65), lineWidth: 1)
+            )
+    }
+
     private func handleDrop(providers: [NSItemProvider]) {
         Task {
             var droppedURLs: [URL] = []
+            var providerErrors: [Error] = []
             for provider in providers {
-                let url: URL? = await withCheckedContinuation { continuation in
-                    provider.loadObject(ofClass: URL.self) { url, _ in
-                        continuation.resume(returning: url)
+                let result: Result<URL?, Error> = await withCheckedContinuation { continuation in
+                    _ = provider.loadObject(ofClass: URL.self) { url, error in
+                        if let error {
+                            continuation.resume(returning: .failure(error))
+                        } else {
+                            continuation.resume(returning: .success(url))
+                        }
                     }
                 }
-                if let url { droppedURLs.append(url) }
+                switch result {
+                case .success(let url):
+                    if let url { droppedURLs.append(url) }
+                case .failure(let error):
+                    providerErrors.append(error)
+                    AppLogger.error(AppLogger.fileResolution, "Drop provider failed to load URL", error: error, context: [
+                        "surface": "dropzone"
+                    ])
+                }
+            }
+            if droppedURLs.isEmpty, let firstError = providerErrors.first {
+                importViewModel.error = firstError
+                return
             }
             let (videoURLs, unsupported) = FileResolver.resolveVideoURLs(from: droppedURLs)
             if !videoURLs.isEmpty {
@@ -206,6 +243,9 @@ struct DropZoneView: View {
             }
         case .failure(let error):
             importViewModel.error = error
+            AppLogger.error(AppLogger.importFlow, "File importer failed", error: error, context: [
+                "surface": "dropzone"
+            ])
         }
     }
 

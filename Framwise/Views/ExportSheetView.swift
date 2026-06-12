@@ -14,7 +14,6 @@ struct ExportSheetView: View {
     @EnvironmentObject var exportViewModel: ExportViewModel
     @Environment(\.dismiss) var dismiss
 
-    @State private var exportedFileURL: URL?
     @State private var saveError: String?
 
     private var clipsToExport: [VideoClip] {
@@ -85,30 +84,20 @@ struct ExportSheetView: View {
             .framwisePanel(background: FramwiseTheme.surface, radius: 22)
 
             VStack(alignment: .leading, spacing: 10) {
-                if clipsToExport.isEmpty && excludedWasteCount > 0 {
-                    statusCallout(
-                        title: "Nothing exportable yet",
-                        body: "All \(appState.selectedClips.count) selected clips are currently marked as waste.",
-                        color: FramwiseTheme.warning
-                    )
-                } else if excludedWasteCount > 0 {
-                    statusCallout(
-                        title: "Waste clips excluded",
-                        body: "\(appState.selectedClips.count) selected, \(excludedWasteCount) marked as waste and removed from delivery.",
-                        color: FramwiseTheme.warning
-                    )
-                } else {
-                    statusCallout(
-                        title: "Ready to export",
-                        body: "\(clipsToExport.count) approved clips will be written to the delivery file.",
-                        color: FramwiseTheme.success
-                    )
-                }
+                exportStatePanel
 
                 if let warning = exportViewModel.warning {
                     statusCallout(
                         title: "Export warning",
                         body: warning,
+                        color: FramwiseTheme.warning
+                    )
+                }
+
+                ForEach(exportViewModel.exportWarnings.prefix(3)) { warning in
+                    statusCallout(
+                        title: "Source metadata warning",
+                        body: warning.message,
                         color: FramwiseTheme.warning
                     )
                 }
@@ -162,6 +151,46 @@ struct ExportSheetView: View {
     }
 
     @ViewBuilder
+    private var exportStatePanel: some View {
+        if exportViewModel.isExporting {
+            FramwiseStatePanel(
+                state: .loading,
+                title: "Preparing export",
+                message: "\(clipsToExport.count) clips are being written to \(exportViewModel.exportFormat.rawValue).",
+                compact: true
+            )
+        } else if let error = exportViewModel.error {
+            FramwiseStatePanel(
+                state: .error,
+                title: "Export failed",
+                message: error.localizedDescription,
+                compact: true
+            )
+        } else if clipsToExport.isEmpty {
+            FramwiseStatePanel(
+                state: .empty,
+                title: "Nothing exportable yet",
+                message: excludedWasteCount > 0 ? "All selected clips are marked as waste." : "Select approved clips before exporting.",
+                systemImage: "tray",
+                compact: true
+            )
+        } else if excludedWasteCount > 0 {
+            statusCallout(
+                title: "Waste clips excluded",
+                body: "\(appState.selectedClips.count) selected, \(excludedWasteCount) marked as waste and removed from delivery.",
+                color: FramwiseTheme.warning
+            )
+        } else {
+            FramwiseStatePanel(
+                state: .success,
+                title: "Ready to export",
+                message: "\(clipsToExport.count) approved clips will be written to the delivery file.",
+                compact: true
+            )
+        }
+    }
+
+    @ViewBuilder
     private func statusCallout(title: String, body: String, color: Color) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
@@ -185,17 +214,23 @@ struct ExportSheetView: View {
 
     private func startExport() {
         Task {
-            if let url = await exportViewModel.export(
-                clips: clipsToExport,
-                format: exportViewModel.exportFormat
-            ) {
-                exportedFileURL = url
+            do {
+                let url = try await exportViewModel.export(
+                    clips: clipsToExport,
+                    format: exportViewModel.exportFormat
+                )
                 let panel = NSSavePanel()
                 panel.nameFieldStringValue = url.lastPathComponent
                 panel.allowedContentTypes = [.init(filenameExtension: exportViewModel.exportFormat.fileExtension) ?? .data]
                 panel.begin { response in
                     defer {
-                        try? FileManager.default.removeItem(at: url)
+                        do {
+                            try FileManager.default.removeItem(at: url)
+                        } catch {
+                            AppLogger.error(AppLogger.export, "Failed to remove temporary export file", error: error, context: [
+                                "fileURL": AppLogger.fileReference(url)
+                            ])
+                        }
                         exportViewModel.isExporting = false
                     }
                     if response == .OK, let destURL = panel.url {
@@ -204,13 +239,22 @@ struct ExportSheetView: View {
                                 try FileManager.default.removeItem(at: destURL)
                             }
                             try FileManager.default.copyItem(at: url, to: destURL)
+                            AppLogger.info(AppLogger.export, "Export saved by user", context: [
+                                "sourceURL": AppLogger.fileReference(url),
+                                "destinationURL": AppLogger.fileReference(destURL)
+                            ])
                             dismiss()
                         } catch {
+                            AppLogger.error(AppLogger.export, "Failed to save export file", error: error, context: [
+                                "sourceURL": AppLogger.fileReference(url),
+                                "destinationURL": AppLogger.fileReference(destURL)
+                            ])
                             saveError = "Failed to save file: \(error.localizedDescription)"
                         }
                     }
                 }
-            } else {
+            } catch {
+                exportViewModel.error = error
                 exportViewModel.isExporting = false
             }
         }

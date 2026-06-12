@@ -11,6 +11,8 @@
 		8C7BDDA138C34E868581F634 /* ImportSessionTagTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 555E5510F850440AB11DC2AE /* ImportSessionTagTests.swift */; };
 		8A14F8429EE940E7AA252BA5 /* ClipGridViewModelTagTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A595C1BF4904D87A1866767 /* ClipGridViewModelTagTests.swift */; };
 		9C44E031F7A14B1C8D76A221 /* PreviewAndImportViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C44E030F7A14B1C8D76A221 /* PreviewAndImportViewModelTests.swift */; };
+		9D44E031F7A14B1C8D76A222 /* SessionStoreAndGridViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D44E030F7A14B1C8D76A222 /* SessionStoreAndGridViewModelTests.swift */; };
+		9E44E031F7A14B1C8D76A223 /* ThumbnailGeneratorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E44E030F7A14B1C8D76A223 /* ThumbnailGeneratorTests.swift */; };
 		81C647F4A4E6BF2BF271D99B /* ClipTag.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE0A4EDE9A1EA5BB62085D5B /* ClipTag.swift */; };
 		A1000019 = {isa = PBXBuildFile; fileRef = B1000020; };
 		A2000002 = {isa = PBXBuildFile; fileRef = B2000002; };
@@ -46,6 +48,7 @@
 		F2BB00000000000000000001 /* TimelineViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2AA00000000000000000001 /* TimelineViews.swift */; };
 		F2BB00000000000000000002 /* ClipPreviewModal.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2AA00000000000000000002 /* ClipPreviewModal.swift */; };
 		F2BB00000000000000000003 /* ClipDropDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2AA00000000000000000003 /* ClipDropDelegate.swift */; };
+		F3BB00000000000000000001 /* AppLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3AA00000000000000000001 /* AppLogger.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -94,11 +97,14 @@
 		555E5510F850440AB11DC2AE /* ImportSessionTagTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportSessionTagTests.swift; sourceTree = "<group>"; };
 		4A595C1BF4904D87A1866767 /* ClipGridViewModelTagTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipGridViewModelTagTests.swift; sourceTree = "<group>"; };
 		9C44E030F7A14B1C8D76A221 /* PreviewAndImportViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewAndImportViewModelTests.swift; sourceTree = "<group>"; };
+		9D44E030F7A14B1C8D76A222 /* SessionStoreAndGridViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStoreAndGridViewModelTests.swift; sourceTree = "<group>"; };
+		9E44E030F7A14B1C8D76A223 /* ThumbnailGeneratorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThumbnailGeneratorTests.swift; sourceTree = "<group>"; };
 		CE0A4EDE9A1EA5BB62085D5B /* ClipTag.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ClipTag.swift; path = Framwise/Models/ClipTag.swift; sourceTree = SOURCE_ROOT; };
 		FD1A2B3C4D5E6F7890AB0001 /* FramwiseDesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FramwiseDesignSystem.swift; sourceTree = "<group>"; };
 		CD2A3B4C5D6E7F8901230002 /* SimilarityGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimilarityGroup.swift; sourceTree = "<group>"; };
 		CD2A3B4C5D6E7F8901230004 /* SimilarityDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimilarityDetector.swift; sourceTree = "<group>"; };
 		FR000001000000000000A002 /* FileResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileResolver.swift; sourceTree = "<group>"; };
+		F3AA00000000000000000001 /* AppLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLogger.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -220,6 +226,7 @@
 		'D1000008' = {
 			isa = PBXGroup;
 			children = (
+				F3AA00000000000000000001 /* AppLogger.swift */,
 				B1000013,
 			);
 			path = Utils;
@@ -248,6 +255,8 @@
 				555E5510F850440AB11DC2AE /* ImportSessionTagTests.swift */,
 				4A595C1BF4904D87A1866767 /* ClipGridViewModelTagTests.swift */,
 				9C44E030F7A14B1C8D76A221 /* PreviewAndImportViewModelTests.swift */,
+				9D44E030F7A14B1C8D76A222 /* SessionStoreAndGridViewModelTests.swift */,
+				9E44E030F7A14B1C8D76A223 /* ThumbnailGeneratorTests.swift */,
 				B2000002,
 			);
 			path = FramwiseTests;
@@ -383,6 +392,7 @@
 				CD2A3B4C5D6E7F8901230001 /* SimilarityGroup.swift in Sources */,
 				CD2A3B4C5D6E7F8901230003 /* SimilarityDetector.swift in Sources */,
 				FR000001000000000000A001 /* FileResolver.swift in Sources */,
+				F3BB00000000000000000001 /* AppLogger.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -395,6 +405,8 @@
 				8C7BDDA138C34E868581F634 /* ImportSessionTagTests.swift in Sources */,
 				8A14F8429EE940E7AA252BA5 /* ClipGridViewModelTagTests.swift in Sources */,
 				9C44E031F7A14B1C8D76A221 /* PreviewAndImportViewModelTests.swift in Sources */,
+				9D44E031F7A14B1C8D76A222 /* SessionStoreAndGridViewModelTests.swift in Sources */,
+				9E44E031F7A14B1C8D76A223 /* ThumbnailGeneratorTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

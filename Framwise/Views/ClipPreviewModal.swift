@@ -20,6 +20,11 @@ struct ClipPreviewModal: View {
         appState.importSession?.allClips.first(where: { $0.id == clip.id }) ?? clip
     }
 
+    private var isClipMissingFromSession: Bool {
+        guard let session = appState.importSession else { return false }
+        return !session.allClips.contains { $0.id == clip.id }
+    }
+
     private var clipTags: [ClipTag] {
         (appState.importSession?.tags ?? []).filter { liveClip.tagIDs.contains($0.id) }
     }
@@ -68,7 +73,16 @@ struct ClipPreviewModal: View {
                             .stroke(FramwiseTheme.line.opacity(0.8), lineWidth: 1)
                     )
 
-                if let error = viewModel.error {
+                if isClipMissingFromSession {
+                    FramwiseStatePanel(
+                        state: .empty,
+                        title: "Clip no longer in session",
+                        message: "This preview item was removed from the current workspace.",
+                        systemImage: "film.badge.exclamationmark",
+                        compact: true
+                    )
+                    .padding(28)
+                } else if let error = viewModel.error {
                     VStack(spacing: 10) {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .font(.title2)
@@ -234,7 +248,9 @@ struct ClipPreviewModal: View {
             return .handled
         }
         .onAppear {
-            viewModel.loadClip(clip)
+            if !isClipMissingFromSession {
+                viewModel.loadClip(clip)
+            }
         }
         .onDisappear {
             viewModel.cleanupPlayer()

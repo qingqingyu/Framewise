@@ -129,10 +129,25 @@ actor ThumbnailGenerator {
             return try await generateImagesBatch(for: clip.sourceFileURL, times: times, targetSize: targetSize)
         } catch {
             // Fallback: try first frame only, return empty if that also fails
-            if let fallback = try? await generateThumbnail(for: clip.sourceFileURL, at: clip.timecodeStart, targetSize: targetSize) {
+            AppLogger.error(AppLogger.thumbnails, "Animated thumbnail batch failed", error: error, context: [
+                "clipID": clip.id.uuidString,
+                "sourceURL": AppLogger.fileReference(clip.sourceFileURL),
+                "requestedCount": count
+            ])
+            do {
+                let fallback = try await generateThumbnail(for: clip.sourceFileURL, at: clip.timecodeStart, targetSize: targetSize)
+                AppLogger.warning(AppLogger.thumbnails, "Using single-frame thumbnail fallback", context: [
+                    "clipID": clip.id.uuidString,
+                    "sourceURL": AppLogger.fileReference(clip.sourceFileURL)
+                ])
                 return [fallback]
+            } catch {
+                AppLogger.error(AppLogger.thumbnails, "Thumbnail fallback failed", error: error, context: [
+                    "clipID": clip.id.uuidString,
+                    "sourceURL": AppLogger.fileReference(clip.sourceFileURL)
+                ])
+                throw error
             }
-            return []
         }
     }
 
@@ -251,7 +266,10 @@ actor ThumbnailGenerator {
                 saveToDisk(scaled, url: url, time: time, targetSize: targetSize)
                 results[index] = scaled
             } catch {
-                // Skip frames that fail to scale
+                AppLogger.error(AppLogger.thumbnails, "Failed to scale generated thumbnail", error: error, context: [
+                    "sourceURL": AppLogger.fileReference(url),
+                    "frameIndex": index
+                ])
             }
         }
 
@@ -300,7 +318,15 @@ actor ThumbnailGenerator {
 
         // Create directory if needed
         if !fm.fileExists(atPath: dir.path) {
-            try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
+            do {
+                try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+            } catch {
+                AppLogger.error(AppLogger.thumbnails, "Failed to create thumbnail cache directory", error: error, context: [
+                    "cacheDir": AppLogger.pathReference(dir.path),
+                    "sourceURL": AppLogger.fileReference(url)
+                ])
+                return
+            }
             // Write source file metadata for validity check
             writeMetadata(for: url, to: dir)
         }
@@ -318,10 +344,24 @@ actor ThumbnailGenerator {
             return
         }
 
-        try? pngData.write(to: fileURL, options: .atomic)
+        do {
+            try pngData.write(to: fileURL, options: .atomic)
+        } catch {
+            AppLogger.error(AppLogger.thumbnails, "Failed to write thumbnail cache file", error: error, context: [
+                "fileURL": AppLogger.fileReference(fileURL),
+                "sourceURL": AppLogger.fileReference(url)
+            ])
+        }
 
         // Touch directory mtime for LRU
-        try? fm.setAttributes([.modificationDate: Date()], ofItemAtPath: dir.path)
+        do {
+            try fm.setAttributes([.modificationDate: Date()], ofItemAtPath: dir.path)
+        } catch {
+            AppLogger.error(AppLogger.thumbnails, "Failed to update thumbnail cache mtime", error: error, context: [
+                "cacheDir": AppLogger.pathReference(dir.path),
+                "sourceURL": AppLogger.fileReference(url)
+            ])
+        }
 
         // Check cache size cap (rate-limited to once per 60s)
         let now = Date()
@@ -342,7 +382,14 @@ actor ThumbnailGenerator {
         // Validate source file hasn't changed
         guard isCacheValid(for: url, in: dir) else {
             // Source file changed, evict stale cache
-            try? fm.removeItem(at: dir)
+            do {
+                try fm.removeItem(at: dir)
+            } catch {
+                AppLogger.error(AppLogger.thumbnails, "Failed to evict stale thumbnail cache", error: error, context: [
+                    "cacheDir": AppLogger.pathReference(dir.path),
+                    "sourceURL": AppLogger.fileReference(url)
+                ])
+            }
             return nil
         }
 
@@ -353,7 +400,14 @@ actor ThumbnailGenerator {
 
         if let image = loadDiskImage(at: fileURL) {
             // Touch directory mtime for LRU
-            try? fm.setAttributes([.modificationDate: Date()], ofItemAtPath: dir.path)
+            do {
+                try fm.setAttributes([.modificationDate: Date()], ofItemAtPath: dir.path)
+            } catch {
+                AppLogger.error(AppLogger.thumbnails, "Failed to update thumbnail cache mtime after read", error: error, context: [
+                    "cacheDir": AppLogger.pathReference(dir.path),
+                    "sourceURL": AppLogger.fileReference(url)
+                ])
+            }
             return image
         }
 
@@ -370,15 +424,35 @@ actor ThumbnailGenerator {
             return nil
         }
 
-        try? fm.setAttributes([.modificationDate: Date()], ofItemAtPath: dir.path)
+        do {
+            try fm.setAttributes([.modificationDate: Date()], ofItemAtPath: dir.path)
+        } catch {
+            AppLogger.error(AppLogger.thumbnails, "Failed to update legacy thumbnail cache mtime", error: error, context: [
+                "cacheDir": AppLogger.pathReference(dir.path),
+                "sourceURL": AppLogger.fileReference(url)
+            ])
+        }
         return legacyImage
     }
 
     private func loadDiskImage(at fileURL: URL) -> CGImage? {
-        guard FileManager.default.fileExists(atPath: fileURL.path),
-              let data = try? Data(contentsOf: fileURL),
-              let nsImage = NSImage(data: data),
+        guard FileManager.default.fileExists(atPath: fileURL.path) else {
+            return nil
+        }
+        let data: Data
+        do {
+            data = try Data(contentsOf: fileURL)
+        } catch {
+            AppLogger.error(AppLogger.thumbnails, "Failed to read thumbnail cache file", error: error, context: [
+                "fileURL": AppLogger.fileReference(fileURL)
+            ])
+            return nil
+        }
+        guard let nsImage = NSImage(data: data),
               let cgImage = nsImage.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+            AppLogger.warning(AppLogger.thumbnails, "Thumbnail cache file could not be decoded", context: [
+                "fileURL": AppLogger.fileReference(fileURL)
+            ])
             return nil
         }
         return cgImage
@@ -394,31 +468,54 @@ actor ThumbnailGenerator {
 
     private func writeMetadata(for url: URL, to dir: URL) {
         let fm = FileManager.default
-        guard let attrs = try? fm.attributesOfItem(atPath: url.path),
-              let mtime = attrs[.modificationDate] as? Date,
+        let attrs: [FileAttributeKey: Any]
+        do {
+            attrs = try fm.attributesOfItem(atPath: url.path)
+        } catch {
+            AppLogger.error(AppLogger.thumbnails, "Failed to read source metadata for thumbnail cache", error: error, context: [
+                "sourceURL": AppLogger.fileReference(url),
+                "cacheDir": AppLogger.pathReference(dir.path)
+            ])
+            return
+        }
+        guard let mtime = attrs[.modificationDate] as? Date,
               let size = attrs[.size] as? Int64 else { return }
 
         let meta = SourceMetadata(
             modificationDate: mtime.timeIntervalSince1970,
             fileSize: size
         )
-        guard let data = try? JSONEncoder().encode(meta) else { return }
-        try? data.write(to: dir.appendingPathComponent("metadata.json"), options: .atomic)
+        do {
+            let data = try JSONEncoder().encode(meta)
+            try data.write(to: dir.appendingPathComponent("metadata.json"), options: .atomic)
+        } catch {
+            AppLogger.error(AppLogger.thumbnails, "Failed to write thumbnail cache metadata", error: error, context: [
+                "sourceURL": AppLogger.fileReference(url),
+                "cacheDir": AppLogger.pathReference(dir.path)
+            ])
+        }
     }
 
     private func isCacheValid(for url: URL, in dir: URL) -> Bool {
         let fm = FileManager.default
         let metaURL = dir.appendingPathComponent("metadata.json")
 
-        guard let metaJSON = try? Data(contentsOf: metaURL),
-              let meta = try? JSONDecoder().decode(SourceMetadata.self, from: metaJSON),
-              let attrs = try? fm.attributesOfItem(atPath: url.path),
-              let mtime = attrs[.modificationDate] as? Date,
-              let size = attrs[.size] as? Int64 else {
+        do {
+            let metaJSON = try Data(contentsOf: metaURL)
+            let meta = try JSONDecoder().decode(SourceMetadata.self, from: metaJSON)
+            let attrs = try fm.attributesOfItem(atPath: url.path)
+            guard let mtime = attrs[.modificationDate] as? Date,
+                  let size = attrs[.size] as? Int64 else {
+                return false
+            }
+            return abs(mtime.timeIntervalSince1970 - meta.modificationDate) < 1.0 && size == meta.fileSize
+        } catch {
+            AppLogger.error(AppLogger.thumbnails, "Failed to validate thumbnail cache", error: error, context: [
+                "sourceURL": AppLogger.fileReference(url),
+                "cacheDir": AppLogger.pathReference(dir.path)
+            ])
             return false
         }
-
-        return abs(mtime.timeIntervalSince1970 - meta.modificationDate) < 1.0 && size == meta.fileSize
     }
 
     // MARK: - Disk Cache: Eviction
@@ -427,11 +524,19 @@ actor ThumbnailGenerator {
         let fm = FileManager.default
         let root = diskCacheRoot
 
-        guard let contents = try? fm.contentsOfDirectory(
-            at: root,
-            includingPropertiesForKeys: [.fileSizeKey, .creationDateKey, .contentModificationDateKey],
-            options: .skipsHiddenFiles
-        ) else { return }
+        let contents: [URL]
+        do {
+            contents = try fm.contentsOfDirectory(
+                at: root,
+                includingPropertiesForKeys: [.fileSizeKey, .creationDateKey, .contentModificationDateKey],
+                options: .skipsHiddenFiles
+            )
+        } catch {
+            AppLogger.error(AppLogger.thumbnails, "Failed to inspect thumbnail cache root", error: error, context: [
+                "cacheRoot": AppLogger.pathReference(root.path)
+            ])
+            return
+        }
 
         // Calculate total size
         var totalSize: Int64 = 0
@@ -444,7 +549,15 @@ actor ThumbnailGenerator {
             let dirSize = directorySize(at: dirURL)
             totalSize += dirSize
 
-            let mtime = (try? fm.attributesOfItem(atPath: dirURL.path)[.modificationDate] as? Date) ?? Date.distantPast
+            let mtime: Date
+            do {
+                mtime = try fm.attributesOfItem(atPath: dirURL.path)[.modificationDate] as? Date ?? Date.distantPast
+            } catch {
+                AppLogger.error(AppLogger.thumbnails, "Failed to inspect thumbnail cache directory", error: error, context: [
+                    "cacheDir": AppLogger.pathReference(dirURL.path)
+                ])
+                mtime = Date.distantPast
+            }
             dirs.append((url: dirURL, size: dirSize, mtime: mtime))
         }
 
@@ -455,7 +568,15 @@ actor ThumbnailGenerator {
         dirs.sort { $0.mtime < $1.mtime }
 
         for dir in dirs {
-            try? fm.removeItem(at: dir.url)
+            do {
+                try fm.removeItem(at: dir.url)
+            } catch {
+                AppLogger.error(AppLogger.thumbnails, "Failed to evict thumbnail cache directory", error: error, context: [
+                    "cacheDir": AppLogger.pathReference(dir.url.path),
+                    "size": dir.size
+                ])
+                continue
+            }
             totalSize -= dir.size
             if totalSize <= maxDiskCacheSize { break }
         }
@@ -467,8 +588,14 @@ actor ThumbnailGenerator {
 
         guard let enumerator = fm.enumerator(at: url, includingPropertiesForKeys: [.fileSizeKey]) else { return 0 }
         for case let fileURL as URL in enumerator {
-            guard let size = try? fileURL.resourceValues(forKeys: [.fileSizeKey]).fileSize else { continue }
-            total += Int64(size)
+            do {
+                guard let size = try fileURL.resourceValues(forKeys: [.fileSizeKey]).fileSize else { continue }
+                total += Int64(size)
+            } catch {
+                AppLogger.error(AppLogger.thumbnails, "Failed to read thumbnail cache file size", error: error, context: [
+                    "fileURL": AppLogger.fileReference(fileURL)
+                ])
+            }
         }
         return total
     }
@@ -483,7 +610,13 @@ actor ThumbnailGenerator {
         // Also clear disk cache
         let fm = FileManager.default
         if fm.fileExists(atPath: diskCacheRoot.path) {
-            try? fm.removeItem(at: diskCacheRoot)
+            do {
+                try fm.removeItem(at: diskCacheRoot)
+            } catch {
+                AppLogger.error(AppLogger.thumbnails, "Failed to clear thumbnail disk cache", error: error, context: [
+                    "cacheRoot": AppLogger.pathReference(diskCacheRoot.path)
+                ])
+            }
         }
     }
 
@@ -502,7 +635,10 @@ actor ThumbnailGenerator {
                             targetSize: targetSize
                         )
                     } catch {
-                        // Ignore preload errors
+                        AppLogger.error(AppLogger.thumbnails, "Thumbnail preload failed", error: error, context: [
+                            "sourceURL": AppLogger.fileReference(clipsForVideo[0].sourceFileURL),
+                            "clipCount": clipsForVideo.count
+                        ])
                     }
                 }
             }

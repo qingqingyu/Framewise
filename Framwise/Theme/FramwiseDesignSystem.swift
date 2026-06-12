@@ -266,3 +266,109 @@ struct FramwiseLoadingIndicator: View {
         .frame(width: diameter, height: diameter)
     }
 }
+
+// MARK: - Load State Components
+
+enum FramwiseLoadState: Equatable {
+    case loading
+    case empty
+    case error
+    case success
+}
+
+struct FramwiseStatePanel<Action: View>: View {
+    let state: FramwiseLoadState
+    let title: String
+    let message: String
+    var systemImage: String?
+    var compact: Bool = false
+    let action: () -> Action
+
+    init(
+        state: FramwiseLoadState,
+        title: String,
+        message: String,
+        systemImage: String? = nil,
+        compact: Bool = false,
+        @ViewBuilder action: @escaping () -> Action
+    ) {
+        self.state = state
+        self.title = title
+        self.message = message
+        self.systemImage = systemImage
+        self.compact = compact
+        self.action = action
+    }
+
+    private var tone: Color {
+        switch state {
+        case .loading: return FramwiseTheme.accent
+        case .empty: return FramwiseTheme.textMuted
+        case .error: return FramwiseTheme.danger
+        case .success: return FramwiseTheme.success
+        }
+    }
+
+    private var fallbackImage: String {
+        switch state {
+        case .loading: return "progress.indicator"
+        case .empty: return "tray"
+        case .error: return "exclamationmark.triangle.fill"
+        case .success: return "checkmark.circle.fill"
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: compact ? 10 : 14) {
+            if state == .loading {
+                FramwiseLoadingIndicator(tint: tone, diameter: compact ? 18 : 28)
+            } else {
+                Image(systemName: systemImage ?? fallbackImage)
+                    .font(.system(size: compact ? 18 : 34, weight: .light))
+                    .foregroundStyle(tone)
+            }
+
+            VStack(spacing: 6) {
+                Text(title)
+                    .font(compact ? .framwiseUI(13, weight: .semibold) : .framwiseDisplay(22, weight: .semibold))
+                    .foregroundStyle(FramwiseTheme.textPrimary)
+                    .multilineTextAlignment(.center)
+
+                Text(message)
+                    .font(.framwiseUI(compact ? 12 : 13))
+                    .foregroundStyle(FramwiseTheme.textMuted)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            action()
+        }
+        .frame(maxWidth: .infinity)
+        .padding(compact ? 14 : 28)
+        .background(
+            RoundedRectangle(cornerRadius: compact ? 14 : 22, style: .continuous)
+                .fill(FramwiseTheme.surface)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: compact ? 14 : 22, style: .continuous)
+                .stroke(tone.opacity(state == .success ? 0.16 : 0.24), lineWidth: 1)
+        )
+    }
+}
+
+extension FramwiseStatePanel where Action == EmptyView {
+    init(
+        state: FramwiseLoadState,
+        title: String,
+        message: String,
+        systemImage: String? = nil,
+        compact: Bool = false
+    ) {
+        self.state = state
+        self.title = title
+        self.message = message
+        self.systemImage = systemImage
+        self.compact = compact
+        self.action = { EmptyView() }
+    }
+}

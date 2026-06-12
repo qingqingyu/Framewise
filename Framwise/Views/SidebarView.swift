@@ -21,103 +21,32 @@ struct SidebarView: View {
             VStack(alignment: .leading, spacing: 18) {
                 workspaceHeader
 
-                if appState.importSession != nil {
+                if let session = appState.importSession {
+                    if importViewModel.isImporting {
+                        FramwiseStatePanel(
+                            state: .loading,
+                            title: "Building workspace",
+                            message: importViewModel.statusMessage.isEmpty ? "Analyzing footage and preparing clip inventory." : importViewModel.statusMessage,
+                            compact: true
+                        )
+                    }
+                    sourceFilesSection(session)
+                    tagsSection(session)
+                    statisticsSection(session)
                     dropZone
                     if let error = importViewModel.error {
                         importErrorView(error)
                     }
+                    if !importViewModel.importWarnings.isEmpty {
+                        importWarningsView(importViewModel.importWarnings)
+                    }
+                    if let error = appState.persistenceError {
+                        persistenceErrorView(error)
+                    }
                 } else {
                     emptyWorkflowPreview
-                }
-
-                if let session = appState.importSession {
-                    sidebarSection(title: "Source Files", subtitle: "\(session.sourceFiles.count) active reels") {
-                        VStack(spacing: 8) {
-                            SidebarRow(
-                                title: "All Clips",
-                                icon: "square.grid.2x2.fill",
-                                value: "\(session.clipCount)",
-                                isActive: appState.selectedSourceURL == nil
-                            ) {
-                                appState.selectedSourceURL = nil
-                            }
-
-                            ForEach(session.sourceFiles, id: \.self) { url in
-                                SidebarRow(
-                                    title: url.lastPathComponent,
-                                    icon: "video.fill",
-                                    value: "\(session.allClips.filter { $0.sourceFileURL == url }.count)",
-                                    isActive: appState.selectedSourceURL == url
-                                ) {
-                                    appState.selectedSourceURL = url
-                                }
-                            }
-                        }
-                    }
-
-                    sidebarSection(title: "Statistics", subtitle: "Live workspace state") {
-                        VStack(spacing: 10) {
-                            SidebarMetricRow(label: "Total Clips", value: "\(session.clipCount)")
-                            SidebarMetricRow(label: "Total Duration", value: formatDuration(session.totalDuration))
-                            SidebarMetricRow(label: "Selected", value: "\(appState.selectedClipIDs.count)", tone: FramwiseTheme.accent)
-                            SidebarMetricRow(label: "Tagged", value: "\(session.allClips.filter { !$0.tagIDs.isEmpty }.count)", tone: FramwiseTheme.success)
-                            SidebarMetricRow(label: "Waste", value: "\(session.allClips.filter { $0.effectiveWasteType != .none }.count)", tone: FramwiseTheme.warning)
-                        }
-                    }
-
-                    sidebarSection(title: "Tags", subtitle: "\(session.tags.count) sorting lanes") {
-                        VStack(spacing: 8) {
-                            if session.tags.isEmpty {
-                                TagsEmptyStateView(
-                                    onLoadPreset: { session.loadWeddingPreset() },
-                                    onCreateTag: { showCreateTag = true }
-                                )
-                            } else {
-                                ForEach(Array(session.tags.enumerated()), id: \.element.id) { index, tag in
-                                    SidebarTagRow(
-                                        tag: tag,
-                                        count: session.clipCount(for: tag.id),
-                                        isActive: session.activeTagFilter == tag.id,
-                                        shortcutNumber: index < 9 ? index + 1 : nil
-                                    ) {
-                                        if session.activeTagFilter == tag.id {
-                                            session.activeTagFilter = nil
-                                        } else {
-                                            session.activeTagFilter = tag.id
-                                        }
-                                    }
-                                    .contextMenu {
-                                        Button("Rename") {
-                                            renamingTag = tag
-                                        }
-                                        Button("Delete", role: .destructive) {
-                                            session.removeTag(tag.id)
-                                        }
-                                    }
-                                }
-
-                                TagsKeyboardHint(tagCount: session.tags.count)
-
-                                HStack(spacing: 8) {
-                                    Button(action: { showCreateTag = true }) {
-                                        Label("New Tag", systemImage: "plus")
-                                    }
-                                    .buttonStyle(FramwiseGhostButtonStyle())
-
-                                    Button(action: {
-                                        session.loadWeddingPreset()
-                                    }) {
-                                        Label("Wedding Preset", systemImage: "bolt.fill")
-                                    }
-                                    .buttonStyle(FramwiseGhostButtonStyle(
-                                        fill: FramwiseTheme.surface,
-                                        border: FramwiseTheme.warning.opacity(0.35),
-                                        foreground: FramwiseTheme.warning
-                                    ))
-                                }
-                                .padding(.top, 4)
-                            }
-                        }
+                    if let error = appState.persistenceError {
+                        persistenceErrorView(error)
                     }
                 }
             }
@@ -153,86 +82,190 @@ struct SidebarView: View {
         }
     }
 
+    private func sourceFilesSection(_ session: ImportSession) -> some View {
+        sidebarSection(title: "Source Files", subtitle: "\(session.sourceFiles.count) active reels") {
+            VStack(spacing: 8) {
+                SidebarRow(
+                    title: "All Clips",
+                    icon: "square.grid.2x2.fill",
+                    value: "\(session.clipCount)",
+                    isActive: appState.selectedSourceURL == nil
+                ) {
+                    appState.selectedSourceURL = nil
+                }
+
+                if session.sourceFiles.isEmpty {
+                    FramwiseStatePanel(
+                        state: importViewModel.isImporting ? .loading : .empty,
+                        title: importViewModel.isImporting ? "Reading sources" : "No sources yet",
+                        message: importViewModel.isImporting ? "Files are being added to the workspace." : "Imported reels will appear here.",
+                        systemImage: "folder",
+                        compact: true
+                    )
+                } else {
+                    ForEach(session.sourceFiles, id: \.self) { url in
+                        SidebarRow(
+                            title: url.lastPathComponent,
+                            icon: "video.fill",
+                            value: "\(session.allClips.filter { $0.sourceFileURL == url }.count)",
+                            isActive: appState.selectedSourceURL == url
+                        ) {
+                            appState.selectedSourceURL = url
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func tagsSection(_ session: ImportSession) -> some View {
+        sidebarSection(title: "Tags", subtitle: "\(session.tags.count) sorting lanes") {
+            VStack(spacing: 8) {
+                if session.tags.isEmpty {
+                    TagsEmptyStateView(
+                        onLoadPreset: { session.loadWeddingPreset() },
+                        onCreateTag: { showCreateTag = true }
+                    )
+                } else {
+                    ForEach(Array(session.tags.enumerated()), id: \.element.id) { index, tag in
+                        SidebarTagRow(
+                            tag: tag,
+                            count: session.clipCount(for: tag.id),
+                            isActive: session.activeTagFilter == tag.id,
+                            shortcutNumber: index < 9 ? index + 1 : nil
+                        ) {
+                            if session.activeTagFilter == tag.id {
+                                session.activeTagFilter = nil
+                            } else {
+                                session.activeTagFilter = tag.id
+                            }
+                        }
+                        .contextMenu {
+                            Button("Rename") {
+                                renamingTag = tag
+                            }
+                            Button("Delete", role: .destructive) {
+                                session.removeTag(tag.id)
+                            }
+                        }
+                    }
+
+                    TagsKeyboardHint(tagCount: session.tags.count)
+
+                    HStack(spacing: 8) {
+                        Button(action: { showCreateTag = true }) {
+                            Label("New Tag", systemImage: "plus")
+                        }
+                        .buttonStyle(FramwiseGhostButtonStyle())
+
+                        Button(action: {
+                            session.loadWeddingPreset()
+                        }) {
+                            Label("Wedding Preset", systemImage: "bolt.fill")
+                        }
+                        .buttonStyle(FramwiseGhostButtonStyle(
+                            fill: FramwiseTheme.surface,
+                            border: FramwiseTheme.warning.opacity(0.35),
+                            foreground: FramwiseTheme.warning
+                        ))
+                    }
+                    .padding(.top, 4)
+                }
+            }
+        }
+    }
+
+    private func statisticsSection(_ session: ImportSession) -> some View {
+        sidebarSection(title: "Statistics", subtitle: "Workspace state") {
+            VStack(spacing: 10) {
+                SidebarMetricRow(label: "Total Clips", value: "\(session.clipCount)")
+                SidebarMetricRow(label: "Total Duration", value: formatDuration(session.totalDuration))
+                SidebarMetricRow(label: "Selected", value: "\(appState.selectedClipIDs.count)", tone: FramwiseTheme.accent)
+                SidebarMetricRow(label: "Tagged", value: "\(session.allClips.filter { !$0.tagIDs.isEmpty }.count)", tone: FramwiseTheme.success)
+                SidebarMetricRow(label: "Waste", value: "\(session.allClips.filter { $0.effectiveWasteType != .none }.count)", tone: FramwiseTheme.warning)
+            }
+        }
+    }
+
     private var dropZone: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top) {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .center, spacing: 10) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
                         .fill(isTargeted ? FramwiseTheme.accentSoft : FramwiseTheme.surfaceRaised)
                     Image(systemName: "film.stack.fill")
-                        .font(.system(size: 18, weight: .semibold))
+                        .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(isTargeted ? FramwiseTheme.accent : FramwiseTheme.warm)
                 }
-                .frame(width: 42, height: 42)
+                .frame(width: 32, height: 32)
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Ingest Bay")
-                        .font(.framwiseDisplay(18, weight: .semibold))
+                        .font(.framwiseUI(13, weight: .semibold))
                         .foregroundStyle(FramwiseTheme.textPrimary)
-                    Text(isTargeted ? "Release to import footage into the active workspace." : "Drop reels or folders here, or use Import to start a new session.")
-                        .font(.framwiseUI(13))
+                    Text(isTargeted ? "Release to add footage" : "Add reels or folders")
+                        .font(.framwiseUI(12))
                         .foregroundStyle(isTargeted ? FramwiseTheme.textPrimary : FramwiseTheme.textMuted)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-
-            HStack(spacing: 8) {
-                Text("MOV")
-                Text("MP4")
-                Text("MPEG4")
-                Text("QuickTime")
-            }
-            .font(.framwiseMono(10))
-            .foregroundStyle(FramwiseTheme.textMuted)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
+        .padding(12)
         .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(FramwiseTheme.surface)
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(FramwiseTheme.surface.opacity(0.72))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .strokeBorder(
-                    style: StrokeStyle(lineWidth: 1.5, dash: [8, 4])
+                    style: StrokeStyle(lineWidth: 1, dash: [6, 4])
                 )
-                .foregroundStyle(isTargeted ? FramwiseTheme.accent : FramwiseTheme.line)
+                .foregroundStyle(isTargeted ? FramwiseTheme.accent : FramwiseTheme.line.opacity(0.6))
         )
         .overlay(alignment: .topTrailing) {
             if isTargeted {
                 Text("READY")
                     .font(.framwiseMono(10))
                     .foregroundStyle(FramwiseTheme.accent)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
                     .background(
                         Capsule(style: .continuous)
                             .fill(FramwiseTheme.accentSoft)
                     )
-                    .padding(12)
+                    .padding(8)
             }
         }
         .animation(.easeInOut(duration: 0.15), value: isTargeted)
     }
 
     private func importErrorView(_ error: Error) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(FramwiseTheme.danger)
-            Text(error.localizedDescription)
-                .font(.framwiseUI(12))
-                .foregroundStyle(FramwiseTheme.textPrimary)
-                .fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 0)
-        }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(FramwiseTheme.danger.opacity(0.08))
+        FramwiseStatePanel(
+            state: .error,
+            title: "Import failed",
+            message: error.localizedDescription,
+            compact: true
         )
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(FramwiseTheme.danger.opacity(0.22), lineWidth: 1)
+    }
+
+    private func importWarningsView(_ warnings: [ImportWarning]) -> some View {
+        FramwiseStatePanel(
+            state: .error,
+            title: "\(warnings.count) file\(warnings.count == 1 ? "" : "s") skipped",
+            message: warnings.map { "\($0.title): \($0.message)" }.prefix(3).joined(separator: "\n"),
+            systemImage: "exclamationmark.triangle.fill",
+            compact: true
+        )
+    }
+
+    private func persistenceErrorView(_ error: Error) -> some View {
+        FramwiseStatePanel(
+            state: .error,
+            title: "Session storage issue",
+            message: error.localizedDescription,
+            systemImage: "externaldrive.badge.exclamationmark",
+            compact: true
         )
     }
 
@@ -240,16 +273,12 @@ struct SidebarView: View {
     private var workspaceHeader: some View {
         if appState.importSession != nil {
             VStack(alignment: .leading, spacing: 6) {
-                Text("INGEST + SORT")
+                Text("SOURCES + TAGS")
                     .font(.framwiseMono(10))
                     .foregroundStyle(FramwiseTheme.warm)
                 Text("Workspace")
                     .font(.framwiseDisplay(24, weight: .semibold))
                     .foregroundStyle(FramwiseTheme.textPrimary)
-                Text("Sources, tags, and clip inventory stay visible while the footage does the talking.")
-                    .font(.framwiseUI(13))
-                    .foregroundStyle(FramwiseTheme.textMuted)
-                    .fixedSize(horizontal: false, vertical: true)
             }
             .padding(.top, 8)
         } else {
@@ -260,10 +289,6 @@ struct SidebarView: View {
                 Text("Workspace")
                     .font(.framwiseDisplay(20, weight: .semibold))
                     .foregroundStyle(FramwiseTheme.textMuted)
-                Text("Outlines what unlocks after import.")
-                    .font(.framwiseUI(12))
-                    .foregroundStyle(FramwiseTheme.textMuted.opacity(0.88))
-                    .fixedSize(horizontal: false, vertical: true)
             }
             .padding(.top, 8)
         }
@@ -274,19 +299,19 @@ struct SidebarView: View {
             workflowPreviewRow(
                 icon: "folder.fill",
                 title: "Sources",
-                caption: "Imported reels and folders land here."
+                caption: "Reels and folders"
             )
             workflowPreviewDivider
             workflowPreviewRow(
                 icon: "tag",
                 title: "Tags",
-                caption: "Sorting lanes and filters populate after ingest."
+                caption: "Sorting lanes"
             )
             workflowPreviewDivider
             workflowPreviewRow(
                 icon: "square.grid.2x2",
                 title: "Clip Inventory",
-                caption: "Counts and routing stay visible beside the grid."
+                caption: "Counts and routing"
             )
         }
         .padding(14)
@@ -346,13 +371,30 @@ struct SidebarView: View {
     private func handleDrop(providers: [NSItemProvider]) {
         Task {
             var droppedURLs: [URL] = []
+            var providerErrors: [Error] = []
             for provider in providers {
-                let url: URL? = await withCheckedContinuation { continuation in
-                    provider.loadObject(ofClass: URL.self) { url, _ in
-                        continuation.resume(returning: url)
+                let result: Result<URL?, Error> = await withCheckedContinuation { continuation in
+                    _ = provider.loadObject(ofClass: URL.self) { url, error in
+                        if let error {
+                            continuation.resume(returning: .failure(error))
+                        } else {
+                            continuation.resume(returning: .success(url))
+                        }
                     }
                 }
-                if let url { droppedURLs.append(url) }
+                switch result {
+                case .success(let url):
+                    if let url { droppedURLs.append(url) }
+                case .failure(let error):
+                    providerErrors.append(error)
+                    AppLogger.error(AppLogger.fileResolution, "Drop provider failed to load URL", error: error, context: [
+                        "surface": "sidebar"
+                    ])
+                }
+            }
+            if droppedURLs.isEmpty, let firstError = providerErrors.first {
+                importViewModel.error = firstError
+                return
             }
             let (videoURLs, unsupported) = FileResolver.resolveVideoURLs(from: droppedURLs)
             if !videoURLs.isEmpty {

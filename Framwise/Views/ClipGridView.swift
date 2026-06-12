@@ -178,15 +178,19 @@ struct ClipGridView: View {
                         Label("Selection", systemImage: "checkmark.circle")
                     }
                     .menuStyle(.borderlessButton)
-                    .buttonStyle(FramwiseGhostButtonStyle())
+                    .buttonStyle(FramwiseGhostButtonStyle(
+                        fill: FramwiseTheme.surface.opacity(0.45),
+                        border: FramwiseTheme.line.opacity(0.55),
+                        foreground: FramwiseTheme.textMuted
+                    ))
 
                     Button(action: { showTimeline.toggle() }) {
                         Label(showTimeline ? "Timeline On" : "Timeline Off", systemImage: "timeline.view")
                     }
                     .buttonStyle(FramwiseGhostButtonStyle(
-                        fill: showTimeline ? FramwiseTheme.accentSoft : FramwiseTheme.surfaceRaised,
-                        border: showTimeline ? FramwiseTheme.accent.opacity(0.35) : FramwiseTheme.line.opacity(0.8),
-                        foreground: showTimeline ? FramwiseTheme.textPrimary : FramwiseTheme.textMuted
+                        fill: showTimeline ? FramwiseTheme.surfaceRaised.opacity(0.7) : FramwiseTheme.surface.opacity(0.45),
+                        border: showTimeline ? FramwiseTheme.warm.opacity(0.22) : FramwiseTheme.line.opacity(0.55),
+                        foreground: showTimeline ? FramwiseTheme.textPrimary.opacity(0.86) : FramwiseTheme.textMuted
                     ))
                 }
 
@@ -290,10 +294,10 @@ struct ClipGridView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("SEQUENCE MAP")
                                 .font(.framwiseMono(10))
-                                .foregroundStyle(FramwiseTheme.warm)
+                                .foregroundStyle(FramwiseTheme.warm.opacity(0.72))
                             Text(groupsSummary)
                                 .font(.framwiseUI(13, weight: .medium))
-                                .foregroundStyle(FramwiseTheme.textPrimary)
+                                .foregroundStyle(FramwiseTheme.textMuted)
                         }
                         Spacer()
                         passiveChip(
@@ -310,96 +314,107 @@ struct ClipGridView: View {
                         }
                     )
                 }
-                .padding(16)
-                .framwisePanel(background: FramwiseTheme.surface, radius: 20)
+                .padding(14)
+                .framwisePanel(background: FramwiseTheme.surface.opacity(0.72), radius: 18)
             }
 
-            GeometryReader { gridGeometry in
-                let availableWidth = gridGeometry.size.width - 24
-                let cols = max(1, Int(availableWidth / (gridSize.cellSize.width + 12)))
-                let columns = Array(repeating: GridItem(.fixed(gridSize.cellSize.width), spacing: 12), count: cols)
+            if let persistenceError = appState.persistenceError {
+                FramwiseStatePanel(
+                    state: .error,
+                    title: "Workspace storage issue",
+                    message: persistenceError.localizedDescription,
+                    systemImage: "externaldrive.badge.exclamationmark"
+                )
+                .frame(maxWidth: .infinity, minHeight: 360)
+                .framwisePanel(background: FramwiseTheme.surface, radius: 22)
+            } else {
+                GeometryReader { gridGeometry in
+                    let availableWidth = gridGeometry.size.width - 24
+                    let cols = max(1, Int(availableWidth / (gridSize.cellSize.width + 12)))
+                    let columns = Array(repeating: GridItem(.fixed(gridSize.cellSize.width), spacing: 12), count: cols)
 
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        if visibleClipsInDisplayOrder.isEmpty {
-                            emptyResultsView
-                                .padding(28)
-                                .frame(maxWidth: .infinity, minHeight: 360)
-                        } else if appState.importSession?.userClipOrder != nil {
-                            LazyVGrid(columns: columns, spacing: 12) {
-                                ForEach(orderedFlatClips) { clip in
-                                    clipCell(clip)
-                                }
-                            }
-                            .padding()
-                        } else {
-                            LazyVStack(alignment: .leading, spacing: 24) {
-                                ForEach(groupedClips, id: \.sourceURL) { group in
-                                    VStack(alignment: .leading, spacing: 12) {
-                                        HStack {
-                                            VStack(alignment: .leading, spacing: 4) {
-                                                Text(group.sourceURL.lastPathComponent)
-                                                    .font(.framwiseDisplay(18, weight: .semibold))
-                                                    .foregroundStyle(FramwiseTheme.textPrimary)
-                                                Text("\(group.clips.count) clips")
-                                                    .font(.framwiseMono(11))
-                                                    .foregroundStyle(FramwiseTheme.textMuted)
-                                            }
-
-                                            Spacer()
-
-                                            Text(group.sourceURL.deletingPathExtension().lastPathComponent.uppercased())
-                                                .font(.framwiseMono(10))
-                                                .foregroundStyle(FramwiseTheme.textMuted.opacity(0.75))
-                                                .lineLimit(1)
-                                                .frame(maxWidth: 200, alignment: .trailing)
-
-                                            if !group.clips.isEmpty {
-                                                Button(action: {
-                                                    selectVisibleClips(group.clips)
-                                                }) {
-                                                    Label("Select All", systemImage: "checkmark.circle.fill")
-                                                }
-                                                .buttonStyle(FramwiseGhostButtonStyle(
-                                                    fill: FramwiseTheme.surfaceRaised,
-                                                    border: FramwiseTheme.line.opacity(0.8),
-                                                    foreground: FramwiseTheme.textPrimary
-                                                ))
-                                            }
-                                        }
-                                        .padding(.horizontal, 2)
-
-                                        LazyVGrid(columns: columns, spacing: 12) {
-                                            ForEach(group.clips) { clip in
-                                                clipCell(clip)
-                                            }
-                                        }
-                                        .padding(.horizontal)
+                    ScrollViewReader { proxy in
+                        ScrollView {
+                            if visibleClipsInDisplayOrder.isEmpty {
+                                emptyResultsView
+                                    .padding(28)
+                                    .frame(maxWidth: .infinity, minHeight: 360)
+                            } else if appState.importSession?.userClipOrder != nil {
+                                LazyVGrid(columns: columns, spacing: 12) {
+                                    ForEach(orderedFlatClips) { clip in
+                                        clipCell(clip)
                                     }
                                 }
+                                .padding()
+                            } else {
+                                LazyVStack(alignment: .leading, spacing: 24) {
+                                    ForEach(groupedClips, id: \.sourceURL) { group in
+                                        VStack(alignment: .leading, spacing: 12) {
+                                            HStack {
+                                                VStack(alignment: .leading, spacing: 4) {
+                                                    Text(group.sourceURL.lastPathComponent)
+                                                        .font(.framwiseDisplay(18, weight: .semibold))
+                                                        .foregroundStyle(FramwiseTheme.textPrimary)
+                                                    Text("\(group.clips.count) clips")
+                                                        .font(.framwiseMono(11))
+                                                        .foregroundStyle(FramwiseTheme.textMuted)
+                                                }
+
+                                                Spacer()
+
+                                                Text(group.sourceURL.deletingPathExtension().lastPathComponent.uppercased())
+                                                    .font(.framwiseMono(10))
+                                                    .foregroundStyle(FramwiseTheme.textMuted.opacity(0.75))
+                                                    .lineLimit(1)
+                                                    .frame(maxWidth: 200, alignment: .trailing)
+
+                                                if !group.clips.isEmpty {
+                                                    Button(action: {
+                                                        selectVisibleClips(group.clips)
+                                                    }) {
+                                                        Label("Select All", systemImage: "checkmark.circle.fill")
+                                                    }
+                                                    .buttonStyle(FramwiseGhostButtonStyle(
+                                                        fill: FramwiseTheme.surfaceRaised,
+                                                        border: FramwiseTheme.line.opacity(0.8),
+                                                        foreground: FramwiseTheme.textPrimary
+                                                    ))
+                                                }
+                                            }
+                                            .padding(.horizontal, 2)
+
+                                            LazyVGrid(columns: columns, spacing: 12) {
+                                                ForEach(group.clips) { clip in
+                                                    clipCell(clip)
+                                                }
+                                            }
+                                            .padding(.horizontal)
+                                        }
+                                    }
+                                }
+                                .padding(.vertical)
                             }
-                            .padding(.vertical)
+                        }
+                        .background(Color.clear)
+                        .onChange(of: scrollToClipID) { _, newID in
+                            if let clipID = newID {
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    proxy.scrollTo(clipID, anchor: .center)
+                                }
+                                scrollToClipID = nil
+                            }
                         }
                     }
-                    .background(Color.clear)
-                    .onChange(of: scrollToClipID) { _, newID in
-                        if let clipID = newID {
-                            withAnimation(.easeInOut(duration: 0.3)) {
-                                proxy.scrollTo(clipID, anchor: .center)
-                            }
-                            scrollToClipID = nil
-                        }
+                    .onAppear { columnCount = cols }
+                    .onChange(of: gridGeometry.size) { _, _ in
+                        columnCount = max(1, Int((gridGeometry.size.width - 24) / (gridSize.cellSize.width + 12)))
+                    }
+                    .onChange(of: gridSize) { _, _ in
+                        columnCount = max(1, Int((gridGeometry.size.width - 24) / (gridSize.cellSize.width + 12)))
                     }
                 }
-                .onAppear { columnCount = cols }
-                .onChange(of: gridGeometry.size) { _, _ in
-                    columnCount = max(1, Int((gridGeometry.size.width - 24) / (gridSize.cellSize.width + 12)))
-                }
-                .onChange(of: gridSize) { _, _ in
-                    columnCount = max(1, Int((gridGeometry.size.width - 24) / (gridSize.cellSize.width + 12)))
-                }
+                .framwisePanel(background: FramwiseTheme.surface, radius: 22)
             }
-            .framwisePanel(background: FramwiseTheme.surface, radius: 22)
         }
     }
 
@@ -491,21 +506,12 @@ struct ClipGridView: View {
     }
 
     private var emptyResultsView: some View {
-        VStack(spacing: 14) {
-            Image(systemName: hasActiveFilters ? "line.3.horizontal.decrease.circle" : "film.stack")
-                .font(.system(size: 34, weight: .light))
-                .foregroundStyle(FramwiseTheme.textMuted.opacity(0.85))
-
-            Text(hasActiveFilters ? "No Clips Match Current Filters" : "No Clips In View")
-                .font(.framwiseDisplay(24, weight: .semibold))
-                .foregroundStyle(FramwiseTheme.textPrimary)
-
-            Text(emptyResultsExplanation)
-                .font(.framwiseUI(13))
-                .foregroundStyle(FramwiseTheme.textMuted)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 420)
-
+        FramwiseStatePanel(
+            state: .empty,
+            title: hasActiveFilters ? "No Clips Match Current Filters" : "No Clips In View",
+            message: emptyResultsExplanation,
+            systemImage: hasActiveFilters ? "line.3.horizontal.decrease.circle" : "film.stack"
+        ) {
             if hasActiveFilters {
                 Button("Clear Filters") {
                     gridViewModel.searchText = ""
@@ -518,9 +524,6 @@ struct ClipGridView: View {
                 .buttonStyle(FramwisePrimaryButtonStyle())
             }
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 48)
-        .framwisePanel(background: FramwiseTheme.surface, radius: 24)
     }
 
     private var filteredClips: [VideoClip] {
@@ -565,12 +568,12 @@ struct ClipGridView: View {
 
     private var emptyResultsExplanation: String {
         if !gridViewModel.searchText.isEmpty {
-            return "Try loosening the search phrase or clearing the active chips to bring clips back into the light table."
+            return "No matches for the current search."
         }
         if hasActiveFilters {
-            return "Current source, tag, selection, or waste filters are hiding every clip in this workspace."
+            return "Active filters are hiding every clip."
         }
-        return "This view does not have any clips to show yet."
+        return "No clips in this view."
     }
 
     private var groupsSummary: String {

@@ -23,6 +23,7 @@ struct ClipCellView: View {
     @State private var isAnimating = false
     @State private var isVisible = false
     @State private var loadTask: Task<Void, Never>?
+    @State private var thumbnailError: Error?
 
     private var isWaste: Bool { clip.effectiveWasteType != .none }
     private var displayTags: [ClipTag] { Array(tags.filter { clip.tagIDs.contains($0.id) }.prefix(4)) }
@@ -41,6 +42,20 @@ struct ClipCellView: View {
                             .overlay(
                                 FramwiseLoadingIndicator(tint: FramwiseTheme.accent, diameter: 18)
                             )
+                    } else if let thumbnailError {
+                        Rectangle()
+                            .fill(FramwiseTheme.surfaceRaised)
+                            .overlay(
+                                VStack(spacing: 8) {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .font(.system(size: 22, weight: .semibold))
+                                        .foregroundStyle(FramwiseTheme.warning)
+                                    Text("Thumbnail unavailable")
+                                        .font(.framwiseUI(12, weight: .medium))
+                                        .foregroundStyle(FramwiseTheme.textMuted)
+                                }
+                            )
+                            .help(thumbnailError.localizedDescription)
                     } else {
                         Rectangle()
                             .fill(FramwiseTheme.surfaceRaised)
@@ -249,9 +264,11 @@ struct ClipCellView: View {
         loadTask?.cancel()
         isLoading = true
         thumbnails = []
+        thumbnailError = nil
         currentThumbnailIndex = 0
 
         loadTask = Task {
+            let start = Date()
             do {
                 let images = try await thumbnailGenerator.generateThumbnails(
                     for: clip,
@@ -262,11 +279,18 @@ struct ClipCellView: View {
                 await MainActor.run {
                     self.thumbnails = images
                     self.isLoading = false
+                    self.thumbnailError = images.isEmpty ? ThumbnailError.frameExtractionFailed : nil
                 }
             } catch {
                 guard !Task.isCancelled else { return }
+                AppLogger.error(AppLogger.thumbnails, "Clip cell thumbnail load failed", error: error, context: [
+                    "clipID": clip.id.uuidString,
+                    "sourceURL": AppLogger.fileReference(clip.sourceFileURL),
+                    "durationMs": AppLogger.durationMilliseconds(since: start)
+                ])
                 await MainActor.run {
                     self.isLoading = false
+                    self.thumbnailError = error
                 }
             }
         }

@@ -14,6 +14,7 @@ class ExportViewModel: ObservableObject {
     @Published var exportFormat: ExportFormat = .edl
     @Published var error: Error?
     @Published var warning: String?
+    @Published var exportWarnings: [ExportWarning] = []
     var videoInfoLoader: (URL) async throws -> SourceVideoInfo = { url in
         try await ExportViewModel.loadVideoInfo(for: url)
     }
@@ -39,12 +40,18 @@ class ExportViewModel: ObservableObject {
 
     // MARK: - Export
 
-    func export(clips: [VideoClip], format: ExportFormat) async -> URL? {
+    func export(clips: [VideoClip], format: ExportFormat) async throws -> URL {
+        let start = Date()
         isExporting = true
         error = nil
         warning = nil
+        exportWarnings = []
 
         do {
+            AppLogger.info(AppLogger.export, "Export started", context: [
+                "format": format.rawValue,
+                "clipCount": clips.count
+            ])
             let content: String
             let fileExtension = format.fileExtension
 
@@ -58,16 +65,29 @@ class ExportViewModel: ObservableObject {
             // 保存到隔离的临时子目录
             let tempDir = FileManager.default.temporaryDirectory
                 .appendingPathComponent("Framwise_Export", isDirectory: true)
-            try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+            try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
             let fileName = generateExportFileName(from: clips, fileExtension: fileExtension)
             let fileURL = tempDir.appendingPathComponent(fileName)
 
             try content.write(to: fileURL, atomically: true, encoding: .utf8)
 
+            AppLogger.info(AppLogger.export, "Export file prepared", context: [
+                "format": format.rawValue,
+                "clipCount": clips.count,
+                "fileURL": AppLogger.fileReference(fileURL),
+                "warningCount": exportWarnings.count,
+                "durationMs": AppLogger.durationMilliseconds(since: start)
+            ])
             return fileURL
         } catch {
             self.error = error
-            return nil
+            self.isExporting = false
+            AppLogger.error(AppLogger.export, "Export failed", error: error, context: [
+                "format": format.rawValue,
+                "clipCount": clips.count,
+                "durationMs": AppLogger.durationMilliseconds(since: start)
+            ])
+            throw error
         }
     }
 
@@ -95,25 +115,34 @@ class ExportViewModel: ObservableObject {
         let sourceURLs = clips.map { $0.sourceFileURL }.uniqued()
 
         // Parallel load all source video metadata
-        let infoResults: [(index: Int, info: SourceVideoInfo)] = await withTaskGroup(of: (Int, SourceVideoInfo?).self) { group in
+        let infoResults: [(index: Int, result: Result<SourceVideoInfo, Error>)] = await withTaskGroup(of: (Int, Result<SourceVideoInfo, Error>).self) { group in
             for (index, url) in sourceURLs.enumerated() {
                 group.addTask {
-                    let info = try? await self.videoInfoLoader(url)
-                    return (index, info)
+                    do {
+                        let info = try await self.videoInfoLoader(url)
+                        return (index, .success(info))
+                    } catch {
+                        return (index, .failure(error))
+                    }
                 }
             }
-            var results: [(index: Int, info: SourceVideoInfo)] = []
-            for await (index, maybeInfo) in group {
-                if let info = maybeInfo {
-                    results.append((index, info))
-                }
+            var results: [(index: Int, result: Result<SourceVideoInfo, Error>)] = []
+            for await (index, result) in group {
+                results.append((index, result))
             }
             return results.sorted { $0.index < $1.index }
         }
+        let loadedInfoResults: [(index: Int, info: SourceVideoInfo)] = infoResults.compactMap { item in
+            if case .success(let info) = item.result {
+                return (item.index, info)
+            }
+            return nil
+        }
+        recordMetadataFailures(infoResults, sourceURLs: sourceURLs, format: .edl)
 
         // Build URL → frameRate lookup (fallback to 24.0 for inaccessible files)
         let frameRateMap: [URL: Double] = Dictionary(uniqueKeysWithValues: sourceURLs.enumerated().compactMap { (index, url) -> (URL, Double)? in
-            guard let info = infoResults.first(where: { $0.index == index }) else { return nil }
+            guard let info = loadedInfoResults.first(where: { $0.index == index }) else { return nil }
             return (url, info.info.frameRate)
         })
 
@@ -197,7 +226,12 @@ class ExportViewModel: ObservableObject {
         }
 
         if skippedInaccessible > 0 {
-            warning = "\(skippedInaccessible) clip(s) skipped — source file inaccessible."
+            let message = "\(skippedInaccessible) clip(s) skipped — source file inaccessible."
+            warning = message
+            AppLogger.warning(AppLogger.export, "EDL export skipped inaccessible clips", context: [
+                "skippedClipCount": skippedInaccessible,
+                "sourceCount": sourceURLs.count
+            ])
         }
 
         return edl
@@ -219,24 +253,33 @@ class ExportViewModel: ObservableObject {
         let sourceURLs = clips.map { $0.sourceFileURL }.uniqued()
 
         // Load metadata for each source video (parallel)
-        let indexedResults: [(index: Int, info: SourceVideoInfo)] = await withTaskGroup(of: (Int, SourceVideoInfo?).self) { group in
+        let indexedResults: [(index: Int, result: Result<SourceVideoInfo, Error>)] = await withTaskGroup(of: (Int, Result<SourceVideoInfo, Error>).self) { group in
             for (index, url) in sourceURLs.enumerated() {
                 group.addTask {
-                    let info = try? await self.videoInfoLoader(url)
-                    return (index, info)
+                    do {
+                        let info = try await self.videoInfoLoader(url)
+                        return (index, .success(info))
+                    } catch {
+                        return (index, .failure(error))
+                    }
                 }
             }
-            var results: [(index: Int, info: SourceVideoInfo)] = []
-            for await (index, maybeInfo) in group {
-                if let info = maybeInfo {
-                    results.append((index, info))
-                }
+            var results: [(index: Int, result: Result<SourceVideoInfo, Error>)] = []
+            for await (index, result) in group {
+                results.append((index, result))
             }
             return results.sorted { $0.index < $1.index }
         }
+        recordMetadataFailures(indexedResults, sourceURLs: sourceURLs, format: .fcpxml)
+        let loadedResults: [(index: Int, info: SourceVideoInfo)] = indexedResults.compactMap { item in
+            if case .success(let info) = item.result {
+                return (item.index, info)
+            }
+            return nil
+        }
 
         // Check for inaccessible source videos
-        let loadedIndices = Set(indexedResults.map { $0.index })
+        let loadedIndices = Set(loadedResults.map { $0.index })
         let failedURLs = sourceURLs.enumerated()
             .filter { !loadedIndices.contains($0.offset) }
             .map { $0.element.lastPathComponent }
@@ -244,7 +287,7 @@ class ExportViewModel: ObservableObject {
             warning = "Could not read metadata for: \(failedURLs.joined(separator: ", ")). Affected clips will be skipped."
         }
 
-        let videoInfos = indexedResults.map { $0.info }
+        let videoInfos = loadedResults.map { $0.info }
         let accessibleClipCount = clips.filter { clip in
             videoInfos.contains(where: { $0.url == clip.sourceFileURL })
         }.count
@@ -260,6 +303,23 @@ class ExportViewModel: ObservableObject {
         let height = primaryInfo?.height ?? 1080
 
         return buildFCPXMLString(clips: clips, videoInfos: videoInfos, frameRate: frameRate, width: width, height: height)
+    }
+
+    private func recordMetadataFailures(
+        _ results: [(index: Int, result: Result<SourceVideoInfo, Error>)],
+        sourceURLs: [URL],
+        format: ExportFormat
+    ) {
+        for item in results {
+            guard case .failure(let error) = item.result,
+                  sourceURLs.indices.contains(item.index) else { continue }
+            let url = sourceURLs[item.index]
+            exportWarnings.append(ExportWarning(sourceURL: url, error: error))
+            AppLogger.error(AppLogger.export, "Failed to load source metadata", error: error, context: [
+                "format": format.rawValue,
+                "sourceURL": AppLogger.fileReference(url)
+            ])
+        }
     }
 
     private static func loadVideoInfo(for url: URL) async throws -> SourceVideoInfo {
@@ -422,6 +482,16 @@ class ExportViewModel: ObservableObject {
             .replacingOccurrences(of: ">", with: "&gt;")
             .replacingOccurrences(of: "\"", with: "&quot;")
             .replacingOccurrences(of: "'", with: "&apos;")
+    }
+}
+
+struct ExportWarning: Identifiable {
+    let id = UUID()
+    let sourceURL: URL
+    let error: Error
+
+    var message: String {
+        "\(sourceURL.lastPathComponent): \(error.localizedDescription)"
     }
 }
 

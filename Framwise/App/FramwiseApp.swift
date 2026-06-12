@@ -59,6 +59,7 @@ class AppState: ObservableObject {
     @Published var selectedClipIDs: Set<UUID> = []
     @Published var isProcessing = false
     @Published var processingProgress: Double = 0
+    @Published var persistenceError: Error?
 
     // Source file filtering
     @Published var selectedSourceURL: URL?  // nil = show all
@@ -80,7 +81,14 @@ class AppState: ObservableObject {
 
     init() {
         // Restore persisted session on startup
-        if let data = try? store.load() {
+        let start = Date()
+        do {
+            guard let data = try store.load() else {
+                AppLogger.info(AppLogger.persistence, "No persisted session found", context: [
+                    "durationMs": AppLogger.durationMilliseconds(since: start)
+                ])
+                return
+            }
             let session = ImportSession()
             session.restore(from: data)
             self.importSession = session
@@ -89,6 +97,19 @@ class AppState: ObservableObject {
             self.selectedClipIDs = data.selectedClipIDs.intersection(validIDs)
             normalizeStateForCurrentSession()
             subscribeToSessionChanges()
+            persistenceError = nil
+            AppLogger.info(AppLogger.persistence, "Restored persisted session", context: [
+                "sessionID": data.id.uuidString,
+                "sourceCount": data.sourceFiles.count,
+                "clipCount": data.allClips.count,
+                "selectedCount": selectedClipIDs.count,
+                "durationMs": AppLogger.durationMilliseconds(since: start)
+            ])
+        } catch {
+            persistenceError = error
+            AppLogger.error(AppLogger.persistence, "Failed to restore persisted session", error: error, context: [
+                "durationMs": AppLogger.durationMilliseconds(since: start)
+            ])
         }
     }
 
@@ -114,12 +135,30 @@ class AppState: ObservableObject {
         }
     }
 
-    func clearSession() {
-        importSession = nil
-        selectedClipIDs = []
-        selectedSourceURL = nil
-        previewClip = nil
-        store.delete()
+    @discardableResult
+    func clearSession() -> Bool {
+        let previousSessionID = importSession?.id.uuidString ?? "none"
+        let previousClipCount = importSession?.clipCount ?? 0
+        do {
+            try store.delete()
+            importSession = nil
+            selectedClipIDs = []
+            selectedSourceURL = nil
+            previewClip = nil
+            persistenceError = nil
+            AppLogger.info(AppLogger.persistence, "Cleared persisted session", context: [
+                "sessionID": previousSessionID,
+                "clipCount": previousClipCount
+            ])
+            return true
+        } catch {
+            persistenceError = error
+            AppLogger.error(AppLogger.persistence, "Failed to clear persisted session", error: error, context: [
+                "sessionID": previousSessionID,
+                "clipCount": previousClipCount
+            ])
+            return false
+        }
     }
 
     // MARK: - Auto-save
@@ -165,12 +204,26 @@ class AppState: ObservableObject {
 
     private func saveToDisk() {
         guard let session = importSession else { return }
+        let start = Date()
         do {
             try store.save(session: session, selectedClipIDs: selectedClipIDs)
+            persistenceError = nil
+            AppLogger.info(AppLogger.persistence, "Saved session", context: [
+                "sessionID": session.id.uuidString,
+                "sourceCount": session.sourceFiles.count,
+                "clipCount": session.clipCount,
+                "selectedCount": selectedClipIDs.count,
+                "durationMs": AppLogger.durationMilliseconds(since: start)
+            ])
         } catch {
-            #if DEBUG
-            print("[AppState] Failed to save session: \(error.localizedDescription)")
-            #endif
+            persistenceError = error
+            AppLogger.error(AppLogger.persistence, "Failed to save session", error: error, context: [
+                "sessionID": session.id.uuidString,
+                "sourceCount": session.sourceFiles.count,
+                "clipCount": session.clipCount,
+                "selectedCount": selectedClipIDs.count,
+                "durationMs": AppLogger.durationMilliseconds(since: start)
+            ])
         }
     }
 }

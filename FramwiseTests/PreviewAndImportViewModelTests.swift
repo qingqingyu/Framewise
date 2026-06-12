@@ -14,6 +14,45 @@ actor ImportInvocationCounter {
     }
 }
 
+actor ImportAnalyzerGate {
+    private var startedCount = 0
+    private var startWaiters: [(targetCount: Int, continuation: CheckedContinuation<Void, Never>)] = []
+    private var releaseWaiters: [CheckedContinuation<Void, Never>] = []
+
+    func waitForAnalyzerStart(targetCount: Int) async {
+        guard startedCount < targetCount else { return }
+        await withCheckedContinuation { continuation in
+            startWaiters.append((targetCount, continuation))
+        }
+    }
+
+    func markStartedAndWaitForRelease() async {
+        startedCount += 1
+        resumeSatisfiedStartWaiters()
+
+        await withCheckedContinuation { continuation in
+            releaseWaiters.append(continuation)
+        }
+    }
+
+    func releaseAll() {
+        releaseWaiters.forEach { $0.resume() }
+        releaseWaiters.removeAll()
+    }
+
+    private func resumeSatisfiedStartWaiters() {
+        var remaining: [(targetCount: Int, continuation: CheckedContinuation<Void, Never>)] = []
+        for waiter in startWaiters {
+            if startedCount >= waiter.targetCount {
+                waiter.continuation.resume()
+            } else {
+                remaining.append(waiter)
+            }
+        }
+        startWaiters = remaining
+    }
+}
+
 @MainActor
 final class PreviewAndImportViewModelTests: XCTestCase {
     private var temporaryDirectories: [URL] = []
@@ -156,6 +195,8 @@ final class PreviewAndImportViewModelTests: XCTestCase {
         XCTAssertEqual(session.sourceFiles, [successfulURL])
         XCTAssertEqual(session.allClips.map(\.sourceFileURL), [successfulURL])
         XCTAssertTrue(viewModel.statusMessage.contains("skipped"))
+        XCTAssertEqual(viewModel.importWarnings.count, 1)
+        XCTAssertEqual(viewModel.importWarnings.first?.sourceURL, failingURL)
     }
 
     func testImportVideosStreaming_deduplicatesRepeatedSourceURLs() async throws {
@@ -181,5 +222,35 @@ final class PreviewAndImportViewModelTests: XCTestCase {
         XCTAssertEqual(invocationCount, 1)
         XCTAssertEqual(session.sourceFiles, [duplicateURL])
         XCTAssertEqual(session.allClips.count, 1)
+    }
+
+    func testCancelImport_doesNotMergeLateAnalyzerResults() async throws {
+        let viewModel = VideoImportViewModel()
+        let session = ImportSession()
+        let firstURL = try makeTemporaryVideoURL(named: "first.mov")
+        let secondURL = try makeTemporaryVideoURL(named: "second.mov")
+        let gate = ImportAnalyzerGate()
+
+        viewModel.singleVideoAnalyzer = { url, _, _ in
+            await gate.markStartedAndWaitForRelease()
+            let clip = VideoClip(
+                sourceFileURL: url,
+                timecodeStart: .zero,
+                timecodeEnd: CMTime(seconds: 1, preferredTimescale: 600)
+            )
+            return VideoImportResult(sourceURL: url, clips: [clip], wasteTypes: [:], similarityGroups: [])
+        }
+
+        viewModel.importVideosStreaming(from: [firstURL, secondURL], into: session)
+        await gate.waitForAnalyzerStart(targetCount: 2)
+
+        viewModel.cancelImport()
+        await gate.releaseAll()
+        try await Task.sleep(nanoseconds: 20_000_000)
+
+        XCTAssertTrue(session.sourceFiles.isEmpty)
+        XCTAssertTrue(session.allClips.isEmpty)
+        XCTAssertEqual(viewModel.clipsFoundCount, 0)
+        XCTAssertFalse(viewModel.isImporting)
     }
 }
