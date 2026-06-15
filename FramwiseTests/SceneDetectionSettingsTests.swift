@@ -4,6 +4,7 @@
 //
 
 import XCTest
+import AVFoundation
 @testable import Framwise
 
 final class SceneDetectionSettingsTests: XCTestCase {
@@ -67,5 +68,40 @@ final class SceneDetectionSettingsTests: XCTestCase {
     func testAutoSensitivity_clampsOutOfRange() {
         XCTAssertEqual(SceneDetectionSettings.autoSensitivity(forTargetCount: 0), 0.3, accuracy: 0.0001)
         XCTAssertEqual(SceneDetectionSettings.autoSensitivity(forTargetCount: 200), 0.9, accuracy: 0.0001)
+    }
+
+    // MARK: - Media Decode Guardrails
+
+    func testRequireDecodableFrames_throwsWhenNoFramesDecoded() {
+        XCTAssertThrowsError(try SceneDetector.requireDecodableFrames(0)) { error in
+            XCTAssertEqual(error as? SceneDetectorError, .noDecodableFrames)
+            XCTAssertEqual(error.localizedDescription, "No decodable video frames found")
+        }
+    }
+
+    func testRequireDecodableFrames_allowsDecodedFrames() {
+        XCTAssertNoThrow(try SceneDetector.requireDecodableFrames(1))
+    }
+
+    func testPublicFrameSkipReason_doesNotExposeUnderlyingFilePath() {
+        let path = "/Users/editor/Private Footage/client/reel.mov"
+        let error = NSError(
+            domain: AVFoundationErrorDomain,
+            code: -11800,
+            userInfo: [
+                NSFilePathErrorKey: path,
+                NSLocalizedDescriptionKey: "The file at \(path) could not be decoded."
+            ]
+        )
+
+        let reason = SceneDetector.publicFrameSkipReason(for: error)
+
+        XCTAssertTrue(reason.contains("domain=\(AVFoundationErrorDomain)"))
+        XCTAssertTrue(reason.contains("code=-11800"))
+        XCTAssertFalse(reason.contains(path))
+        XCTAssertFalse(reason.contains("/Users/editor"))
+        XCTAssertFalse(reason.contains("Private Footage"))
+        XCTAssertFalse(reason.contains("reel.mov"))
+        XCTAssertFalse(reason.contains("The file at"))
     }
 }

@@ -22,20 +22,62 @@ struct VideoImportResult {
 struct ImportWarning: Identifiable {
     let id = UUID()
     let sourceURL: URL
-    let error: Error
+    private let warningTitle: String?
+    private let warningMessage: String
+
+    init(sourceURL: URL, error: Error) {
+        self.sourceURL = sourceURL
+        self.warningTitle = nil
+        self.warningMessage = Self.safeAnalysisWarningMessage(for: error)
+    }
+
+    init(accessIssue: FileAccessIssue) {
+        self.sourceURL = accessIssue.url
+        self.warningTitle = accessIssue.title
+        self.warningMessage = accessIssue.message
+    }
+
+    init(title: String, message: String) {
+        self.sourceURL = URL(fileURLWithPath: "/")
+        self.warningTitle = title
+        self.warningMessage = message
+    }
+
+    static func droppedItem(error: Error) -> ImportWarning {
+        ImportWarning(
+            title: "Dropped item",
+            message: "Could not read one dropped item. Try dropping it again or choose it from the file picker."
+        )
+    }
 
     var title: String {
-        sourceURL.lastPathComponent
+        warningTitle ?? sourceURL.lastPathComponent
     }
 
     var message: String {
-        error.localizedDescription
+        warningMessage
+    }
+
+    private static func safeAnalysisWarningMessage(for error: Error) -> String {
+        if let sceneError = error as? SceneDetectorError {
+            return sceneError.localizedDescription
+        }
+        if let importError = error as? ImportError {
+            switch importError {
+            case .analysisFailed:
+                return "Video could not be analyzed. The file may be unsupported or damaged."
+            default:
+                return importError.localizedDescription
+            }
+        }
+        return "Video could not be analyzed. The file may be unsupported or damaged."
     }
 }
 
 @MainActor
 class VideoImportViewModel: ObservableObject {
     @Published var isImporting = false
+    @Published var isResolvingSources = false
     @Published var importProgress: Double = 0
     @Published var statusMessage = ""
     @Published var error: Error?
@@ -47,6 +89,23 @@ class VideoImportViewModel: ObservableObject {
     @Published var isAnalyzing: Bool = false
     @Published var totalFilesCount: Int = 0
     @Published var importWarnings: [ImportWarning] = []
+    @Published var importWarningTotalCount: Int = 0
+
+    var importWarningDisplayCount: Int {
+        max(importWarningTotalCount, importWarnings.count)
+    }
+
+    @discardableResult
+    func recordFileSelectionFailure(_ sourceError: Error? = nil) -> Bool {
+        if let sourceError, Self.isUserCancelledFileSelection(sourceError) {
+            return false
+        }
+        error = ImportError.fileSelectionFailed
+        importWarnings = []
+        importWarningTotalCount = 0
+        statusMessage = ""
+        return true
+    }
 
     /// Each video analysis creates its own detector instances to avoid actor serialization.
     /// Shared instances are only kept for setting sensitivity before spawning tasks.
@@ -90,6 +149,7 @@ class VideoImportViewModel: ObservableObject {
         importTask?.cancel()
         importTask = nil
         importGeneration += 1
+        isResolvingSources = false
         for url in pendingSourceURLs {
             session?.removeSourceFile(url)
         }
@@ -105,6 +165,7 @@ class VideoImportViewModel: ObservableObject {
         statusMessage = ""
         error = nil
         importWarnings = []
+        importWarningTotalCount = 0
     }
 
     private func clamped(_ value: Int, in range: ClosedRange<Int>, default defaultValue: Int) -> Int {
@@ -126,10 +187,16 @@ class VideoImportViewModel: ObservableObject {
 
     /// Start a streaming parallel import. This method is synchronous — it spawns
     /// an internal Task stored in `importTask` so that `cancelImport()` can cancel it.
-    func importVideosStreaming(from urls: [URL], into session: ImportSession) {
+    func importVideosStreaming(
+        from urls: [URL],
+        into session: ImportSession,
+        preflightWarnings: [ImportWarning] = [],
+        preflightWarningTotalCount: Int? = nil
+    ) {
         guard !isImporting else { return }
         let uniqueURLs = uniqueImportURLs(urls)
         guard !uniqueURLs.isEmpty else { return }
+        let startingWarningCount = max(preflightWarningTotalCount ?? preflightWarnings.count, preflightWarnings.count)
 
         // Cancel any previously running import Task
         importTask?.cancel()
@@ -139,7 +206,8 @@ class VideoImportViewModel: ObservableObject {
         isImporting = true
         isAnalyzing = true
         error = nil
-        importWarnings = []
+        importWarnings = preflightWarnings
+        importWarningTotalCount = startingWarningCount
         importProgress = 0
         analyzingProgress = 0
         statusMessage = "Importing videos..."
@@ -151,6 +219,8 @@ class VideoImportViewModel: ObservableObject {
         AppLogger.info(AppLogger.importFlow, "Import started", context: [
             "generation": myGeneration,
             "inputCount": uniqueURLs.count,
+            "preflightWarningCount": preflightWarnings.count,
+            "preflightWarningTotalCount": startingWarningCount,
             "sessionID": session.id.uuidString,
             "targetSegmentCount": targetSegmentCount
         ])
@@ -263,6 +333,7 @@ class VideoImportViewModel: ObservableObject {
                             pendingImportSourceURLs.remove(url)
                         }
                         importWarnings.append(ImportWarning(sourceURL: url, error: error))
+                        importWarningTotalCount += 1
                         AppLogger.error(AppLogger.importFlow, "Video analysis failed", error: error, context: [
                             "generation": myGeneration,
                             "sourceURL": AppLogger.fileReference(url),
@@ -292,8 +363,9 @@ class VideoImportViewModel: ObservableObject {
             guard !Task.isCancelled else { return }
 
             if let error = firstError, completedCount == failedCount {
-                self.error = error
-                statusMessage = "Error: \(error.localizedDescription)"
+                let displayError = ImportError.analysisFailed(Self.safeAnalysisFailureMessage(for: error))
+                self.error = displayError
+                statusMessage = "Error: \(displayError.localizedDescription)"
                 AppLogger.error(AppLogger.importFlow, "Import failed for all files", error: error, context: [
                     "generation": myGeneration,
                     "sessionID": session.id.uuidString,
@@ -302,8 +374,9 @@ class VideoImportViewModel: ObservableObject {
                 ])
             } else {
                 session.isAnalyzed = true
-                if failedCount > 0 {
-                    statusMessage = "Import complete: \(session.clipCount) clips (\(failedCount) file\(failedCount == 1 ? "" : "s") skipped)"
+                let skippedCount = startingWarningCount + failedCount
+                if skippedCount > 0 {
+                    statusMessage = "Import complete: \(session.clipCount) clips (\(skippedCount) file\(skippedCount == 1 ? "" : "s") skipped)"
                 } else {
                     statusMessage = "Import complete: \(session.clipCount) clips"
                 }
@@ -312,6 +385,7 @@ class VideoImportViewModel: ObservableObject {
                     "sessionID": session.id.uuidString,
                     "clipCount": session.clipCount,
                     "failedCount": failedCount,
+                    "skippedCount": skippedCount,
                     "durationMs": AppLogger.durationMilliseconds(since: importStart)
                 ])
             }
@@ -364,6 +438,9 @@ class VideoImportViewModel: ObservableObject {
 
         let duration = try await asset.load(.duration)
         let totalDuration = CMTimeGetSeconds(duration)
+        guard totalDuration.isFinite, totalDuration > 0 else {
+            throw SceneDetectorError.invalidDuration
+        }
 
         // Per-video detector instances — no shared actor contention
         let sceneDetector = SceneDetector()
@@ -454,7 +531,7 @@ class VideoImportViewModel: ObservableObject {
 
     /// Minimum clip duration after splitting (seconds)
     /// Prevents micro-clips that have no editing value
-    private static let minimumClipDuration: Double = 0.5
+    nonisolated private static let minimumClipDuration: Double = 0.5
 
     /// Refine long clips by splitting them — pure input/output, no session interaction
     nonisolated private static func refineLongClips(
@@ -549,6 +626,7 @@ class VideoImportViewModel: ObservableObject {
         isImporting = true
         error = nil
         importWarnings = []
+        importWarningTotalCount = 0
         statusMessage = "Importing videos..."
 
         await sharedSceneDetector.setSensitivity(
@@ -732,6 +810,27 @@ class VideoImportViewModel: ObservableObject {
             throw ImportError.unsupportedFormat(ext)
         }
     }
+
+    private nonisolated static func safeAnalysisFailureMessage(for error: Error) -> String {
+        if let sceneError = error as? SceneDetectorError {
+            return sceneError.localizedDescription
+        }
+        if let importError = error as? ImportError {
+            switch importError {
+            case .analysisFailed:
+                return "No clips could be created from the selected videos."
+            default:
+                return importError.localizedDescription
+            }
+        }
+        return "No clips could be created from the selected videos."
+    }
+
+    private nonisolated static func isUserCancelledFileSelection(_ error: Error) -> Bool {
+        let nsError = error as NSError
+        return nsError.domain == NSCocoaErrorDomain
+            && nsError.code == CocoaError.Code.userCancelled.rawValue
+    }
 }
 
 // MARK: - Errors
@@ -740,6 +839,9 @@ enum ImportError: LocalizedError {
     case fileNotFound(URL)
     case unsupportedFormat(String)
     case unsupportedFiles([String])
+    case inaccessibleSources([FileAccessIssue], totalCount: Int)
+    case droppedItemsUnreadable(Int)
+    case fileSelectionFailed
     case noSupportedVideos
     case invalidVideo
     case analysisFailed(String)
@@ -762,6 +864,22 @@ enum ImportError: LocalizedError {
                 return "Unsupported file format."
             }
             return "Unsupported file format: \(displayNames.joined(separator: ", "))"
+        case .inaccessibleSources(let issues, let totalCount):
+            let displayCount = max(totalCount, issues.count)
+            guard let firstIssue = issues.first else {
+                return displayCount > 0
+                    ? "Cannot access \(displayCount) sources. Check file permissions or reconnect the volume."
+                    : "Some sources could not be accessed."
+            }
+            if displayCount == 1 {
+                return "Cannot access \"\(firstIssue.title)\". \(firstIssue.message)"
+            }
+            return "Cannot access \(displayCount) sources. Check file permissions or reconnect the volume."
+        case .droppedItemsUnreadable(let count):
+            let displayCount = max(1, count)
+            return "Could not read \(displayCount) dropped item\(displayCount == 1 ? "" : "s"). Try dropping again or choose from the file picker."
+        case .fileSelectionFailed:
+            return "Could not open the selected files. Check permissions or choose them again."
         case .noSupportedVideos:
             return "No supported video files found."
         case .invalidVideo:

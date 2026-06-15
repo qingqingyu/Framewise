@@ -8,6 +8,27 @@
 import Foundation
 import AVFoundation
 
+struct RestoreReport {
+    let removedSourceCount: Int
+    let removedClipCount: Int
+    let issues: [FileAccessIssue]
+
+    var hasIssues: Bool {
+        !issues.isEmpty || removedSourceCount > 0 || removedClipCount > 0
+    }
+
+    var message: String {
+        guard hasIssues else { return "" }
+        let sourceText = "\(removedSourceCount) source\(removedSourceCount == 1 ? "" : "s")"
+        let clipText = "\(removedClipCount) clip\(removedClipCount == 1 ? "" : "s")"
+        let sampleNames = issues.map(\.title).prefix(2).joined(separator: ", ")
+        if sampleNames.isEmpty {
+            return "Removed \(sourceText) and \(clipText) that could not be restored."
+        }
+        return "Removed \(sourceText) and \(clipText): \(sampleNames). Reconnect the volume or choose the source again."
+    }
+}
+
 @MainActor
 class ImportSession: ObservableObject {
     let id = UUID()
@@ -213,7 +234,8 @@ class ImportSession: ObservableObject {
 
     // MARK: - Restore from persisted data
 
-    func restore(from data: SessionStore.SessionData) {
+    @discardableResult
+    func restore(from data: SessionStore.SessionData) -> RestoreReport {
         sourceFiles = data.sourceFiles
         allClips = data.allClips
         isAnalyzed = data.isAnalyzed
@@ -231,17 +253,21 @@ class ImportSession: ObservableObject {
 
         let fm = FileManager.default
         var removedAny = false
+        var restoreIssues: [FileAccessIssue] = []
 
         // Build set of source files that still exist AND haven't been replaced
         let validSourceURLs: Set<URL> = Set(sourceFiles.filter { url in
-            guard fm.fileExists(atPath: url.path) else { return false }
-            // Check if file content changed since last save
-            if let savedMeta = data.sourceFileMetadata[url] {
-                return Self.isFileUnchanged(url: url, savedMeta: savedMeta, fm: fm)
+            switch Self.restoreValidationIssue(for: url, savedMeta: data.sourceFileMetadata[url], fm: fm) {
+            case .none:
+                return true
+            case .some(let issue):
+                restoreIssues.append(issue)
+                return false
             }
-            // No metadata saved (legacy session) — accept as-is
-            return true
         })
+
+        let originalSourceCount = sourceFiles.count
+        let originalClipCount = allClips.count
 
         if validSourceURLs.count < sourceFiles.count {
             sourceFiles.removeAll { !validSourceURLs.contains($0) }
@@ -268,10 +294,42 @@ class ImportSession: ObservableObject {
                 }
             }
         }
+
+        let report = RestoreReport(
+            removedSourceCount: originalSourceCount - sourceFiles.count,
+            removedClipCount: originalClipCount - allClips.count,
+            issues: restoreIssues
+        )
+        if report.hasIssues {
+            AppLogger.warning(AppLogger.persistence, "Restored session removed unavailable sources", context: [
+                "removedSourceCount": report.removedSourceCount,
+                "removedClipCount": report.removedClipCount,
+                "issueCount": report.issues.count
+            ])
+        }
+        return report
     }
 
     /// Compare file mtime and size against saved metadata
-    private static func isFileUnchanged(url: URL, savedMeta: SessionStore.FileMetadata, fm: FileManager) -> Bool {
+    private static func restoreValidationIssue(for url: URL, savedMeta: SessionStore.FileMetadata?, fm: FileManager) -> FileAccessIssue? {
+        guard fm.fileExists(atPath: url.path) else {
+            AppLogger.warning(AppLogger.persistence, "Restored source file is missing", context: [
+                "sourceURL": AppLogger.fileReference(url)
+            ])
+            return FileAccessIssue(url: url, kind: .missing)
+        }
+
+        guard fm.isReadableFile(atPath: url.path) else {
+            AppLogger.warning(AppLogger.persistence, "Restored source file is not readable", context: [
+                "sourceURL": AppLogger.fileReference(url)
+            ])
+            return FileAccessIssue(url: url, kind: .unreadable)
+        }
+
+        guard let savedMeta else {
+            return nil
+        }
+
         let attrs: [FileAttributeKey: Any]
         do {
             attrs = try fm.attributesOfItem(atPath: url.path)
@@ -279,7 +337,7 @@ class ImportSession: ObservableObject {
             AppLogger.error(AppLogger.persistence, "Failed to inspect restored source file", error: error, context: [
                 "sourceURL": AppLogger.fileReference(url)
             ])
-            return false
+            return FileAccessIssue(url: url, kind: .metadataReadFailed)
         }
 
         guard let mtime = attrs[.modificationDate] as? Date,
@@ -287,10 +345,11 @@ class ImportSession: ObservableObject {
             AppLogger.warning(AppLogger.persistence, "Restored source file metadata missing expected fields", context: [
                 "sourceURL": AppLogger.fileReference(url)
             ])
-            return false
+            return FileAccessIssue(url: url, kind: .metadataReadFailed)
         }
         // Allow 2-second mtime tolerance (filesystem granularity)
-        return abs(mtime.timeIntervalSince1970 - savedMeta.modificationDate) < 2.0
+        let unchanged = abs(mtime.timeIntervalSince1970 - savedMeta.modificationDate) < 2.0
             && size == savedMeta.fileSize
+        return unchanged ? nil : FileAccessIssue(url: url, kind: .changed)
     }
 }

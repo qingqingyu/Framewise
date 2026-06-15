@@ -86,7 +86,15 @@ struct DropZoneView: View {
                 }
             }
 
-            if importViewModel.isImporting {
+            if importViewModel.isResolvingSources {
+                FramwiseStatePanel(
+                    state: .loading,
+                    title: "Reading sources",
+                    message: "Scanning selected files and folders before import.",
+                    compact: true
+                )
+                .frame(maxWidth: 460)
+            } else if importViewModel.isImporting {
                 VStack(spacing: 14) {
                     if importViewModel.totalFilesCount > 1 {
                         VStack(spacing: 6) {
@@ -139,19 +147,21 @@ struct DropZoneView: View {
                 .framwisePanel(background: FramwiseTheme.surface, radius: 20)
             }
 
-            if let error = importViewModel.error {
-                FramwiseStatePanel(
-                    state: .error,
-                    title: "Import failed",
-                    message: error.localizedDescription,
-                    compact: true
-                )
-                .frame(maxWidth: 460)
-            } else if !importViewModel.importWarnings.isEmpty {
-                VStack(spacing: 8) {
+            VStack(spacing: 8) {
+                if let error = importViewModel.error {
                     FramwiseStatePanel(
                         state: .error,
-                        title: "\(importViewModel.importWarnings.count) file\(importViewModel.importWarnings.count == 1 ? "" : "s") skipped",
+                        title: "Import failed",
+                        message: error.localizedDescription,
+                        compact: true
+                    )
+                    .frame(maxWidth: 460)
+                }
+
+                if !importViewModel.importWarnings.isEmpty {
+                    FramwiseStatePanel(
+                        state: .error,
+                        title: "\(importViewModel.importWarningDisplayCount) file\(importViewModel.importWarningDisplayCount == 1 ? "" : "s") skipped",
                         message: importViewModel.importWarnings.map { "\($0.title): \($0.message)" }.prefix(2).joined(separator: "\n"),
                         systemImage: "exclamationmark.triangle.fill",
                         compact: true
@@ -193,67 +203,33 @@ struct DropZoneView: View {
 
     private func handleDrop(providers: [NSItemProvider]) {
         Task {
-            var droppedURLs: [URL] = []
-            var providerErrors: [Error] = []
-            for provider in providers {
-                let result: Result<URL?, Error> = await withCheckedContinuation { continuation in
-                    _ = provider.loadObject(ofClass: URL.self) { url, error in
-                        if let error {
-                            continuation.resume(returning: .failure(error))
-                        } else {
-                            continuation.resume(returning: .success(url))
-                        }
-                    }
-                }
-                switch result {
-                case .success(let url):
-                    if let url { droppedURLs.append(url) }
-                case .failure(let error):
-                    providerErrors.append(error)
-                    AppLogger.error(AppLogger.fileResolution, "Drop provider failed to load URL", error: error, context: [
-                        "surface": "dropzone"
-                    ])
-                }
-            }
-            if droppedURLs.isEmpty, let firstError = providerErrors.first {
-                importViewModel.error = firstError
+            let resolution = await DropProviderResolver.resolveURLs(from: providers, surface: "dropzone")
+            if resolution.urls.isEmpty, let error = resolution.allProvidersFailedError {
+                importViewModel.importWarnings = resolution.warnings
+                importViewModel.importWarningTotalCount = resolution.errors.count
+                importViewModel.error = error
                 return
             }
-            let (videoURLs, unsupported) = FileResolver.resolveVideoURLs(from: droppedURLs)
-            if !videoURLs.isEmpty {
-                importFiles(urls: videoURLs)
-            } else if !unsupported.isEmpty {
-                importViewModel.error = ImportError.unsupportedFiles(unsupported)
-            } else {
-                importViewModel.error = ImportError.noSupportedVideos
-            }
+            appState.importResolvedURLs(
+                resolution.urls,
+                into: importViewModel,
+                preflightWarnings: resolution.warnings
+            )
         }
     }
 
     private func handleFileImport(result: Result<[URL], Error>) {
         switch result {
         case .success(let urls):
-            let (videoURLs, unsupported) = FileResolver.resolveVideoURLs(from: urls)
-            if !videoURLs.isEmpty {
-                importFiles(urls: videoURLs)
-            } else if !unsupported.isEmpty {
-                importViewModel.error = ImportError.unsupportedFiles(unsupported)
-            } else {
-                importViewModel.error = ImportError.noSupportedVideos
-            }
+            appState.importResolvedURLs(urls, into: importViewModel)
         case .failure(let error):
-            importViewModel.error = error
+            guard importViewModel.recordFileSelectionFailure(error) else { return }
             AppLogger.error(AppLogger.importFlow, "File importer failed", error: error, context: [
                 "surface": "dropzone"
             ])
         }
     }
 
-    private func importFiles(urls: [URL]) {
-        guard !urls.isEmpty else { return }
-        appState.ensureSession()
-        importViewModel.importVideosStreaming(from: urls, into: appState.importSession!)
-    }
 }
 
 #Preview {

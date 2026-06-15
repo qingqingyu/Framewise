@@ -11,7 +11,7 @@ import CoreImage
 
 // MARK: - CMTime Codable
 
-extension CMTime: Codable {
+extension CMTime: @retroactive Codable {
     private enum CodingKeys: String, CodingKey {
         case value, timescale, flags, epoch
     }

@@ -39,8 +39,8 @@ actor SceneDetector {
         let duration = try await asset.load(.duration)
         let durationSeconds = CMTimeGetSeconds(duration)
 
-        guard durationSeconds > 0 else {
-            return []
+        guard durationSeconds.isFinite, durationSeconds > 0 else {
+            throw SceneDetectorError.invalidDuration
         }
 
         // 获取视频轨道
@@ -62,6 +62,7 @@ actor SceneDetector {
 
         var sceneChanges: [CMTime] = []
         var previousHistogram: [Double]?
+        var decodedFrameCount = 0
 
         var currentTime = 0.0
         var lastSceneTime = 0.0
@@ -72,6 +73,7 @@ actor SceneDetector {
             do {
                 let (image, _) = try await generator.image(at: time)
                 let histogram = try computeHistogram(from: image)
+                decodedFrameCount += 1
 
                 if let prevHist = previousHistogram {
                     let difference = histogramDifference(histogram, prevHist)
@@ -95,6 +97,8 @@ actor SceneDetector {
             currentTime += sampleInterval
         }
 
+        try Self.requireDecodableFrames(decodedFrameCount)
+
         // 起点 + 结束点
         return [CMTime.zero] + sceneChanges + [duration]
     }
@@ -112,10 +116,8 @@ actor SceneDetector {
                     let duration = try await asset.load(.duration)
                     let durationSeconds = CMTimeGetSeconds(duration)
 
-                    guard durationSeconds > 0 else {
-                        continuation.yield(.completed([]))
-                        continuation.finish()
-                        return
+                    guard durationSeconds.isFinite, durationSeconds > 0 else {
+                        throw SceneDetectorError.invalidDuration
                     }
 
                     guard let videoTrack = try await asset.loadTracks(withMediaType: .video).first else {
@@ -179,6 +181,7 @@ actor SceneDetector {
     ) async throws -> [CMTime] {
         var sceneChanges: [CMTime] = []
         var previousHistogram: [Double]?
+        var decodedFrameCount = 0
         var currentTime = 0.0
         var lastSceneTime = 0.0
 
@@ -189,6 +192,7 @@ actor SceneDetector {
             do {
                 let (image, _) = try await generator.image(at: time)
                 let histogram = try computeHistogram(from: image)
+                decodedFrameCount += 1
 
                 if let prevHist = previousHistogram {
                     let difference = histogramDifference(histogram, prevHist)
@@ -203,12 +207,13 @@ actor SceneDetector {
                 AppLogger.error(AppLogger.importFlow, "Single-pass scene detection skipped frame", error: error, context: [
                     "time": currentTime
                 ])
-                continuation.yield(.frameSkipped(time: currentTime, reason: error.localizedDescription))
+                continuation.yield(.frameSkipped(time: currentTime, reason: Self.publicFrameSkipReason(for: error)))
             }
 
             continuation.yield(.progress(currentTime / durationSeconds))
             currentTime += sampleInterval
         }
+        try Self.requireDecodableFrames(decodedFrameCount)
         return sceneChanges
     }
 
@@ -229,6 +234,7 @@ actor SceneDetector {
         let coarseThreshold = sensitivity * 0.7
         var candidateRegions: [Double] = []
         var prevHistogram: [Double]?
+        var decodedFrameCount = 0
         var t = 0.0
         var lastCandidateTime = 0.0
 
@@ -239,6 +245,7 @@ actor SceneDetector {
             do {
                 let (image, _) = try await generator.image(at: time)
                 let histogram = try computeHistogram(from: image)
+                decodedFrameCount += 1
 
                 if let prev = prevHistogram {
                     let diff = histogramDifference(histogram, prev)
@@ -252,7 +259,7 @@ actor SceneDetector {
                 AppLogger.error(AppLogger.importFlow, "Coarse scene detection skipped frame", error: error, context: [
                     "time": t
                 ])
-                continuation.yield(.frameSkipped(time: t, reason: error.localizedDescription))
+                continuation.yield(.frameSkipped(time: t, reason: Self.publicFrameSkipReason(for: error)))
             }
 
             continuation.yield(.progress(t / durationSeconds * 0.5))
@@ -280,6 +287,7 @@ actor SceneDetector {
                 do {
                     let (img, _) = try await generator.image(at: baseTime)
                     let hist = try computeHistogram(from: img)
+                    decodedFrameCount += 1
                     finePrevHistogram = hist
                 } catch {
                     AppLogger.error(AppLogger.importFlow, "Fine scene detection baseline failed", error: error, context: [
@@ -296,6 +304,7 @@ actor SceneDetector {
                 do {
                     let (image, _) = try await generator.image(at: time)
                     let histogram = try computeHistogram(from: image)
+                    decodedFrameCount += 1
 
                     if let prev = finePrevHistogram {
                         let diff = histogramDifference(histogram, prev)
@@ -310,7 +319,7 @@ actor SceneDetector {
                     AppLogger.error(AppLogger.importFlow, "Fine scene detection skipped frame", error: error, context: [
                         "time": ft
                     ])
-                    continuation.yield(.frameSkipped(time: ft, reason: error.localizedDescription))
+                    continuation.yield(.frameSkipped(time: ft, reason: Self.publicFrameSkipReason(for: error)))
                 }
 
                 fineTimeDone += fineInterval
@@ -320,7 +329,21 @@ actor SceneDetector {
             }
         }
 
+        try Self.requireDecodableFrames(decodedFrameCount)
         return sceneChanges
+    }
+
+    nonisolated static func requireDecodableFrames(_ decodedFrameCount: Int) throws {
+        guard decodedFrameCount > 0 else {
+            throw SceneDetectorError.noDecodableFrames
+        }
+    }
+
+    nonisolated static func publicFrameSkipReason(for error: Error) -> String {
+        if let sceneError = error as? SceneDetectorError {
+            return sceneError.localizedDescription
+        }
+        return "Frame could not be decoded (\(AppLogger.publicErrorSummary(error)))"
     }
 
     /// Merge overlapping (start, end) intervals and clamp to the given range.
@@ -414,19 +437,25 @@ actor SceneDetector {
 
 // MARK: - Errors
 
-enum SceneDetectorError: LocalizedError {
+enum SceneDetectorError: LocalizedError, Equatable {
     case noVideoTrack
+    case invalidDuration
     case histogramError
     case frameExtractionFailed
+    case noDecodableFrames
 
     var errorDescription: String? {
         switch self {
         case .noVideoTrack:
             return "No video track found"
+        case .invalidDuration:
+            return "Invalid or empty video duration"
         case .histogramError:
             return "Failed to compute image histogram"
         case .frameExtractionFailed:
             return "Failed to extract video frame"
+        case .noDecodableFrames:
+            return "No decodable video frames found"
         }
     }
 }

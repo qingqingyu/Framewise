@@ -11,6 +11,103 @@ import CoreImage
 import SwiftUI
 import CryptoKit
 
+private final class ThumbnailBatchExtractionController: @unchecked Sendable {
+    private let lock = NSLock()
+    private var continuation: CheckedContinuation<[Int: CGImage], Error>?
+    private var requestedIndicesByToken: [String: [Int]]
+    private var collected: [Int: CGImage] = [:]
+    private var remaining: Int
+    private var firstError: Error?
+    private var isCancelled = false
+
+    init(requestedIndicesByToken: [String: [Int]], remaining: Int) {
+        self.requestedIndicesByToken = requestedIndicesByToken
+        self.remaining = remaining
+    }
+
+    func start(_ continuation: CheckedContinuation<[Int: CGImage], Error>) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+
+        guard !isCancelled else {
+            continuation.resume(throwing: CancellationError())
+            return false
+        }
+
+        guard remaining > 0 else {
+            continuation.resume(returning: [:])
+            return false
+        }
+
+        self.continuation = continuation
+        return true
+    }
+
+    func cancel() {
+        let continuationToResume: CheckedContinuation<[Int: CGImage], Error>?
+
+        lock.lock()
+        isCancelled = true
+        continuationToResume = continuation
+        continuation = nil
+        lock.unlock()
+
+        continuationToResume?.resume(throwing: CancellationError())
+    }
+
+    func recordFrame(
+        requestedToken: String,
+        image: CGImage?,
+        error: Error?
+    ) {
+        let continuationToResume: CheckedContinuation<[Int: CGImage], Error>?
+        let resultToResume: Result<[Int: CGImage], Error>?
+
+        lock.lock()
+        guard let activeContinuation = continuation else {
+            lock.unlock()
+            return
+        }
+
+        guard var indices = requestedIndicesByToken[requestedToken], let matchIndex = indices.first else {
+            lock.unlock()
+            return
+        }
+
+        if let image {
+            collected[matchIndex] = image
+        } else if firstError == nil {
+            firstError = error
+        }
+
+        indices.removeFirst()
+        if indices.isEmpty {
+            requestedIndicesByToken.removeValue(forKey: requestedToken)
+        } else {
+            requestedIndicesByToken[requestedToken] = indices
+        }
+
+        remaining -= 1
+        if remaining == 0 {
+            continuation = nil
+            continuationToResume = activeContinuation
+            if collected.isEmpty, let firstError {
+                resultToResume = .failure(firstError)
+            } else {
+                resultToResume = .success(collected)
+            }
+        } else {
+            continuationToResume = nil
+            resultToResume = nil
+        }
+        lock.unlock()
+
+        if let continuationToResume, let resultToResume {
+            continuationToResume.resume(with: resultToResume)
+        }
+    }
+}
+
 actor ThumbnailGenerator {
     // Shared instance for app-wide use
     static let shared = ThumbnailGenerator()
@@ -20,6 +117,7 @@ actor ThumbnailGenerator {
     private var cache: NSCache<NSString, CGImage> = {
         let cache = NSCache<NSString, CGImage>()
         cache.countLimit = 500
+        cache.totalCostLimit = 96 * 1024 * 1024
         return cache
     }()
 
@@ -62,18 +160,26 @@ actor ThumbnailGenerator {
         return "\(url.path)_\(token)_\(width)x\(height)" as NSString
     }
 
-    func timeCacheToken(for time: CMTime) -> String {
+    private func storeInMemoryCache(_ image: CGImage, forKey key: NSString) {
+        cache.setObject(image, forKey: key, cost: estimatedMemoryCost(for: image))
+    }
+
+    private func estimatedMemoryCost(for image: CGImage) -> Int {
+        max(1, image.bytesPerRow * image.height)
+    }
+
+    nonisolated func timeCacheToken(for time: CMTime) -> String {
         "\(time.value)_\(time.timescale)_\(time.epoch)"
     }
 
-    func diskCacheFileName(for time: CMTime, targetSize: CGSize) -> String {
+    nonisolated func diskCacheFileName(for time: CMTime, targetSize: CGSize) -> String {
         let token = timeCacheToken(for: time)
         let width = Int(targetSize.width.rounded())
         let height = Int(targetSize.height.rounded())
         return "frame_\(token)_\(width)x\(height).png"
     }
 
-    func legacyRoundedTimeStamp(for time: CMTime) -> String? {
+    nonisolated func legacyRoundedTimeStamp(for time: CMTime) -> String? {
         let seconds = CMTimeGetSeconds(time)
         let milliseconds = seconds * 1000
         let roundedMilliseconds = milliseconds.rounded()
@@ -96,7 +202,7 @@ actor ThumbnailGenerator {
 
         // Layer 2: Disk cache
         if let diskImage = readFromDisk(url: url, time: time, targetSize: targetSize) {
-            cache.setObject(diskImage, forKey: key)
+            storeInMemoryCache(diskImage, forKey: key)
             return diskImage
         }
 
@@ -107,7 +213,7 @@ actor ThumbnailGenerator {
         let scaledImage = try scaleImage(image, to: targetSize)
 
         // Save to both caches
-        cache.setObject(scaledImage, forKey: key)
+        storeInMemoryCache(scaledImage, forKey: key)
         saveToDisk(scaledImage, url: url, time: time, targetSize: targetSize)
 
         return scaledImage
@@ -119,7 +225,13 @@ actor ThumbnailGenerator {
         count: Int = 5,
         targetSize: CGSize = CGSize(width: 200, height: 150)
     ) async throws -> [CGImage] {
+        guard count > 0 else { return [] }
+
         let duration = clip.duration
+        guard duration.isFinite, duration >= 0 else {
+            throw ThumbnailError.frameExtractionFailed
+        }
+
         let interval = duration / Double(count + 1)
         let times = (1...count).map { i in
             CMTimeAdd(clip.timecodeStart, CMTime(seconds: Double(i) * interval, preferredTimescale: 600))
@@ -128,6 +240,10 @@ actor ThumbnailGenerator {
         do {
             return try await generateImagesBatch(for: clip.sourceFileURL, times: times, targetSize: targetSize)
         } catch {
+            if error is CancellationError || Task.isCancelled {
+                throw error
+            }
+
             // Fallback: try first frame only, return empty if that also fails
             AppLogger.error(AppLogger.thumbnails, "Animated thumbnail batch failed", error: error, context: [
                 "clipID": clip.id.uuidString,
@@ -166,13 +282,18 @@ actor ThumbnailGenerator {
             generators.removeValue(forKey: lru)
             generatorOrder.removeFirst()
         }
+        let gen = makeImageGenerator(for: url)
+        generators[url] = gen
+        generatorOrder.append(url)
+        return gen
+    }
+
+    private func makeImageGenerator(for url: URL) -> AVAssetImageGenerator {
         let asset = AVAsset(url: url)
         let gen = AVAssetImageGenerator(asset: asset)
         gen.appliesPreferredTrackTransform = true
         gen.requestedTimeToleranceBefore = CMTime(seconds: 0.1, preferredTimescale: 600)
         gen.requestedTimeToleranceAfter = CMTime(seconds: 0.1, preferredTimescale: 600)
-        generators[url] = gen
-        generatorOrder.append(url)
         return gen
     }
 
@@ -183,7 +304,8 @@ actor ThumbnailGenerator {
         times: [CMTime],
         targetSize: CGSize
     ) async throws -> [CGImage] {
-        let generator = getOrCreateGenerator(for: url)
+        // Batch requests need their own generator because cancellation is generator-wide.
+        let generator = makeImageGenerator(for: url)
 
         // Check which frames are already cached (memory + disk)
         var results: [Int: CGImage] = [:]
@@ -194,7 +316,7 @@ actor ThumbnailGenerator {
             if let cached = cache.object(forKey: key) {
                 results[i] = cached
             } else if let diskImage = readFromDisk(url: url, time: time, targetSize: targetSize) {
-                cache.setObject(diskImage, forKey: key)
+                storeInMemoryCache(diskImage, forKey: key)
                 results[i] = diskImage
             } else {
                 uncachedIndices.append((index: i, time: NSValue(time: time)))
@@ -212,48 +334,39 @@ actor ThumbnailGenerator {
             requestedIndicesByToken[timeCacheToken(for: entry.time.timeValue), default: []].append(entry.index)
         }
 
-        let batchImages: [Int: CGImage] = try await withCheckedThrowingContinuation {
-            (continuation: CheckedContinuation<[Int: CGImage], Error>) in
-            var collected: [Int: CGImage] = [:]
-            let totalCount = uncachedIndices.count
-            var remaining = totalCount
-            var firstError: Error?
-            var resumed = false
+        let batchController = ThumbnailBatchExtractionController(
+            requestedIndicesByToken: requestedIndicesByToken,
+            remaining: uncachedIndices.count
+        )
+        let requestedTimes = uncachedIndices.map { $0.time }
+        let requestedFrameCount = requestedTimes.count
 
-            generator.generateCGImagesAsynchronously(
-                forTimes: uncachedIndices.map { $0.time }
-            ) { requestedTime, image, _, resultInfo, error in
-                // Guard against double-resume (corrupt files can produce duplicate callbacks)
-                guard !resumed else { return }
+        let batchImages: [Int: CGImage] = try await withTaskCancellationHandler {
+            try Task.checkCancellation()
+            return try await withCheckedThrowingContinuation {
+                (continuation: CheckedContinuation<[Int: CGImage], Error>) in
+                guard batchController.start(continuation) else { return }
 
-                if let image = image {
-                    // Match by requestedTime — AVFoundation does not guarantee callback order
-                    let token = self.timeCacheToken(for: requestedTime)
-                    if var indices = requestedIndicesByToken[token], let matchIndex = indices.first {
-                        collected[matchIndex] = image
-                        indices.removeFirst()
-                        requestedIndicesByToken[token] = indices
-                    }
-                } else {
-                    if firstError == nil {
-                        firstError = error ?? NSError(
-                            domain: AVFoundationErrorDomain,
-                            code: -1,
-                            userInfo: [NSLocalizedDescriptionKey: "Failed to extract frame at \(CMTimeGetSeconds(requestedTime))s"]
-                        )
-                    }
-                }
-
-                remaining -= 1
-                if remaining == 0 {
-                    resumed = true
-                    if collected.isEmpty, let error = firstError {
-                        continuation.resume(throwing: error)
-                    } else {
-                        continuation.resume(returning: collected)
-                    }
+                generator.generateCGImagesAsynchronously(forTimes: requestedTimes) { requestedTime, image, _, _, error in
+                    let resolvedError = error ?? NSError(
+                        domain: AVFoundationErrorDomain,
+                        code: -1,
+                        userInfo: [NSLocalizedDescriptionKey: "Failed to extract frame at \(CMTimeGetSeconds(requestedTime))s"]
+                    )
+                    batchController.recordFrame(
+                        requestedToken: self.timeCacheToken(for: requestedTime),
+                        image: image,
+                        error: image == nil ? resolvedError : nil
+                    )
                 }
             }
+        } onCancel: {
+            generator.cancelAllCGImageGeneration()
+            batchController.cancel()
+            AppLogger.info(AppLogger.thumbnails, "Cancelled thumbnail batch generation", context: [
+                "sourceURL": AppLogger.fileReference(url),
+                "requestedFrameCount": requestedFrameCount
+            ])
         }
 
         // Scale, cache, and merge results
@@ -262,7 +375,7 @@ actor ThumbnailGenerator {
                 let scaled = try scaleImage(rawImage, to: targetSize)
                 let time = times[index]
                 let key = cacheKey(for: url, time: time, targetSize: targetSize)
-                cache.setObject(scaled, forKey: key)
+                storeInMemoryCache(scaled, forKey: key)
                 saveToDisk(scaled, url: url, time: time, targetSize: targetSize)
                 results[index] = scaled
             } catch {

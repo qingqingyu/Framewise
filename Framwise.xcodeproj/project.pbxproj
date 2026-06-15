@@ -48,7 +48,9 @@
 		F2BB00000000000000000001 /* TimelineViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2AA00000000000000000001 /* TimelineViews.swift */; };
 		F2BB00000000000000000002 /* ClipPreviewModal.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2AA00000000000000000002 /* ClipPreviewModal.swift */; };
 		F2BB00000000000000000003 /* ClipDropDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2AA00000000000000000003 /* ClipDropDelegate.swift */; };
+		F2BB00000000000000000004 /* DropProviderResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2AA00000000000000000004 /* DropProviderResolver.swift */; };
 		F3BB00000000000000000001 /* AppLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3AA00000000000000000001 /* AppLogger.swift */; };
+		FA000000000000000000A001 /* FileAccessIssue.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA000000000000000000A002 /* FileAccessIssue.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -77,6 +79,7 @@
 		F2AA00000000000000000001 /* TimelineViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineViews.swift; sourceTree = "<group>"; };
 		F2AA00000000000000000002 /* ClipPreviewModal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipPreviewModal.swift; sourceTree = "<group>"; };
 		F2AA00000000000000000003 /* ClipDropDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipDropDelegate.swift; sourceTree = "<group>"; };
+		F2AA00000000000000000004 /* DropProviderResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DropProviderResolver.swift; sourceTree = "<group>"; };
 		F1AA00000000000000000001 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
 		F1AA00000000000000000002 /* ExportSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportSheetView.swift; sourceTree = "<group>"; };
 		F1AA00000000000000000003 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
@@ -105,6 +108,7 @@
 		CD2A3B4C5D6E7F8901230004 /* SimilarityDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimilarityDetector.swift; sourceTree = "<group>"; };
 		FR000001000000000000A002 /* FileResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileResolver.swift; sourceTree = "<group>"; };
 		F3AA00000000000000000001 /* AppLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLogger.swift; sourceTree = "<group>"; };
+		FA000000000000000000A002 /* FileAccessIssue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileAccessIssue.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -173,6 +177,7 @@
 				B1000002,
 				B1000003,
 				CE0A4EDE9A1EA5BB62085D5B /* ClipTag.swift */,
+				FA000000000000000000A002 /* FileAccessIssue.swift */,
 				CD2A3B4C5D6E7F8901230002 /* SimilarityGroup.swift */,
 			);
 			path = Models;
@@ -202,6 +207,7 @@
 				F2AA00000000000000000001 /* TimelineViews.swift */,
 				F2AA00000000000000000002 /* ClipPreviewModal.swift */,
 				F2AA00000000000000000003 /* ClipDropDelegate.swift */,
+				F2AA00000000000000000004 /* DropProviderResolver.swift */,
 				B1000010,
 				B1000017,
 				506A4184A4530FAFF2D72E23 /* TagCreateView.swift */,
@@ -377,6 +383,7 @@
 				F2BB00000000000000000001 /* TimelineViews.swift in Sources */,
 				F2BB00000000000000000002 /* ClipPreviewModal.swift in Sources */,
 				F2BB00000000000000000003 /* ClipDropDelegate.swift in Sources */,
+				F2BB00000000000000000004 /* DropProviderResolver.swift in Sources */,
 				A1000010,
 				A1000011,
 				A1000012,
@@ -393,6 +400,7 @@
 				CD2A3B4C5D6E7F8901230003 /* SimilarityDetector.swift in Sources */,
 				FR000001000000000000A001 /* FileResolver.swift in Sources */,
 				F3BB00000000000000000001 /* AppLogger.swift in Sources */,
+				FA000000000000000000A001 /* FileAccessIssue.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

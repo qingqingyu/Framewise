@@ -22,15 +22,18 @@ struct SidebarView: View {
                 workspaceHeader
 
                 if let session = appState.importSession {
-                    if importViewModel.isImporting {
+                    if importViewModel.isResolvingSources || importViewModel.isImporting {
                         FramwiseStatePanel(
                             state: .loading,
-                            title: "Building workspace",
+                            title: importViewModel.isResolvingSources ? "Reading sources" : "Building workspace",
                             message: importViewModel.statusMessage.isEmpty ? "Analyzing footage and preparing clip inventory." : importViewModel.statusMessage,
                             compact: true
                         )
                     }
                     sourceFilesSection(session)
+                    if let report = appState.restoreReport {
+                        restoreWarningView(report)
+                    }
                     tagsSection(session)
                     statisticsSection(session)
                     dropZone
@@ -38,7 +41,10 @@ struct SidebarView: View {
                         importErrorView(error)
                     }
                     if !importViewModel.importWarnings.isEmpty {
-                        importWarningsView(importViewModel.importWarnings)
+                        importWarningsView(
+                            importViewModel.importWarnings,
+                            totalCount: importViewModel.importWarningDisplayCount
+                        )
                     }
                     if let error = appState.persistenceError {
                         persistenceErrorView(error)
@@ -96,9 +102,9 @@ struct SidebarView: View {
 
                 if session.sourceFiles.isEmpty {
                     FramwiseStatePanel(
-                        state: importViewModel.isImporting ? .loading : .empty,
-                        title: importViewModel.isImporting ? "Reading sources" : "No sources yet",
-                        message: importViewModel.isImporting ? "Files are being added to the workspace." : "Imported reels will appear here.",
+                        state: (importViewModel.isResolvingSources || importViewModel.isImporting) ? .loading : .empty,
+                        title: (importViewModel.isResolvingSources || importViewModel.isImporting) ? "Reading sources" : "No sources yet",
+                        message: (importViewModel.isResolvingSources || importViewModel.isImporting) ? "Files are being added to the workspace." : "Imported reels will appear here.",
                         systemImage: "folder",
                         compact: true
                     )
@@ -249,12 +255,22 @@ struct SidebarView: View {
         )
     }
 
-    private func importWarningsView(_ warnings: [ImportWarning]) -> some View {
+    private func importWarningsView(_ warnings: [ImportWarning], totalCount: Int) -> some View {
         FramwiseStatePanel(
             state: .error,
-            title: "\(warnings.count) file\(warnings.count == 1 ? "" : "s") skipped",
+            title: "\(totalCount) file\(totalCount == 1 ? "" : "s") skipped",
             message: warnings.map { "\($0.title): \($0.message)" }.prefix(3).joined(separator: "\n"),
             systemImage: "exclamationmark.triangle.fill",
+            compact: true
+        )
+    }
+
+    private func restoreWarningView(_ report: RestoreReport) -> some View {
+        FramwiseStatePanel(
+            state: .error,
+            title: "Some restored sources were unavailable",
+            message: report.message,
+            systemImage: "externaldrive.badge.exclamationmark",
             compact: true
         )
     }
@@ -370,47 +386,19 @@ struct SidebarView: View {
 
     private func handleDrop(providers: [NSItemProvider]) {
         Task {
-            var droppedURLs: [URL] = []
-            var providerErrors: [Error] = []
-            for provider in providers {
-                let result: Result<URL?, Error> = await withCheckedContinuation { continuation in
-                    _ = provider.loadObject(ofClass: URL.self) { url, error in
-                        if let error {
-                            continuation.resume(returning: .failure(error))
-                        } else {
-                            continuation.resume(returning: .success(url))
-                        }
-                    }
-                }
-                switch result {
-                case .success(let url):
-                    if let url { droppedURLs.append(url) }
-                case .failure(let error):
-                    providerErrors.append(error)
-                    AppLogger.error(AppLogger.fileResolution, "Drop provider failed to load URL", error: error, context: [
-                        "surface": "sidebar"
-                    ])
-                }
-            }
-            if droppedURLs.isEmpty, let firstError = providerErrors.first {
-                importViewModel.error = firstError
+            let resolution = await DropProviderResolver.resolveURLs(from: providers, surface: "sidebar")
+            if resolution.urls.isEmpty, let error = resolution.allProvidersFailedError {
+                importViewModel.importWarnings = resolution.warnings
+                importViewModel.importWarningTotalCount = resolution.errors.count
+                importViewModel.error = error
                 return
             }
-            let (videoURLs, unsupported) = FileResolver.resolveVideoURLs(from: droppedURLs)
-            if !videoURLs.isEmpty {
-                importFilesFromURLs(videoURLs)
-            } else if !unsupported.isEmpty {
-                importViewModel.error = ImportError.unsupportedFiles(unsupported)
-            } else {
-                importViewModel.error = ImportError.noSupportedVideos
-            }
+            appState.importResolvedURLs(
+                resolution.urls,
+                into: importViewModel,
+                preflightWarnings: resolution.warnings
+            )
         }
-    }
-
-    private func importFilesFromURLs(_ urls: [URL]) {
-        guard !urls.isEmpty else { return }
-        appState.ensureSession()
-        importViewModel.importVideosStreaming(from: urls, into: appState.importSession!)
     }
 
     private func formatDuration(_ seconds: Double) -> String {

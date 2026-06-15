@@ -196,7 +196,161 @@ final class PreviewAndImportViewModelTests: XCTestCase {
         XCTAssertEqual(session.allClips.map(\.sourceFileURL), [successfulURL])
         XCTAssertTrue(viewModel.statusMessage.contains("skipped"))
         XCTAssertEqual(viewModel.importWarnings.count, 1)
+        XCTAssertEqual(viewModel.importWarningTotalCount, 1)
         XCTAssertEqual(viewModel.importWarnings.first?.sourceURL, failingURL)
+    }
+
+    func testImportVideosStreaming_countsPreflightWarningsInCompletionStatus() async throws {
+        let viewModel = VideoImportViewModel()
+        let session = ImportSession()
+        let successfulURL = try makeTemporaryVideoURL(named: "successful.mov")
+        let skippedURL = successfulURL.deletingLastPathComponent().appendingPathComponent("missing.mov")
+        let preflightWarning = ImportWarning(accessIssue: FileAccessIssue(url: skippedURL, kind: .missing))
+
+        viewModel.singleVideoAnalyzer = { url, _, _ in
+            let clip = VideoClip(
+                sourceFileURL: url,
+                timecodeStart: .zero,
+                timecodeEnd: CMTime(seconds: 1, preferredTimescale: 600)
+            )
+            return VideoImportResult(sourceURL: url, clips: [clip], wasteTypes: [:], similarityGroups: [])
+        }
+
+        viewModel.importVideosStreaming(
+            from: [successfulURL],
+            into: session,
+            preflightWarnings: [preflightWarning],
+            preflightWarningTotalCount: 60
+        )
+        try await waitForImportToFinish(viewModel)
+
+        XCTAssertEqual(viewModel.importWarnings.count, 1)
+        XCTAssertEqual(viewModel.importWarningDisplayCount, 60)
+        XCTAssertTrue(viewModel.statusMessage.contains("60 files skipped"))
+    }
+
+    func testImportVideosStreaming_clampsPreflightWarningTotalToDisplayedWarnings() async throws {
+        let viewModel = VideoImportViewModel()
+        let session = ImportSession()
+        let successfulURL = try makeTemporaryVideoURL(named: "successful.mov")
+        let warningURLs = (0..<2).map { index in
+            successfulURL.deletingLastPathComponent().appendingPathComponent("missing-\(index).mov")
+        }
+        let preflightWarnings = warningURLs.map {
+            ImportWarning(accessIssue: FileAccessIssue(url: $0, kind: .missing))
+        }
+
+        viewModel.singleVideoAnalyzer = { url, _, _ in
+            let clip = VideoClip(
+                sourceFileURL: url,
+                timecodeStart: .zero,
+                timecodeEnd: CMTime(seconds: 1, preferredTimescale: 600)
+            )
+            return VideoImportResult(sourceURL: url, clips: [clip], wasteTypes: [:], similarityGroups: [])
+        }
+
+        viewModel.importVideosStreaming(
+            from: [successfulURL],
+            into: session,
+            preflightWarnings: preflightWarnings,
+            preflightWarningTotalCount: 1
+        )
+        try await waitForImportToFinish(viewModel)
+
+        XCTAssertEqual(viewModel.importWarningTotalCount, 2)
+        XCTAssertTrue(viewModel.statusMessage.contains("2 files skipped"))
+    }
+
+    func testImportWarningDisplayCountReflectsManuallyRecordedProviderFailures() {
+        let viewModel = VideoImportViewModel()
+        viewModel.importWarnings = [
+            ImportWarning(title: "Dropped item", message: "Could not read one dropped item."),
+            ImportWarning(title: "Dropped item", message: "Could not read one dropped item.")
+        ]
+        viewModel.importWarningTotalCount = 2
+
+        XCTAssertEqual(viewModel.importWarningDisplayCount, 2)
+    }
+
+    func testDroppedItemWarningDoesNotExposeUnderlyingErrorDetails() {
+        let path = "/Users/editor/Private Footage/client/reel.mov"
+        let error = NSError(
+            domain: NSCocoaErrorDomain,
+            code: NSFileReadNoPermissionError,
+            userInfo: [
+                NSFilePathErrorKey: path,
+                NSLocalizedDescriptionKey: "The file at \(path) could not be opened."
+            ]
+        )
+
+        let warning = ImportWarning.droppedItem(error: error)
+
+        XCTAssertEqual(warning.title, "Dropped item")
+        XCTAssertFalse(warning.message.contains(path))
+        XCTAssertFalse(warning.message.contains("/Users/editor"))
+        XCTAssertFalse(warning.message.contains("Private Footage"))
+        XCTAssertFalse(warning.message.contains("could not be opened"))
+    }
+
+    func testImportWarningForAnalyzerFailureDoesNotExposeUnderlyingErrorDetails() {
+        let sourceURL = URL(fileURLWithPath: "/tmp/source.mov")
+        let path = "/Users/editor/Private Footage/client/source.mov"
+        let error = NSError(
+            domain: AVFoundationErrorDomain,
+            code: -11800,
+            userInfo: [
+                NSFilePathErrorKey: path,
+                NSLocalizedDescriptionKey: "Operation failed for \(path)"
+            ]
+        )
+
+        let warning = ImportWarning(sourceURL: sourceURL, error: error)
+
+        XCTAssertEqual(warning.title, "source.mov")
+        XCTAssertFalse(warning.message.contains(path))
+        XCTAssertFalse(warning.message.contains("/Users/editor"))
+        XCTAssertFalse(warning.message.contains("Private Footage"))
+        XCTAssertFalse(warning.message.contains("Operation failed"))
+    }
+
+    func testImportErrorDroppedItemsUnreadableDoesNotExposeUnderlyingErrorDetails() {
+        let description = ImportError.droppedItemsUnreadable(2).localizedDescription
+
+        XCTAssertTrue(description.contains("2 dropped items"))
+        XCTAssertFalse(description.contains("/Users/"))
+    }
+
+    func testRecordFileSelectionFailureClearsStaleImportWarnings() {
+        let viewModel = VideoImportViewModel()
+        viewModel.importWarnings = [
+            ImportWarning(title: "Dropped item", message: "Could not read one dropped item.")
+        ]
+        viewModel.importWarningTotalCount = 4
+        viewModel.statusMessage = "Import complete: 2 clips (4 files skipped)"
+
+        viewModel.recordFileSelectionFailure()
+
+        XCTAssertEqual(viewModel.importWarnings.count, 0)
+        XCTAssertEqual(viewModel.importWarningTotalCount, 0)
+        XCTAssertEqual(viewModel.statusMessage, "")
+        XCTAssertEqual(viewModel.error?.localizedDescription, ImportError.fileSelectionFailed.localizedDescription)
+    }
+
+    func testRecordFileSelectionFailureIgnoresUserCancellation() {
+        let viewModel = VideoImportViewModel()
+        viewModel.importWarnings = [
+            ImportWarning(title: "Dropped item", message: "Could not read one dropped item.")
+        ]
+        viewModel.importWarningTotalCount = 4
+        viewModel.statusMessage = "Import complete: 2 clips (4 files skipped)"
+
+        let recorded = viewModel.recordFileSelectionFailure(CocoaError(.userCancelled))
+
+        XCTAssertFalse(recorded)
+        XCTAssertEqual(viewModel.importWarnings.count, 1)
+        XCTAssertEqual(viewModel.importWarningTotalCount, 4)
+        XCTAssertEqual(viewModel.statusMessage, "Import complete: 2 clips (4 files skipped)")
+        XCTAssertNil(viewModel.error)
     }
 
     func testImportVideosStreaming_deduplicatesRepeatedSourceURLs() async throws {

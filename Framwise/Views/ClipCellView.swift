@@ -219,6 +219,7 @@ struct ClipCellView: View {
             .onDisappear {
                 isVisible = false
                 isAnimating = false
+                releaseThumbnailResources()
             }
             .onChange(of: clip.id) { _, _ in
                 loadThumbnails()
@@ -294,6 +295,15 @@ struct ClipCellView: View {
                 }
             }
         }
+    }
+
+    private func releaseThumbnailResources() {
+        loadTask?.cancel()
+        loadTask = nil
+        thumbnails = []
+        thumbnailError = nil
+        isLoading = false
+        currentThumbnailIndex = 0
     }
 }
 

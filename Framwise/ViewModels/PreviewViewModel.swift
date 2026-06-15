@@ -45,7 +45,9 @@ class PreviewViewModel: ObservableObject {
         // Seek to start, then begin playback once ready
         newPlayer.seek(to: startTime, toleranceBefore: CMTime(seconds: 0.1, preferredTimescale: 600), toleranceAfter: CMTime(seconds: 0.1, preferredTimescale: 600)) { [weak self, weak newPlayer] _ in
             guard let self, let newPlayer else { return }
-            self.playIfCurrent(newPlayer)
+            Task { @MainActor in
+                self.playIfCurrent(newPlayer)
+            }
         }
 
         duration = CMTimeGetSeconds(endTime) - CMTimeGetSeconds(startTime)
@@ -56,24 +58,26 @@ class PreviewViewModel: ObservableObject {
         let clipEndTime = clip.timecodeEnd
         timeObserver = newPlayer.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self, weak newPlayer] time in
             guard let self = self, let player = newPlayer else { return }
-            let currentSeconds = CMTimeGetSeconds(time)
-            let startSeconds = CMTimeGetSeconds(clipStartTime)
-            let endSeconds = CMTimeGetSeconds(clipEndTime)
+            Task { @MainActor in
+                let currentSeconds = CMTimeGetSeconds(time)
+                let startSeconds = CMTimeGetSeconds(clipStartTime)
+                let endSeconds = CMTimeGetSeconds(clipEndTime)
 
-            // Already on main queue — no Task needed
-            self.currentTime = currentSeconds - startSeconds
+                self.currentTime = currentSeconds - startSeconds
 
-            // Stop cleanly at the end of the clip and reset to the start frame.
-            if self.isPlaying && currentSeconds >= endSeconds {
-                player.pause()
-                self.isPlaying = false
-                player.seek(to: clipStartTime, toleranceBefore: .zero, toleranceAfter: .zero)
-                self.currentTime = 0
+                // Stop cleanly at the end of the clip and reset to the start frame.
+                if self.isPlaying && currentSeconds >= endSeconds {
+                    player.pause()
+                    self.isPlaying = false
+                    player.seek(to: clipStartTime, toleranceBefore: .zero, toleranceAfter: .zero)
+                    self.currentTime = 0
+                }
             }
         }
 
         // Observe player item status (ready or failed)
         playerItem.publisher(for: \.status)
+            .receive(on: RunLoop.main)
             .sink { [weak self] status in
                 switch status {
                 case .readyToPlay:

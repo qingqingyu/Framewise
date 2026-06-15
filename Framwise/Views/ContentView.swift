@@ -97,7 +97,17 @@ struct ContentView: View {
 
             Spacer(minLength: 12)
 
-            if importViewModel.isAnalyzing {
+            if importViewModel.isResolvingSources {
+                HStack(spacing: 8) {
+                    FramwiseLoadingIndicator(tint: FramwiseTheme.warning, diameter: 14)
+                    Text("Reading sources")
+                        .font(.framwiseMono(11))
+                        .foregroundStyle(FramwiseTheme.textMuted)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 9)
+                .framwisePanel(background: FramwiseTheme.surfaceRaised, radius: 16)
+            } else if importViewModel.isAnalyzing {
                 HStack(spacing: 8) {
                     FramwiseLoadingIndicator(tint: FramwiseTheme.warning, diameter: 14)
                     Text("\(importViewModel.clipsFoundCount) clips found")
@@ -185,26 +195,13 @@ struct ContentView: View {
     private func handleFileImport(result: Result<[URL], Error>) {
         switch result {
         case .success(let urls):
-            let (videoURLs, unsupported) = FileResolver.resolveVideoURLs(from: urls)
-            if !videoURLs.isEmpty {
-                importFiles(urls: videoURLs)
-            } else if !unsupported.isEmpty {
-                importViewModel.error = ImportError.unsupportedFiles(unsupported)
-            } else {
-                importViewModel.error = ImportError.noSupportedVideos
-            }
+            appState.importResolvedURLs(urls, into: importViewModel)
         case .failure(let error):
-            importViewModel.error = error
+            guard importViewModel.recordFileSelectionFailure(error) else { return }
             AppLogger.error(AppLogger.importFlow, "File importer failed", error: error, context: [
                 "surface": "toolbar"
             ])
         }
-    }
-
-    private func importFiles(urls: [URL]) {
-        guard !urls.isEmpty else { return }
-        appState.ensureSession()
-        importViewModel.importVideosStreaming(from: urls, into: appState.importSession!)
     }
 
     private func clearSession() {

@@ -8,3 +8,6 @@ All font choices, colors, spacing, motion, layout principles, and product aesthe
 Do not deviate from `DESIGN.md` without explicit user approval.
 
 When reviewing UI work or doing QA, flag any code that does not match `DESIGN.md`.
+
+## Engineering Quality
+Always follow `.agents/ENGINEERING_QUALITY_BASELINE.md` for code changes.

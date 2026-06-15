@@ -29,7 +29,7 @@ enum AppLogger {
     }
 
     static func error(_ logger: Logger, _ message: String, error: Error, context: [String: Any] = [:]) {
-        logger.error("\(message, privacy: .public) | context=\(contextDescription(context), privacy: .public) | error=\(String(reflecting: error), privacy: .public)")
+        logger.error("\(message, privacy: .public) | context=\(contextDescription(context), privacy: .public) | errorSummary=\(publicErrorSummary(error), privacy: .public) | error=\(String(reflecting: error), privacy: .private)")
     }
 
     static func durationMilliseconds(since start: Date) -> Int {
@@ -43,6 +43,11 @@ enum AppLogger {
     static func pathReference(_ path: String) -> String {
         let name = URL(fileURLWithPath: path).lastPathComponent
         return "\(name)#\(shortHash(path))"
+    }
+
+    static func publicErrorSummary(_ error: Error) -> String {
+        let nsError = error as NSError
+        return "type=\(String(reflecting: type(of: error))), domain=\(nsError.domain), code=\(nsError.code)"
     }
 
     private static func contextDescription(_ context: [String: Any]) -> String {
