@@ -209,7 +209,8 @@ Framwise/
 │   ├── VideoClip.swift                # 视频片段模型（时间码、废料类型、手动纠正、标签、相似组）
 │   ├── ImportSession.swift            # 导入会话管理（片段集合、自定义排序、废料纠正、标签 CRUD、相似组）
 │   ├── SimilarityGroup.swift          # 相似片段分组模型
-│   └── ClipTag.swift                  # 标签模型（名称、颜色）
+│   ├── ClipTag.swift                  # 标签模型（名称、颜色）
+│   └── FileAccessIssue.swift          # 文件访问问题模型（missing / unreadable / changed / videoLimitReached 等错误类型，导入与 session 恢复时上报）
 ├── ViewModels/
 │   ├── VideoImportViewModel.swift     # 导入+切割+废料检测+相似检测 流水线
 │   ├── ClipGridViewModel.swift        # 网格逻辑（搜索、过滤、排序、分组、隐藏废料）
