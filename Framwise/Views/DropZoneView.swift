@@ -16,47 +16,45 @@ struct DropZoneView: View {
     @State private var showFileImporter = false
 
     var body: some View {
-        VStack(spacing: 28) {
+        VStack(spacing: Layout.outerSpacing) {
             Spacer()
 
-            VStack(spacing: 20) {
+            VStack(spacing: Layout.headerSpacing) {
                 Text("Drop Video Files or Folders")
                     .font(.framwiseDisplay(42, weight: .semibold))
                     .foregroundStyle(FramwiseTheme.textPrimary)
                     .multilineTextAlignment(.center)
-                    .frame(maxWidth: 640)
+                    .frame(maxWidth: Layout.titleMaxWidth)
 
                 Text("Import footage first, then review, reject, tag, and hand off the clips worth keeping.")
                     .font(.framwiseUI(14))
                     .foregroundStyle(FramwiseTheme.textMuted)
                     .multilineTextAlignment(.center)
-                    .frame(maxWidth: 520)
+                    .frame(maxWidth: Layout.subtitleMaxWidth)
 
                 ZStack {
-                    RoundedRectangle(cornerRadius: 28, style: .continuous)
-                        .fill(FramwiseTheme.surface.opacity(0.88))
+                    RoundedRectangle(cornerRadius: Layout.dropZoneRadius, style: .continuous)
+                        .fill(FramwiseTheme.surface.opacity(Layout.surfaceFillOpacity))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                                .fill(FramwiseTheme.subtleHighlight.opacity(0.55))
+                            RoundedRectangle(cornerRadius: Layout.dropZoneRadius, style: .continuous)
+                                .fill(FramwiseTheme.subtleHighlight.opacity(Layout.highlightOverlayOpacity))
                         )
                         .overlay(
-                            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                                .strokeBorder(
-                                    style: StrokeStyle(lineWidth: 1.6, dash: [12, 8])
-                                )
+                            RoundedRectangle(cornerRadius: Layout.dropZoneRadius, style: .continuous)
+                                .strokeBorder(style: Layout.dropTargetStroke)
                                 .foregroundStyle(isTargeted ? FramwiseTheme.accent : FramwiseTheme.line)
                         )
-                        .frame(width: 580, height: 320)
+                        .frame(width: Layout.dropZoneSize.width, height: Layout.dropZoneSize.height)
 
                     VStack(spacing: 18) {
                         ZStack {
                             Circle()
                                 .fill(isTargeted ? FramwiseTheme.accentSoft : FramwiseTheme.surfaceRaised)
                             Image(systemName: "film.stack.fill")
-                                .font(.system(size: 30, weight: .semibold))
+                                .font(.framwiseDisplay(Layout.dropZoneSymbolSize, weight: .semibold))
                                 .foregroundStyle(isTargeted ? FramwiseTheme.accent : FramwiseTheme.warm)
                         }
-                        .frame(width: 74, height: 74)
+                        .frame(width: Layout.dropZoneIconSize, height: Layout.dropZoneIconSize)
 
                         VStack(spacing: 12) {
                             Text(isTargeted ? "Release to import" : "Ready for footage")
@@ -84,6 +82,7 @@ struct DropZoneView: View {
                     handleDrop(providers: providers)
                     return true
                 }
+                .animation(.easeInOut(duration: 0.15), value: isTargeted)
             }
 
             if importViewModel.isResolvingSources {
@@ -93,7 +92,8 @@ struct DropZoneView: View {
                     message: "Scanning selected files and folders before import.",
                     compact: true
                 )
-                .frame(maxWidth: 460)
+                .frame(maxWidth: Layout.statePanelMaxWidth)
+                .transition(.opacity.combined(with: .move(edge: .top)))
             } else if importViewModel.isImporting {
                 VStack(spacing: 14) {
                     if importViewModel.totalFilesCount > 1 {
@@ -109,7 +109,7 @@ struct DropZoneView: View {
                             }
                             FramwiseLinearProgress(value: importViewModel.importProgress, tint: FramwiseTheme.accent)
                         }
-                        .frame(width: 360)
+                        .frame(width: Layout.progressStripWidth)
                     }
 
                     if importViewModel.isAnalyzing {
@@ -126,7 +126,7 @@ struct DropZoneView: View {
                             }
                             FramwiseLinearProgress(value: importViewModel.analyzingProgress, tint: FramwiseTheme.warning)
                         }
-                        .frame(width: 360)
+                        .frame(width: Layout.progressStripWidth)
 
                         HStack(spacing: 8) {
                             Image(systemName: "film.fill")
@@ -144,7 +144,8 @@ struct DropZoneView: View {
                     }
                 }
                 .padding(18)
-                .framwisePanel(background: FramwiseTheme.surface, radius: 20)
+                .framwisePanel(background: FramwiseTheme.surface, radius: 18)
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
 
             VStack(spacing: 8) {
@@ -155,7 +156,8 @@ struct DropZoneView: View {
                         message: error.localizedDescription,
                         compact: true
                     )
-                    .frame(maxWidth: 460)
+                    .frame(maxWidth: Layout.statePanelMaxWidth)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
                 }
 
                 if !importViewModel.importWarnings.isEmpty {
@@ -166,7 +168,8 @@ struct DropZoneView: View {
                         systemImage: "exclamationmark.triangle.fill",
                         compact: true
                     )
-                    .frame(maxWidth: 460)
+                    .frame(maxWidth: Layout.statePanelMaxWidth)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
                 }
             }
 
@@ -174,6 +177,10 @@ struct DropZoneView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(FramwiseTheme.appGradient)
+        .animation(.easeInOut(duration: 0.3), value: importViewModel.isResolvingSources)
+        .animation(.easeInOut(duration: 0.3), value: importViewModel.isImporting)
+        .animation(.easeInOut(duration: 0.3), value: importViewModel.error != nil)
+        .animation(.easeInOut(duration: 0.3), value: importViewModel.importWarnings.isEmpty)
         .fileImporter(
             isPresented: $showFileImporter,
             allowedContentTypes: [.movie, .video, .mpeg4Movie, .quickTimeMovie, .folder],
@@ -190,14 +197,14 @@ struct DropZoneView: View {
             .font(.framwiseMono(10))
             .foregroundStyle(FramwiseTheme.textMuted)
             .padding(.horizontal, 9)
-            .padding(.vertical, 5)
+            .padding(.vertical, 4)
             .background(
                 Capsule(style: .continuous)
-                    .fill(FramwiseTheme.surfaceRaised.opacity(0.7))
+                    .fill(FramwiseTheme.surfaceRaised.opacity(Layout.chipFillOpacity))
             )
             .overlay(
                 Capsule(style: .continuous)
-                    .stroke(FramwiseTheme.line.opacity(0.65), lineWidth: 1)
+                    .stroke(FramwiseTheme.line.opacity(Layout.chipStrokeOpacity), lineWidth: 1)
             )
     }
 
@@ -230,6 +237,46 @@ struct DropZoneView: View {
         }
     }
 
+}
+
+// MARK: - Layout Constants
+
+/// Local layout tokens for DropZoneView.
+/// Sizes follow DESIGN.md spacing scale (8px base + intermediate 2/6/9/10/14/18/20)
+/// and radius scale (panel = 18). Opacity values are intentionally local since they
+/// model a one-off decorative translucency layer over `FramwiseTheme.subtleHighlight`.
+private enum Layout {
+    /// Outer VStack spacing — was 28 (off-scale), normalized to core scale `lg`.
+    static let outerSpacing: CGFloat = 24
+    /// Header VStack spacing between title / subtitle / drop card.
+    static let headerSpacing: CGFloat = 20
+
+    static let titleMaxWidth: CGFloat = 640
+    static let subtitleMaxWidth: CGFloat = 520
+
+    /// Drop card size — both dimensions divisible by 4.
+    static let dropZoneSize = CGSize(width: 580, height: 320)
+    /// Drop card radius — DESIGN.md `panel` token (was 28, off-scale).
+    static let dropZoneRadius: CGFloat = 18
+    /// Compound icon widget (Circle background + SF Symbol) — divisible by 4 (was 74, off-scale).
+    static let dropZoneIconSize: CGFloat = 72
+    /// SF Symbol font size inside the icon widget — preserves original 30/74 ≈ 0.4 proportion.
+    static let dropZoneSymbolSize: CGFloat = 30
+
+    /// Surface fill translucency over `appGradient` backdrop.
+    static let surfaceFillOpacity: Double = 0.88
+    /// Dampens the already-soft `subtleHighlight` gradient overlay.
+    static let highlightOverlayOpacity: Double = 0.55
+    /// Dashed drop target border. `lineWidth` normalized from 1.6 to 1.5.
+    static let dropTargetStroke = StrokeStyle(lineWidth: 1.5, dash: [12, 8])
+
+    static let statePanelMaxWidth: CGFloat = 460
+    static let progressStripWidth: CGFloat = 360
+
+    /// Chip background translucency.
+    static let chipFillOpacity: Double = 0.7
+    /// Chip border translucency.
+    static let chipStrokeOpacity: Double = 0.65
 }
 
 #Preview {
